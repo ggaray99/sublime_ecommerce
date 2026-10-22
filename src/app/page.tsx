@@ -5,11 +5,15 @@ import { categories } from "@/data/categories";
 import { productBySlug, products } from "@/data/products";
 import { priceLabel } from "@/lib/format";
 
-const heroProducts = ["pack-caos-grafico", "remera-ruido-visual", "calco-gato-mutante"]
+const heroProducts = ["pack-caos-grafico", "remera-ruido-visual", "sticker-gato-de-la-suerte-137"]
   .map((slug) => productBySlug(slug))
   .filter((product) => product !== undefined);
 
-const featured = products.filter((product) => product.featured).slice(0, 8);
+// Featured mix: catalog stickers first, then the rest of the product lines.
+const featured = [
+  ...products.filter((product) => product.featured && product.code).slice(0, 4),
+  ...products.filter((product) => product.featured && !product.code).slice(0, 4),
+];
 
 const applications = [
   { src: "/demo/editorial/laptop.webp", label: "Laptops", alt: "Stickers de demostración pegados en una laptop" },

@@ -10,10 +10,11 @@ const valid = { categories: categories.map((category) => category.id), themes: O
 const publicDir = join(import.meta.dirname, "..", "public");
 
 describe("catalog data", () => {
-  it("has between 16 and 24 original demo products plus 50 catalog stickers", () => {
+  it("sells only the 50 catalog stickers as individual stickers", () => {
     const original = products.filter((product) => !product.code);
     const fromCatalog = products.filter((product) => product.code);
-    assert.ok(original.length >= 16 && original.length <= 24, `found ${original.length}`);
+    assert.ok(original.length > 0, "keeps the demo packs, apparel, DTF, vinyl and custom products");
+    assert.ok(original.every((product) => product.category !== "stickers"));
     assert.equal(fromCatalog.length, 50);
     assert.equal(new Set(fromCatalog.map((product) => product.code)).size, 50);
     assert.ok(fromCatalog.every((product) => product.category === "stickers" && product.price !== null));

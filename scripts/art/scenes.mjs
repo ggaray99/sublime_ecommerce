@@ -363,16 +363,4 @@ export const scenes = {
       "Caja de envío con calcos de demostración aplicados",
     );
   },
-
-  categoryStickers() {
-    return svg(
-      `${background("violet")}
-      ${sticker(m("cosmicBeast"), 280, 300, 1.4, -10)}
-      ${sticker(m("mutantCat"), 540, 420, 1.3, 8)}
-      ${sticker(m("bolt"), 590, 180, 0.7, 14)}
-      ${sticker(m("ball"), 260, 590, 0.95, -6)}
-      ${brand("violet", "CALCOS Y STICKERS")}`,
-      "Selección de calcos de demostración",
-    );
-  },
 };

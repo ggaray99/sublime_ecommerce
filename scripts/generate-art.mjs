@@ -20,22 +20,24 @@ const assets = join(here, "art", "assets");
  */
 const mockup = (options) => ({ mockup: options });
 
+/** Grid of real stickers from the client catalog (public/catalogo/stickers). */
+async function renderCollage(codes) {
+  const gap = 24;
+  const tile = Math.floor((SIZE - gap * 4) / 3);
+  const tiles = await Promise.all(
+    codes.map((code) => sharp(join(here, "..", "public", "catalogo", "stickers", `${code}.webp`)).resize(tile, tile).toBuffer()),
+  );
+  return sharp({ create: { width: SIZE, height: SIZE, channels: 3, background: C.coal } }).composite(
+    tiles.map((input, index) => ({
+      input,
+      left: gap + (index % 3) * (tile + gap),
+      top: gap + Math.floor(index / 3) * (tile + gap),
+    })),
+  );
+}
+
 const images = {
   // Calcos y stickers
-  "products/calco-bestia-cosmica-1": scenes.stickerCover({ motif: "cosmicBeast", bg: "violet" }),
-  "products/calco-bestia-cosmica-2": scenes.stickerOnLaptop({ motif: "cosmicBeast" }),
-  "products/calco-gato-mutante-1": scenes.stickerCover({ motif: "mutantCat", bg: "coal", rot: 5 }),
-  "products/calco-gato-mutante-2": scenes.stickerOnBottle({ motif: "mutantCat", extra: "bolt" }),
-  "products/sticker-turbo-club-1": scenes.stickerCover({ motif: "car", bg: "cement", rot: -4, liner: true }),
-  "products/sticker-turbo-club-2": scenes.stickerOnHelmet({ motif: "car", bg: "violet" }),
-  "products/calco-ronin-neon-1": scenes.stickerCover({ motif: "ronin", bg: "plum", rot: 4 }),
-  "products/calco-ronin-neon-2": scenes.stickerOnLaptop({ motif: "ronin", extras: ["comet", "onigiri", ["wordBadge", "OTAKU", C.violet, C.white]] }),
-  "products/sticker-pelota-de-barrio-1": scenes.stickerCover({ motif: "ball", bg: "acid", rot: -7 }),
-  "products/sticker-pelota-de-barrio-2": scenes.stickerOnBottle({ motif: "ball", extra: "scarf", bg: "deep" }),
-  "products/calco-skate-fantasma-1": scenes.stickerCover({ motif: "skateGhost", bg: "violet", rot: 6, liner: true }),
-  "products/calco-skate-fantasma-2": scenes.stickerOnSkate({ motifs: ["skateGhost", "eye", "bolt"] }),
-  "products/sticker-casete-ruido-1": scenes.stickerCover({ motif: "cassette", bg: "dark", rot: -5 }),
-  "products/sticker-casete-ruido-2": scenes.stickerOnLaptop({ motif: "cassette", extras: ["record", "flame", "smiley"], bg: "acid" }),
 
   // Packs
   "products/pack-caos-grafico-1": scenes.packCover({
@@ -132,7 +134,7 @@ const images = {
   "products/etiquetas-para-tu-marca-2": scenes.packaging({}),
 
   // Categorías
-  "categories/stickers": scenes.categoryStickers(),
+  "categories/stickers": { collage: ["088", "137", "044", "146", "159", "153", "075", "090", "128"] },
   "categories/packs": scenes.spread({ bg: "acid", caption: "PACKS", motifs: ["controller", "ball", "ronin", "flame", "eye", "car", "pixelHeart", "comet"] }),
   "categories/indumentaria": mockup({ shirt: "black", view: "front", motif: "record", text: "SUBLIME", bg: "violet" }),
   "categories/dtf": scenes.dtfSheet({ bg: "deep", title: "DTF", motifs: ["bolt", "eye", "smiley", "flame", "planet", "rocket", "ufo", "comet", "robot", "cassette", "car", "skateGhost"] }),
@@ -191,7 +193,12 @@ let bytes = 0;
 for (const [name, content] of Object.entries(images)) {
   const file = join(root, `${name}.webp`);
   mkdirSync(dirname(file), { recursive: true });
-  const image = typeof content === "string" ? renderSvg(content) : await renderMockup(content.mockup);
+  const image =
+    typeof content === "string"
+      ? renderSvg(content)
+      : content.collage
+        ? await renderCollage(content.collage)
+        : await renderMockup(content.mockup);
   const info = await image.webp({ quality: 82 }).toFile(file);
   bytes += info.size;
 }
