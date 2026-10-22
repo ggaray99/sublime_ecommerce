@@ -10,8 +10,13 @@ const valid = { categories: categories.map((category) => category.id), themes: O
 const publicDir = join(import.meta.dirname, "..", "public");
 
 describe("catalog data", () => {
-  it("has between 16 and 24 demo products", () => {
-    assert.ok(products.length >= 16 && products.length <= 24, `found ${products.length}`);
+  it("has between 16 and 24 original demo products plus 50 catalog stickers", () => {
+    const original = products.filter((product) => !product.code);
+    const fromCatalog = products.filter((product) => product.code);
+    assert.ok(original.length >= 16 && original.length <= 24, `found ${original.length}`);
+    assert.equal(fromCatalog.length, 50);
+    assert.equal(new Set(fromCatalog.map((product) => product.code)).size, 50);
+    assert.ok(fromCatalog.every((product) => product.category === "stickers" && product.price !== null));
     assert.ok(products.every((product) => product.isDemo === true));
   });
 
@@ -29,7 +34,7 @@ describe("catalog data", () => {
   it("references local images that exist", () => {
     const sources = [...products.flatMap((product) => product.images.map((image) => image.src)), ...categories.map((c) => c.image)];
     for (const src of sources) {
-      assert.ok(src.startsWith("/demo/"), src);
+      assert.ok(src.startsWith("/demo/") || src.startsWith("/catalogo/"), src);
       assert.ok(existsSync(join(publicDir, src)), `missing ${src}`);
     }
   });
@@ -59,6 +64,13 @@ describe("filters", () => {
     assert.deepEqual(
       result.map((product) => product.slug),
       ["pack-tribuna"],
+    );
+  });
+
+  it("finds catalog stickers by their code", () => {
+    assert.deepEqual(
+      filterProducts(products, { ...defaultFilters, query: "088" }).map((product) => product.code),
+      ["088"],
     );
   });
 

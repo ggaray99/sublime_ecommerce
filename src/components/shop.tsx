@@ -91,7 +91,7 @@ export function Shop() {
             id={`${id}-q`}
             type="search"
             value={draft}
-            placeholder="Nombre o etiqueta: fútbol, anime, remera…"
+            placeholder="Nombre, etiqueta o código: flores, mate, 088…"
             onChange={(event) => onQueryChange(event.target.value)}
             autoComplete="off"
           />

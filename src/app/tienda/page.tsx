@@ -36,8 +36,8 @@ export default function TiendaPage() {
         }
       >
         <p>
-          {products.length} productos ficticios para probar la experiencia. Los precios son ilustrativos y no hay stock ni
-          ventas reales.
+          {products.length} productos para probar la experiencia: diseños demo y una selección del catálogo de stickers
+          (buscalos por código). Los precios son ilustrativos y no hay stock ni ventas reales.
         </p>
       </PageIntro>
       <Suspense fallback={<CatalogFallback />}>

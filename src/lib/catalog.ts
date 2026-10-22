@@ -91,7 +91,7 @@ export function filterProducts(products: readonly Product[], filters: CatalogFil
     if (filters.type === "estandar" && product.requiresQuote) return false;
     if (filters.type === "personalizado" && !product.requiresQuote) return false;
     if (!terms.length) return true;
-    const haystack = normalize(`${product.name} ${product.tags.join(" ")}`);
+    const haystack = normalize(`${product.name} ${product.tags.join(" ")} ${product.code ?? ""}`);
     return terms.every((term) => haystack.includes(term));
   });
 

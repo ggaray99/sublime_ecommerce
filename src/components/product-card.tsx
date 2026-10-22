@@ -29,7 +29,10 @@ export function ProductCard({ product, headingLevel = "h3", preload = false }: P
         </span>
       </Link>
       <div className="product-card__body">
-        <p className="product-card__category">{categoryById(product.category)?.label}</p>
+        <p className="product-card__category">
+          {categoryById(product.category)?.label}
+          {product.code && ` · Cód. ${product.code}`}
+        </p>
         <Heading className="product-card__title">
           <Link href={href}>{product.name}</Link>
         </Heading>

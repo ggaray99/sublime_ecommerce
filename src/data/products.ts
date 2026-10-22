@@ -1,6 +1,16 @@
 ﻿import type { CategoryId } from "./categories";
 
-export type ThemeId = "anime" | "futbol" | "gaming" | "motor" | "musica" | "grafico" | "espacio";
+export type ThemeId =
+  | "anime"
+  | "futbol"
+  | "gaming"
+  | "motor"
+  | "musica"
+  | "grafico"
+  | "espacio"
+  | "argentina"
+  | "naturaleza"
+  | "aventura";
 
 export type ProductImage = { src: string; alt: string };
 
@@ -21,6 +31,8 @@ export type Product = {
   requiresQuote: boolean;
   /** Material and usage notes. Illustrative until the business confirms them. */
   details: string[];
+  /** Ordering code from the client's printed sticker catalog, when the product comes from it. */
+  code?: string;
 };
 
 export const themes: Record<ThemeId, string> = {
@@ -31,6 +43,9 @@ export const themes: Record<ThemeId, string> = {
   musica: "Música y skate",
   grafico: "Gráfico y urbano",
   espacio: "Espacio",
+  argentina: "Argentina y Mendoza",
+  naturaleza: "Flores y naturaleza",
+  aventura: "Aventura y viajes",
 };
 
 const gallery = (slug: string, alts: string[]): ProductImage[] =>
@@ -72,7 +87,8 @@ const customDetails = [
   "En esta demo, la solicitud es una simulación local.",
 ];
 
-export const products: Product[] = [
+/** Original demo products with generated mockups. */
+const demoProducts: Product[] = [
   {
     id: "p01",
     slug: "calco-bestia-cosmica",
@@ -426,6 +442,105 @@ export const products: Product[] = [
     details: customDetails,
   },
 ];
+
+/**
+ * Selection of 50 stickers from the client's sticker catalog (PDF), loaded as a
+ * test. Designs with third-party brands, licensed characters, club crests or
+ * real people were left out. Prices are illustrative, like the rest of the demo.
+ * Images are the catalog's 300 px originals: replace with high-resolution files.
+ */
+type CatalogSection = { theme: ThemeId; tags: string[] };
+
+const catalogSections: Record<string, CatalogSection> = {
+  argentina: { theme: "argentina", tags: ["argentina", "mate"] },
+  aventura: { theme: "aventura", tags: ["aventura", "viajes"] },
+  flores: { theme: "naturaleza", tags: ["flores", "naturaleza"] },
+  random: { theme: "grafico", tags: ["random", "personajes"] },
+  mendoza: { theme: "argentina", tags: ["mendoza", "argentina"] },
+};
+
+const CATALOG_STICKER_PRICE = 1800;
+
+const catalogStickerList: [code: string, name: string, section: keyof typeof catalogSections][] = [
+  ["038", "Mano con mate", "argentina"],
+  ["039", "Tomá mate", "argentina"],
+  ["040", "Empanada", "argentina"],
+  ["041", "I love Argentina", "argentina"],
+  ["042", "Sol de Mayo", "argentina"],
+  ["043", "Love mate", "argentina"],
+  ["044", "Mate con bombilla", "argentina"],
+  ["047", "Ruta 40", "argentina"],
+  ["050", "Código Argentina", "argentina"],
+  ["051", "Bandera argentina", "argentina"],
+  ["073", "Good vibes", "aventura"],
+  ["074", "Fogón", "aventura"],
+  ["075", "Say yes to adventure", "aventura"],
+  ["076", "Explore", "aventura"],
+  ["077", "Go wild", "aventura"],
+  ["078", "Combi en el bosque", "aventura"],
+  ["080", "Mochila de viaje", "aventura"],
+  ["081", "Cerro nevado", "aventura"],
+  ["082", "Gerbera fucsia", "flores"],
+  ["084", "Margarita azul", "flores"],
+  ["085", "Rosa roja", "flores"],
+  ["086", "Flor rosa", "flores"],
+  ["087", "Margarita blanca", "flores"],
+  ["088", "Girasol", "flores"],
+  ["089", "Lavanda", "flores"],
+  ["090", "Mariposa azul", "flores"],
+  ["091", "Gatito entre flores", "flores"],
+  ["092", "Vaquita florida", "flores"],
+  ["094", "Mariposas monarca", "flores"],
+  ["096", "Tulipanes", "flores"],
+  ["128", "Dino corazón", "random"],
+  ["129", "Pancho", "random"],
+  ["131", "Sol radiante", "random"],
+  ["132", "Globo terráqueo", "random"],
+  ["135", "Abeja vida adulta", "random"],
+  ["137", "Gato de la suerte", "random"],
+  ["139", "Esqueleto y gato", "random"],
+  ["141", "Querubín", "random"],
+  ["142", "Gatita hongo", "random"],
+  ["145", "Smile derretido", "random"],
+  ["146", "Ojo turco", "random"],
+  ["153", "Cerezas", "random"],
+  ["154", "Mendoza x6", "mendoza"],
+  ["155", "Mapa de Mendoza", "mendoza"],
+  ["156", "Atardecer en Mendoza", "mendoza"],
+  ["157", "I love San Rafael", "mendoza"],
+  ["159", "Ruta 7 Mendoza", "mendoza"],
+  ["160", "Copa de vino", "mendoza"],
+  ["161", "Postal de Mendoza", "mendoza"],
+  ["162", "Montañas de Mendoza", "mendoza"],
+];
+
+const slugify = (text: string) =>
+  text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const catalogStickers: Product[] = catalogStickerList.map(([code, name, section]) => ({
+  id: `c${code}`,
+  slug: `sticker-${slugify(name)}-${code}`,
+  name: `Sticker ${name}`,
+  description: `Sticker del catálogo Sublime (código ${code}). Diseño troquelado para laptops, botellas y cuadernos.`,
+  category: "stickers",
+  theme: catalogSections[section].theme,
+  price: CATALOG_STICKER_PRICE,
+  images: [{ src: `/catalogo/stickers/${code}.webp`, alt: `Sticker ${name}, código ${code} del catálogo` }],
+  tags: [...catalogSections[section].tags, "catálogo"],
+  featured: false,
+  isDemo: true,
+  availableForDirectPurchase: true,
+  requiresQuote: false,
+  details: stickerDetails,
+  code,
+}));
+
+export const products: Product[] = [...demoProducts, ...catalogStickers];
 
 export const productBySlug = (slug: string): Product | undefined => products.find((product) => product.slug === slug);
 

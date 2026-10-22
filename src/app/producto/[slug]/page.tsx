@@ -64,6 +64,11 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             <span className="badge badge--violet">{product.price === null ? "Se cotiza a pedido" : "Precio demo"}</span>
           </p>
           <p className="product-detail__description">{product.description}</p>
+          {product.code && (
+            <p className="product-detail__code">
+              Código de catálogo: <strong>{product.code}</strong>
+            </p>
+          )}
 
           {product.availableForDirectPurchase ? (
             <AddToCartPanel productId={product.id} productName={product.name} />
