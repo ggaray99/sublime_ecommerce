@@ -1,18 +1,245 @@
-﻿const products = [
-  ["Stickers", "Pack sticker troquelado", "$ 8.900", "stickers", "Pack de muestra con corte personalizado."],
-  ["Remeras", "Remera sublimada", "$ 18.500", "shirt", "Prenda de ejemplo para diseÃ±os a todo color."],
-  ["DTF", "Plancha DTF A4", "$ 12.400", "dtf", "Transfer demostrativo listo para aplicar."],
-  ["Vinilos", "Vinilo adhesivo", "$ 7.600", "vinyl", "Corte de ejemplo para vidrieras y proyectos."],
+﻿import Image from "next/image";
+import Link from "next/link";
+import { ProductCard } from "@/components/product-card";
+import { categories } from "@/data/categories";
+import { productBySlug, products } from "@/data/products";
+import { priceLabel } from "@/lib/format";
+
+const heroProducts = ["pack-caos-grafico", "remera-ruido-visual", "calco-gato-mutante"]
+  .map((slug) => productBySlug(slug))
+  .filter((product) => product !== undefined);
+
+const featured = products.filter((product) => product.featured).slice(0, 8);
+
+const applications = [
+  { src: "/demo/editorial/laptop.webp", label: "Laptops", alt: "Stickers de demostración pegados en una laptop" },
+  { src: "/demo/editorial/botella.webp", label: "Botellas", alt: "Calcos de demostración en una botella térmica" },
+  { src: "/demo/editorial/casco.webp", label: "Cascos", alt: "Calco de demostración aplicado en un casco" },
+  { src: "/demo/editorial/packaging.webp", label: "Packaging", alt: "Caja de envío con calcos de demostración" },
+  { src: "/demo/editorial/remera.webp", label: "Remeras", alt: "Remera clara con estampa de demostración" },
 ];
-const categories = [["âœ¦", "Stickers", "Troquelados, laminados y a tu medida"], ["â—’", "Remeras", "SublimaciÃ³n para tu idea o tu marca"], ["â–¦", "DTF", "Color intenso para aplicar en prendas"], ["âŒ", "Vinilos", "GrÃ¡ficos que se adaptan a tus superficies"]];
 
-export default function Home() { return <main>
-  <header className="site-header"><a className="brand" href="#inicio" aria-label="Sublime, inicio">sub<span>lime</span><i>Â®</i></a><nav aria-label="NavegaciÃ³n principal"><a href="#categorias">CategorÃ­as</a><a href="#destacados">Destacados</a><a href="#presupuesto">PersonalizÃ¡</a></nav><button className="cart" type="button" disabled aria-label="Carrito demostrativo no disponible">Bolsa <b>0</b><em>Demo</em></button></header>
-  <section className="hero" id="inicio" aria-labelledby="hero-title"><div className="hero-copy"><p className="eyebrow">Hecho para dejar marca</p><h1 id="hero-title">Tu idea, en <span>modo tangible.</span></h1><p className="hero-description">Stickers, remeras, DTF y vinilos para proyectos que no pasan desapercibidos. Esta es una tienda demostrativa: todavÃ­a no procesa compras.</p><div className="hero-actions"><a className="button primary" href="#categorias">Explorar productos</a><a className="text-link" href="#presupuesto">Pedir presupuesto <span>â†—</span></a></div></div><div className="hero-art" aria-label="IlustraciÃ³n de productos personalizados" role="img"><div className="ripple r1"/><div className="ripple r2"/><div className="sheet">HOLA<br/><small>HOLA</small></div><div className="shirt-shape">âœ¦</div><div className="roll"/><div className="spark s1">âœ¦</div><div className="spark s2">âœ¦</div><div className="tag">HECHO A MEDIDA</div></div></section>
-  <section className="trust" aria-label="Propuesta de valor"><p>Ideas con identidad</p><span>â€¢</span><p>ProducciÃ³n personalizada</p><span>â€¢</span><p>AtenciÃ³n por presupuesto</p><span>â€¢</span><p>PrÃ³ximamente: editor visual</p></section>
-  <section className="section" id="categorias" aria-labelledby="categories-title"><div className="section-heading"><div><p className="eyebrow">ElegÃ­ tu soporte</p><h2 id="categories-title">Todo empieza con una buena superficie.</h2></div><a className="text-link" href="#destacados">Ver productos demo <span>â†—</span></a></div><div className="category-grid">{categories.map(([icon,title,text], index) => <article className={`category category-${index+1}`} key={title}><div className="category-icon" aria-hidden="true">{icon}</div><h3>{title}</h3><p>{text}</p><a href="#presupuesto">Consultar <span>â†’</span></a></article>)}</div></section>
-  <section className="section products" id="destacados" aria-labelledby="products-title"><div className="section-heading"><div><p className="eyebrow">Muestra de catÃ¡logo</p><h2 id="products-title">Productos para imaginar lo que sigue.</h2></div><p className="demo-note">Precios ficticios Â· Sin compra habilitada</p></div><div className="product-grid">{products.map(([category,name,price,art,description]) => <article className="product" key={name}><figure className={`product-visual ${art}`} aria-label={`Imagen ilustrativa de ${name}`}><span className="visual-label">Sublime<br/>Demo</span></figure><div className="product-details"><div><p>{category}</p><h3>{name}</h3></div><strong>{price}<small> demo</small></strong></div><p className="product-description">{description}</p><button type="button" disabled>PrÃ³ximamente</button></article>)}</div></section>
-  <section className="custom-section" id="presupuesto" aria-labelledby="custom-title"><div><p className="eyebrow">Tu proyecto, sin fÃ³rmula</p><h2 id="custom-title">Â¿TenÃ©s una idea distinta?<br/><span>La conversamos.</span></h2><p>Contanos material, cantidades y referencias. El canal de presupuestos se conectarÃ¡ en el prÃ³ximo hito.</p><button type="button" className="button primary" disabled>Presupuestos prÃ³ximamente</button></div><div className="custom-cards" aria-hidden="true"><div className="quote-card">01<span>Tu idea</span></div><div className="quote-card accent">02<span>Nuestra propuesta</span></div><div className="quote-card dark">03<span>Tu producto</span></div></div></section>
-  <footer><a className="brand" href="#inicio">sub<span>lime</span><i>Â®</i></a><div><a href="/nosotros">Nosotros</a><a href="/envios">EnvÃ­os</a><a href="/preguntas">Preguntas frecuentes</a></div><p>Â© 2026 Sublime. Sitio demostrativo.</p></footer>
-</main>; }
+const ticker = ["Calcos troquelados", "Packs", "Remeras", "Planchas DTF", "Vinilos", "Encargos a medida"];
 
+const processTracks = [
+  {
+    title: "Productos estándar",
+    note: "Calcos, packs, remeras, DTF y vinilos del catálogo.",
+    steps: ["Elegí tus diseños en la tienda.", "Sumalos al carrito demo y ajustá cantidades.", "Recorré el checkout simulado: no se cobra nada."],
+  },
+  {
+    title: "Personalizados",
+    note: "Stickers, etiquetas y prendas a partir de tu idea.",
+    steps: [
+      "Contanos qué querés, en qué formato y cuántos.",
+      "Se arma una propuesta con valores y tiempos (canal pendiente).",
+      "Aprobás la propuesta y se produce (proceso a definir).",
+    ],
+  },
+];
+
+export default function Home() {
+  return (
+    <main id="contenido">
+      <section className="hero" aria-labelledby="hero-title">
+        <div className="hero__copy">
+          <p className="kicker">Stickers / DTF / Vinilos / Remeras</p>
+          <h1 id="hero-title">
+            PEGÁ
+            <br />
+            <em>TU IDENTIDAD.</em>
+          </h1>
+          <p className="hero__lede">
+            Calcos troquelados, packs, remeras y productos a medida con diseños originales. Esta es una tienda demo: probá
+            el recorrido completo sin compras reales.
+          </p>
+          <div className="actions">
+            <Link className="btn btn--acid btn--lg" href="/tienda?categoria=stickers">
+              Explorar calcos
+            </Link>
+            <Link className="btn btn--ghost-light btn--lg" href="/encargos">
+              Ver personalizados →
+            </Link>
+          </div>
+        </div>
+
+        <div className="hero__stage">
+          {heroProducts.map((product, index) => (
+            <Link key={product.id} href={`/producto/${product.slug}`} className={`hero__item hero__item--${index + 1}`}>
+              <Image
+                src={product.images[0].src}
+                alt={product.images[0].alt}
+                width={800}
+                height={800}
+                sizes="(max-width: 899px) 60vw, 28vw"
+                preload={index === 0}
+              />
+              <span className="hero__label">
+                {product.name} <b>{priceLabel(product.price)}</b>
+              </span>
+            </Link>
+          ))}
+          <span className="hero__stamp" aria-hidden="true">
+            DISEÑOS
+            <br />
+            ORIGINALES
+          </span>
+        </div>
+      </section>
+
+      <div className="ticker" aria-hidden="true">
+        <div className="ticker__track">
+          {[0, 1].map((copy) => (
+            <span key={copy}>
+              {ticker.map((item) => (
+                <span key={item}>{item} ✦ </span>
+              ))}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <section id="categorias" className="section section--cement" aria-labelledby="categorias-title">
+        <div className="section__head">
+          <div>
+            <p className="kicker">Explorá por formato</p>
+            <h2 id="categorias-title">
+              HACÉ ESPACIO
+              <br />
+              PARA TU IDEA.
+            </h2>
+          </div>
+          <Link className="btn btn--coal" href="/categorias">
+            Todas las categorías
+          </Link>
+        </div>
+        <ul className="category-grid">
+          {categories.map((category, index) => (
+            <li key={category.id}>
+              <Link href={`/tienda?categoria=${category.id}`} className="category-card">
+                <span className="category-card__media">
+                  <Image src={category.image} alt="" width={800} height={800} sizes="(max-width: 559px) 100vw, (max-width: 1023px) 50vw, 33vw" />
+                </span>
+                <span className="category-card__body">
+                  <small>{String(index + 1).padStart(2, "0")}</small>
+                  <strong>{category.label}</strong>
+                  <span>{category.tagline}</span>
+                </span>
+                <span className="category-card__arrow" aria-hidden="true">
+                  →
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section id="destacados" className="section section--coal" aria-labelledby="destacados-title">
+        <div className="section__head">
+          <div>
+            <p className="kicker">Destacados demo</p>
+            <h2 id="destacados-title">
+              LO QUE PODÉS
+              <br />
+              <em>PEGAR HOY.</em>
+            </h2>
+          </div>
+          <Link className="btn btn--acid" href="/tienda">
+            Ver catálogo completo
+          </Link>
+        </div>
+        <p className="price-note">Precios ilustrativos en pesos argentinos. No hay stock ni ventas reales.</p>
+        <ul className="product-grid">
+          {featured.map((product) => (
+            <li key={product.id}>
+              <ProductCard product={product} />
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="section section--paper editorial" aria-labelledby="editorial-title">
+        <div className="editorial__intro">
+          <p className="kicker">Identidad gráfica</p>
+          <h2 id="editorial-title">
+            PEGALO
+            <br />
+            <em>EN TODO.</em>
+          </h2>
+          <p>
+            Cada diseño está pensado para vivir fuera de la pantalla: en la botella de todos los días, la tapa de la
+            notebook, el casco o la caja de un envío. Mockups digitales de demostración; la fotografía real llegará con el
+            catálogo definitivo.
+          </p>
+        </div>
+        <ul className="editorial__grid">
+          {applications.map((item, index) => (
+            <li key={item.src} className={`editorial__item editorial__item--${index + 1}`}>
+              <figure>
+                <Image src={item.src} alt={item.alt} width={800} height={800} sizes="(max-width: 767px) 50vw, 30vw" />
+                <figcaption>{item.label}</figcaption>
+              </figure>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="section section--plum custom-cta" aria-labelledby="custom-title">
+        <div>
+          <p className="kicker">Sin plantilla</p>
+          <h2 id="custom-title">
+            ¿TU IDEA NO
+            <br />
+            ENTRA EN UN
+            <br />
+            <em>CUADRADO?</em>
+          </h2>
+          <p>
+            Stickers con tu dibujo, etiquetas para tu emprendimiento, remeras para tu banda. Contanos el producto, la
+            cantidad aproximada y el formato que imaginás.
+          </p>
+          <ul className="check-list">
+            <li>Cualquier forma de troquel</li>
+            <li>Cantidades chicas o grandes</li>
+            <li>Referencias en texto o archivo</li>
+          </ul>
+          <Link className="btn btn--acid btn--lg" href="/encargos">
+            Simular un encargo
+          </Link>
+          <p className="fine-print">El formulario es una demo: no envía la solicitud a ningún negocio.</p>
+        </div>
+        <div className="custom-cta__art">
+          <Image
+            src="/demo/products/stickers-a-medida-1.webp"
+            alt="Ejemplo de un boceto convertido en sticker troquelado"
+            width={800}
+            height={800}
+            sizes="(max-width: 899px) 90vw, 40vw"
+          />
+        </div>
+      </section>
+
+      <section className="section section--cement" aria-labelledby="proceso-title">
+        <p className="kicker">Cómo funciona</p>
+        <h2 id="proceso-title">DOS CAMINOS.</h2>
+        <div className="process">
+          {processTracks.map((track) => (
+            <div key={track.title} className="process__track">
+              <h3>{track.title}</h3>
+              <p>{track.note}</p>
+              <ol>
+                {track.steps.map((step, index) => (
+                  <li key={step}>
+                    <span>0{index + 1}</span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </div>
+        <p className="fine-print">En esta demo no se procesan pedidos, pagos ni envíos.</p>
+      </section>
+    </main>
+  );
+}

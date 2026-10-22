@@ -1,3 +1,15 @@
-﻿import Link from 'next/link'
-export default function Page(){return <main className="info-page"><Link href="/">← Volver a Sublime</Link><p className="eyebrow">Información</p><h1>Sobre Sublime</h1><p>Sublime es una primera versión demostrativa de un ecommerce argentino de productos personalizados. La información comercial definitiva se incorporará antes del lanzamiento.</p></main>}
+﻿import type { Metadata } from "next";
+import { InfoPage } from "@/components/info-page";
+import { infoPages } from "@/data/site";
 
+const content = infoPages.nosotros;
+
+export const metadata: Metadata = {
+  title: content.title,
+  description: content.description,
+  alternates: { canonical: "/nosotros" },
+};
+
+export default function NosotrosPage() {
+  return <InfoPage content={content} />;
+}
