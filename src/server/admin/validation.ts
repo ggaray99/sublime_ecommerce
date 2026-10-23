@@ -1,4 +1,3 @@
-import { categories } from "../../data/categories.ts";
 import { themes } from "../../data/products.ts";
 import type { FieldErrors, Validated } from "../customers/validation.ts";
 
@@ -41,7 +40,7 @@ type Errors = Record<string, string>;
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SKU = /^[A-Z0-9][A-Z0-9-]{1,39}$/;
 const CATALOG_CODE = /^[0-9]{3,6}$/;
-const CATEGORY_IDS = new Set<string>(categories.map((category) => category.id));
+const CATEGORY_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 const str = (data: Data, key: string) => (typeof data[key] === "string" ? (data[key] as string).trim() : "");
 const bool = (value: unknown) => value === true || value === "on" || value === "true";
@@ -87,7 +86,8 @@ function parseContent(data: Data, errors: Errors): ProductContentInput {
   if (description.length > 2000) errors.description = "La descripción puede tener hasta 2000 caracteres.";
 
   const categoryId = str(data, "categoryId");
-  if (!CATEGORY_IDS.has(categoryId)) errors.categoryId = "Elegí una categoría.";
+  // Existence is enforced by the database (foreign key); here only the format.
+  if (!CATEGORY_ID.test(categoryId) || categoryId.length > 40) errors.categoryId = "Elegí una categoría.";
 
   const theme = str(data, "theme");
   if (!(theme in themes)) errors.theme = "Elegí una temática.";
@@ -182,4 +182,57 @@ export function parseStockCount(data: Data): Validated<StockCountInput> {
   else if (reason === "adjustment" && !note) errors.note = "Explicá el ajuste (por ejemplo: rotura, recuento).";
 
   return result({ onHand, reason, note }, errors);
+}
+
+export type CategoryInput = {
+  label: string;
+  tagline: string;
+  description: string;
+  sortOrder: number;
+  active: boolean;
+};
+export type CategoryCreateInput = CategoryInput & { id: string };
+
+function parseCategoryFields(data: Data, errors: Errors): CategoryInput {
+  const label = str(data, "label");
+  if (!label) errors.label = "Completá el nombre.";
+  else if (label.length > 80) errors.label = "El nombre puede tener hasta 80 caracteres.";
+
+  const tagline = str(data, "tagline");
+  if (tagline.length > 160) errors.tagline = "La bajada puede tener hasta 160 caracteres.";
+
+  const description = str(data, "description");
+  if (description.length > 1000) errors.description = "La descripción puede tener hasta 1000 caracteres.";
+
+  const rawOrder = data.sortOrder ?? "0";
+  const sortOrder = Number(typeof rawOrder === "string" ? rawOrder.trim() || "0" : rawOrder);
+  if (!Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder > 9999) errors.sortOrder = "Usá un número entero entre 0 y 9999.";
+
+  // Omitted means visible (API); forms always send "on" or "off".
+  const active = data.active === undefined ? true : bool(data.active);
+  return { label, tagline, description, sortOrder, active };
+}
+
+export function parseCategoryUpdate(data: Data): Validated<CategoryInput> {
+  const errors: Errors = {};
+  return result(parseCategoryFields(data, errors), errors);
+}
+
+/** The id is the category's public key (/tienda?categoria=…) and never changes after creation. */
+export function parseCategoryCreate(data: Data): Validated<CategoryCreateInput> {
+  const errors: Errors = {};
+  const fields = parseCategoryFields(data, errors);
+  const id = str(data, "id").toLowerCase() || slugify(fields.label).slice(0, 40).replace(/-+$/, "");
+  if (!CATEGORY_ID.test(id) || id.length > 40) errors.id = "Usá solo minúsculas, números y guiones (ej.: llaveros).";
+  return result({ id, ...fields }, errors);
+}
+
+export const MAX_IMAGE_ALT = 200;
+
+export function parseImageAlt(data: Data): Validated<{ alt: string }> {
+  const errors: Errors = {};
+  const alt = str(data, "alt");
+  if (!alt) errors.alt = "Describí la imagen (texto alternativo para lectores de pantalla).";
+  else if (alt.length > MAX_IMAGE_ALT) errors.alt = `Hasta ${MAX_IMAGE_ALT} caracteres.`;
+  return result({ alt }, errors);
 }

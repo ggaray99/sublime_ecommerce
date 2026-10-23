@@ -4,7 +4,7 @@ import { PageIntro } from "@/components/page-intro";
 import { ProductCard } from "@/components/product-card";
 import { Shop } from "@/components/shop";
 import type { Product } from "@/data/products";
-import { getStorefrontProducts } from "@/server/storefront";
+import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
   title: "Tienda",
@@ -26,7 +26,7 @@ function CatalogFallback({ products }: { products: Product[] }) {
 }
 
 export default async function TiendaPage() {
-  const products = await getStorefrontProducts();
+  const [products, categories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
   return (
     <main id="contenido" className="page">
       <PageIntro
@@ -43,7 +43,7 @@ export default async function TiendaPage() {
         </p>
       </PageIntro>
       <Suspense fallback={<CatalogFallback products={products} />}>
-        <Shop products={products} />
+        <Shop products={products} categories={categories} />
       </Suspense>
     </main>
   );

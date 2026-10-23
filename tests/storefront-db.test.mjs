@@ -8,7 +8,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { categories } from "../src/data/categories.ts";
 import { products, themes } from "../src/data/products.ts";
 import { defaultFilters, filterProducts, isOutOfStock } from "../src/lib/catalog.ts";
-import { listStorefrontProducts } from "../src/server/catalog/postgres-storefront.ts";
+import { listStorefrontCategories, listStorefrontProducts } from "../src/server/catalog/postgres-storefront.ts";
 
 const dbDir = join(import.meta.dirname, "..", "db");
 const sqlFiles = (folder) =>
@@ -20,6 +20,7 @@ const sqlFiles = (folder) =>
 const withoutStock = (product) => {
   const copy = { ...product };
   delete copy.stock;
+  delete copy.categoryLabel;
   return copy;
 };
 
@@ -39,6 +40,13 @@ describe("storefront catalog read from PostgreSQL (PGlite)", () => {
   it("returns exactly the static catalog, in the same order", () => {
     assert.equal(catalog.length, products.length);
     assert.deepEqual(catalog.map(withoutStock), products);
+  });
+
+  it("returns the static categories in the same order, and each product's category name", async () => {
+    assert.deepEqual(await listStorefrontCategories(query), categories);
+    for (const product of catalog) {
+      assert.equal(product.categoryLabel, categories.find((category) => category.id === product.category).label);
+    }
   });
 
   it("adds stock: seeded units for tracked products, null for made-to-order ones", () => {

@@ -4,10 +4,11 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ProductForm, StockForm } from "@/components/admin/forms";
+import { ImageManager } from "@/components/admin/image-manager";
 import {
   AdminUnavailable,
   AuditList,
-  categoryOptions,
+  loadCategoryOptions,
   productFormValues,
   productStatusLabel,
   stockLabel,
@@ -15,7 +16,8 @@ import {
 } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { AdminDataError } from "@/server/admin/repository";
-import { adminAvailable, getAdminRepository, getCurrentAdmin } from "@/server/admin/session";
+import { adminAvailable, getAdminRepository, getCurrentAdmin, getImageRepository } from "@/server/admin/session";
+import { hasBlobStorage } from "@/server/media/blob";
 
 export const metadata: Metadata = {
   title: "Editar producto",
@@ -44,10 +46,12 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
     if (error instanceof AdminDataError) notFound();
     throw error;
   });
-  const [movements, audit, query] = await Promise.all([
+  const [movements, audit, query, categoryOptions, images] = await Promise.all([
     repo.listMovements(id),
     repo.listAudit({ entityId: id, limit: 20 }),
     searchParams,
+    loadCategoryOptions(),
+    getImageRepository().listImages(id),
   ]);
 
   return (
@@ -78,6 +82,11 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
           categories={categoryOptions}
           themes={themeOptions}
         />
+      </section>
+
+      <section className="account__section" aria-labelledby="imagenes-title">
+        <h2 id="imagenes-title">Imágenes</h2>
+        <ImageManager product={product} images={images} uploadsEnabled={hasBlobStorage()} />
       </section>
 
       <section className="account__section" aria-labelledby="stock-title">

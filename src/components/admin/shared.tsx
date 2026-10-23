@@ -1,7 +1,7 @@
-import { categories } from "@/data/categories";
 import { themes } from "@/data/products";
 import { formatPrice } from "@/lib/format";
 import type { AdminProduct, AuditEntry } from "@/server/admin/repository";
+import { getCategoryRepository } from "@/server/admin/session";
 import type { ProductStatus } from "@/server/admin/validation";
 import type { Option, ProductFormValues } from "./forms";
 
@@ -11,7 +11,11 @@ export const productStatusLabel: Record<ProductStatus, string> = {
   archived: "Archivado",
 };
 
-export const categoryOptions: Option[] = categories.map((category) => ({ value: category.id, label: category.label }));
+/** Categories from the database, hidden ones marked, for the product form. */
+export async function loadCategoryOptions(): Promise<Option[]> {
+  const categories = await getCategoryRepository().listCategories();
+  return categories.map((category) => ({ value: category.id, label: category.active ? category.label : `${category.label} (oculta)` }));
+}
 export const themeOptions: Option[] = Object.entries(themes).map(([value, label]) => ({ value, label }));
 
 /** Formats centavos for the price input ("2500" or "2500,50"). */
@@ -76,6 +80,14 @@ function describe(entry: AuditEntry): string {
   const changes = entry.changes;
   if (entry.action === "inventory.count") return `Stock ${changes.before} → ${changes.after}${changes.note ? ` (${changes.note})` : ""}`;
   if (entry.action === "admin.grant") return `Acceso de administración: ${changes.email} como ${changes.role}`;
+  if (entry.action.startsWith("image.")) {
+    const verb = { add: "Imagen agregada", alt: "Texto de imagen actualizado", move: "Imagen reordenada", remove: "Imagen quitada" };
+    return verb[entry.action.slice(6) as keyof typeof verb] ?? entry.action;
+  }
+  if (entry.action.startsWith("category.")) {
+    const verb = { create: "Categoría creada", update: "Categoría actualizada", image: "Imagen de categoría actualizada", delete: "Categoría eliminada" };
+    return verb[entry.action.slice(9) as keyof typeof verb] ?? entry.action;
+  }
   if (entry.action === "product.create") return `Alta de "${changes.name}" (${productStatusLabel[changes.status as ProductStatus] ?? changes.status})`;
   if (entry.action === "product.update") {
     // Entries before 0004 stored { before: {...}, after: {...} } with status and price only.

@@ -1,4 +1,4 @@
-import type { CategoryId } from "../data/categories";
+import { categoryById, type CategoryId } from "../data/categories.ts";
 import type { Product, ThemeId } from "../data/products";
 
 export type ProductType = "estandar" | "personalizado";
@@ -123,3 +123,7 @@ export function relatedProducts(products: readonly Product[], product: Product, 
 
 /** True when the product tracks stock and none is available (database catalog only). */
 export const isOutOfStock = (product: Pick<Product, "stock">) => product.stock === 0;
+
+/** Category name: from the database when available, otherwise from the static list. */
+export const categoryLabelOf = (product: Pick<Product, "category" | "categoryLabel">) =>
+  product.categoryLabel ?? categoryById(product.category)?.label ?? product.category;

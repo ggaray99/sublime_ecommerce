@@ -36,6 +36,9 @@ export type AuditEntry = {
   createdAt: Date;
 };
 
+export type AuditEntity = "product" | "inventory" | "admin" | "category" | "integration";
+const AUDIT_ENTITY_ID = /^[a-z0-9-]{1,40}$/;
+
 export type ProductFilter = { query?: string; status?: ProductStatus };
 
 type AdminDataErrorCode = "not_found" | "untracked" | "below_reserved" | "conflict";
@@ -116,6 +119,9 @@ const isCheckViolation = (error: unknown) => (error as PgError)?.code === "23514
 /** Unique violations (slug, SKU, catalog code) become messages people can act on. */
 function conflictError(error: unknown): AdminDataError | null {
   const pg = error as PgError;
+  if (pg?.code === "23503" && `${pg.constraint ?? ""} ${pg.detail ?? ""}`.includes("category")) {
+    return new AdminDataError("not_found", "La categoría elegida no existe.");
+  }
   if (pg?.code !== "23505") return null;
   const where = `${pg.constraint ?? ""} ${pg.detail ?? ""}`;
   if (where.includes("slug")) return new AdminDataError("conflict", "Ya existe un producto con esa URL (slug).");
@@ -376,15 +382,16 @@ export function createAdminRepository(sql: QueryFn) {
       }));
     },
 
-    async listAudit(options: { entityId?: string; limit?: number } = {}): Promise<AuditEntry[]> {
-      if (options.entityId) assertProductId(options.entityId);
+    /** `entity` narrows ids shared by different kinds (a product and a category could both be "stickers"). */
+    async listAudit(options: { entity?: AuditEntity; entityId?: string; limit?: number } = {}): Promise<AuditEntry[]> {
+      if (options.entityId && !AUDIT_ENTITY_ID.test(options.entityId)) return [];
       const rows = (await sql.query(
         `SELECT id, actor_email, action, entity, entity_id, changes, created_at
          FROM audit_logs
-         WHERE ($1::text IS NULL OR entity_id = $1)
+         WHERE ($1::text IS NULL OR entity_id = $1) AND ($3::text IS NULL OR entity = $3)
          ORDER BY created_at DESC, id DESC
          LIMIT $2`,
-        [options.entityId ?? null, options.limit ?? 50],
+        [options.entityId ?? null, options.limit ?? 50, options.entity ?? null],
       )) as {
         id: string | number;
         actor_email: string;

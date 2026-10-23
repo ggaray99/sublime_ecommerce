@@ -1,8 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
-import { categories } from "@/data/categories";
-import { getStorefrontProducts } from "@/server/storefront";
+import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefront";
 import { priceLabel } from "@/lib/format";
 
 const heroSlugs = ["pack-caos-grafico", "remera-ruido-visual", "sticker-gato-de-la-suerte-137"];
@@ -35,7 +34,7 @@ const processTracks = [
 ];
 
 export default async function Home() {
-  const products = await getStorefrontProducts();
+  const [products, categories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
   const heroProducts = heroSlugs
     .map((slug) => products.find((product) => product.slug === slug))
     .filter((product) => product !== undefined);

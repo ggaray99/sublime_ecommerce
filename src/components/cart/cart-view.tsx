@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { MAX_QUANTITY } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
-import { categoryById } from "@/data/categories";
+import { categoryLabelOf } from "@/lib/catalog";
 import { cartActions, useCartSummary, useHydrated } from "./cart-store";
 import { QuantityStepper } from "./quantity-stepper";
 
@@ -47,7 +47,7 @@ export function CartView({ catalog }: { catalog: Product[] }) {
                 <Image src={product.images[0].src} alt="" width={160} height={160} />
               </Link>
               <div className="cart-item__info">
-                <p className="kicker">{categoryById(product.category)?.label}</p>
+                <p className="kicker">{categoryLabelOf(product)}</p>
                 <h3>
                   <Link href={`/producto/${product.slug}`}>{product.name}</Link>
                 </h3>

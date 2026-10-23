@@ -1,4 +1,5 @@
-export type CategoryId = "stickers" | "packs" | "indumentaria" | "dtf" | "vinilos" | "personalizados";
+/** Category ids are managed in the database (/admin/categorias); these are the original six. */
+export type CategoryId = string;
 
 export type Category = {
   id: CategoryId;

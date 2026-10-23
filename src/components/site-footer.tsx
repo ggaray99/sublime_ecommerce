@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { categories } from "@/data/categories";
 import { contact, infoNav, mainNav } from "@/data/site";
+import { getStorefrontCategories } from "@/server/storefront";
 import { BrandLogo } from "./brand-logo";
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const categories = await getStorefrontCategories();
   return (
     <footer className="site-footer">
       <div className="site-footer__brand">

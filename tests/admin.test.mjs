@@ -98,7 +98,7 @@ describe("admin validation (shared by the panel and the API)", () => {
   });
 
   it("rejects invalid content with a message per field", () => {
-    const result = parseProductCreate({ name: "", categoryId: "zapatos", theme: "x", catalogCode: "12", sku: "mal sku", initialStock: "-3" });
+    const result = parseProductCreate({ name: "", categoryId: "Zapatos!", theme: "x", catalogCode: "12", sku: "mal sku", initialStock: "-3" });
     assert.equal(result.ok, false);
     assert.deepEqual(Object.keys(result.errors).sort(), ["catalogCode", "categoryId", "initialStock", "name", "price", "sku", "slug", "theme"]);
   });

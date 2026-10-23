@@ -1,8 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { categoryById } from "@/data/categories";
 import type { Product } from "@/data/products";
-import { isOutOfStock } from "@/lib/catalog";
+import { categoryLabelOf, isOutOfStock } from "@/lib/catalog";
 import { priceLabel } from "@/lib/format";
 import { AddToCartButton } from "./cart/add-to-cart";
 
@@ -32,7 +31,7 @@ export function ProductCard({ product, headingLevel = "h3", preload = false }: P
       </Link>
       <div className="product-card__body">
         <p className="product-card__category">
-          {categoryById(product.category)?.label}
+          {categoryLabelOf(product)}
           {product.code && ` · Cód. ${product.code}`}
         </p>
         <Heading className="product-card__title">

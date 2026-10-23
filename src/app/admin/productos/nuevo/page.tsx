@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ProductForm } from "@/components/admin/forms";
-import { AdminUnavailable, categoryOptions, themeOptions } from "@/components/admin/shared";
+import { AdminUnavailable, loadCategoryOptions, themeOptions } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
 
@@ -18,6 +18,7 @@ async function NewProduct() {
   await connection();
   if (!adminAvailable()) return <AdminUnavailable />;
   if (!(await getCurrentAdmin())) notFound();
+  const categoryOptions = await loadCategoryOptions();
 
   return (
     <div className="account">
@@ -27,8 +28,8 @@ async function NewProduct() {
       <section className="account__section" aria-labelledby="nuevo-title">
         <h2 id="nuevo-title">Datos del producto</h2>
         <p className="muted">
-          Se crea en borrador salvo que elijas otro estado. Mientras no haya carga de fotos, la tienda muestra la imagen de
-          la categoría.
+          Se crea en borrador salvo que elijas otro estado. Después de crearlo vas a poder subir las fotos; mientras no
+          tenga, la tienda muestra la imagen de la categoría.
         </p>
         <ProductForm
           mode="create"
@@ -36,7 +37,7 @@ async function NewProduct() {
             name: "",
             slug: "",
             description: "",
-            categoryId: categoryOptions[0].value,
+            categoryId: categoryOptions[0]?.value ?? "",
             theme: themeOptions[0].value,
             tags: "",
             details: "",

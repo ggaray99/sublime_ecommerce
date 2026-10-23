@@ -1,4 +1,4 @@
-﻿import type { CategoryId } from "./categories";
+import type { CategoryId } from "./categories";
 
 export type ThemeId =
   | "anime"
@@ -20,6 +20,8 @@ export type Product = {
   name: string;
   description: string;
   category: CategoryId;
+  /** Category name from the database; the static catalog resolves it from src/data/categories. */
+  categoryLabel?: string;
   theme: ThemeId;
   /** Illustrative price in ARS. `null` means the product is quoted on request. */
   price: number | null;

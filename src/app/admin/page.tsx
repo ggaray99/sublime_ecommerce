@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable, AuditList, productStatusLabel, stockLabel } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { formatPrice } from "@/lib/format";
@@ -32,6 +33,7 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
 
   return (
     <div className="account">
+      <AdminNav current="productos" />
       <p className="muted">
         Sesión: {admin.email} · rol {admin.role === "owner" ? "dueño" : "editor"}
       </p>

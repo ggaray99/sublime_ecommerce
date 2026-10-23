@@ -4,9 +4,8 @@ import { notFound } from "next/navigation";
 import { AddToCartPanel } from "@/components/cart/add-to-cart";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
-import { categoryById } from "@/data/categories";
 import { themes, type Product } from "@/data/products";
-import { isOutOfStock, relatedProducts } from "@/lib/catalog";
+import { categoryLabelOf, isOutOfStock, relatedProducts } from "@/lib/catalog";
 import { priceLabel } from "@/lib/format";
 import { getStorefrontProduct, getStorefrontProducts } from "@/server/storefront";
 
@@ -48,7 +47,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
   const product = await getStorefrontProduct(slug);
   if (!product) notFound();
 
-  const category = categoryById(product.category);
+  const categoryLabel = categoryLabelOf(product);
   const related = relatedProducts(await getStorefrontProducts(), product);
 
   return (
@@ -59,7 +58,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             <Link href="/tienda">Tienda</Link>
           </li>
           <li>
-            <Link href={`/tienda?categoria=${product.category}`}>{category?.label}</Link>
+            <Link href={`/tienda?categoria=${product.category}`}>{categoryLabel}</Link>
           </li>
           <li aria-current="page">{product.name}</li>
         </ol>
@@ -70,7 +69,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
 
         <div className="product-detail__info">
           <p className="kicker">
-            {category?.label} · {themes[product.theme]}
+            {categoryLabel} · {themes[product.theme]}
           </p>
           <h1>{product.name}</h1>
           <p className="product-detail__price">

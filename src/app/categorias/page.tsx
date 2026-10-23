@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { PageIntro } from "@/components/page-intro";
-import { categories } from "@/data/categories";
-import { getStorefrontProducts } from "@/server/storefront";
+import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
   title: "Categorías",
@@ -12,11 +11,11 @@ export const metadata: Metadata = {
 };
 
 export default async function CategoriasPage() {
-  const products = await getStorefrontProducts();
+  const [products, categories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Formatos" title="CATEGORÍAS." tone="light">
-        <p>Seis maneras de llevar un diseño a un objeto. Todo el contenido es de demostración.</p>
+        <p>Distintas maneras de llevar un diseño a un objeto. Todo el contenido es de demostración.</p>
       </PageIntro>
       <ul className="category-list">
         {categories.map((category) => {

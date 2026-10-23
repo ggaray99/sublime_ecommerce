@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useId } from "react";
-import { countStockAction, createProductAction, updateProductAction, type AdminFormState } from "@/app/admin/actions";
+import { countStockAction, createProductAction, updateProductAction } from "@/app/admin/actions";
+import type { AdminFormState } from "@/server/admin/guard";
 
 export type Option = { value: string; label: string };
 
@@ -17,7 +18,7 @@ type FieldProps = {
   required?: boolean;
 };
 
-function Field({ name, label, state, defaultValue, hint, options, multiline, inputMode, required }: FieldProps) {
+export function Field({ name, label, state, defaultValue, hint, options, multiline, inputMode, required }: FieldProps) {
   const id = useId();
   const error = state.fields?.[name];
   const describedBy = [hint ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
@@ -55,7 +56,7 @@ function Field({ name, label, state, defaultValue, hint, options, multiline, inp
   );
 }
 
-function Checkbox({ name, label, defaultChecked, hint }: { name: string; label: string; defaultChecked: boolean; hint?: string }) {
+export function Checkbox({ name, label, defaultChecked, hint }: { name: string; label: string; defaultChecked: boolean; hint?: string }) {
   const id = useId();
   return (
     <div className="field field--check">
@@ -70,7 +71,7 @@ function Checkbox({ name, label, defaultChecked, hint }: { name: string; label: 
   );
 }
 
-function Status({ state }: { state: AdminFormState }) {
+export function Status({ state }: { state: AdminFormState }) {
   if (state.error) {
     return (
       <p className="form-alert" role="alert">

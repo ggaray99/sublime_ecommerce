@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { categories } from "@/data/categories";
+import type { Category } from "@/data/categories";
 import { themes, type Product } from "@/data/products";
 import {
   defaultFilters,
@@ -16,12 +16,12 @@ import {
 } from "@/lib/catalog";
 import { ProductCard } from "./product-card";
 
-const valid = { categories: categories.map((category) => category.id), themes: Object.keys(themes) };
 
-/** `products` comes from the server: the static catalog or its database overlay. */
-export function Shop({ products }: { products: Product[] }) {
+/** `products` and `categories` come from the server (database where connected). */
+export function Shop({ products, categories }: { products: Product[]; categories: Category[] }) {
+  const valid = useMemo(() => ({ categories: categories.map((category) => category.id), themes: Object.keys(themes) }), [categories]);
   const searchParams = useSearchParams();
-  const filters = useMemo(() => parseFilters(searchParams, valid), [searchParams]);
+  const filters = useMemo(() => parseFilters(searchParams, valid), [searchParams, valid]);
   const id = useId();
 
   // The search box keeps a local draft so typing never waits for the URL.
