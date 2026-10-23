@@ -7,6 +7,7 @@ import { ProductForm } from "@/components/admin/forms";
 import { AdminUnavailable, loadCategoryOptions, themeOptions } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
+import { hasBlobStorage } from "@/server/media/blob";
 
 export const metadata: Metadata = {
   title: "Nuevo producto",
@@ -28,8 +29,8 @@ async function NewProduct() {
       <section className="account__section" aria-labelledby="nuevo-title">
         <h2 id="nuevo-title">Datos del producto</h2>
         <p className="muted">
-          Se crea en borrador salvo que elijas otro estado. Después de crearlo vas a poder subir las fotos; mientras no
-          tenga, la tienda muestra la imagen de la categoría.
+          Se crea en borrador salvo que elijas otro estado. Podés subir la foto principal ahora y sumar más después;
+          sin fotos, la tienda muestra la imagen de la categoría.
         </p>
         <ProductForm
           mode="create"
@@ -48,6 +49,7 @@ async function NewProduct() {
           }}
           categories={categoryOptions}
           themes={themeOptions}
+          uploadsEnabled={hasBlobStorage()}
         />
       </section>
     </div>

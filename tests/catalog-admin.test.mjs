@@ -61,6 +61,12 @@ describe("categories and images on PostgreSQL (PGlite)", () => {
   });
   after(() => db.close());
 
+  it("uses the category image as thumbnail for products without photos", async () => {
+    await db.exec("DELETE FROM product_images WHERE product_id = (SELECT id FROM products WHERE legacy_id = 'p10')");
+    const product = await products.getProduct("p10");
+    assert.equal(product.coverUrl, (await categories.getCategory(product.categoryId)).imageUrl);
+  });
+
   it("lists the seeded categories with product counts", async () => {
     const list = await categories.listCategories();
     assert.equal(list.length, 6);
@@ -143,6 +149,7 @@ describe("categories and images on PostgreSQL (PGlite)", () => {
     );
     const product = (await listStorefrontProducts(query)).find((item) => item.id === "p08");
     assert.equal(product.images[0].src, uploaded.url);
+    assert.equal((await products.getProduct("p08")).coverUrl, uploaded.url, "admin list thumbnail follows the cover");
   });
 
   it("updates alt text and removes images closing the gap", async () => {

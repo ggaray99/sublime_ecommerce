@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -73,6 +74,9 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
           <table className="admin-table">
             <thead>
               <tr>
+                <th scope="col">
+                  <span className="visually-hidden">Imagen</span>
+                </th>
                 <th scope="col">Producto</th>
                 <th scope="col">SKU</th>
                 <th scope="col">Estado</th>
@@ -85,8 +89,19 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
                 const available = product.onHand - product.reserved;
                 return (
                   <tr key={product.id} className={product.trackStock && available <= LOW_STOCK ? "is-low" : undefined}>
+                    <td className="admin-table__thumb">
+                      <Image src={product.coverUrl} alt="" width={56} height={56} />
+                    </td>
                     <th scope="row">
                       <Link href={`/admin/productos/${product.id}`}>{product.name}</Link>
+                      {product.status === "active" && (
+                        <>
+                          {" · "}
+                          <Link href={`/producto/${product.slug}`} className="admin-table__store">
+                            Ver<span className="visually-hidden"> {product.name}</span> en la tienda
+                          </Link>
+                        </>
+                      )}
                     </th>
                     <td>{product.sku}</td>
                     <td>{productStatusLabel[product.status]}</td>

@@ -60,18 +60,27 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
         <Link href="/admin">← Volver a productos</Link>
       </p>
       <section className="account__section" aria-labelledby="producto-title">
-        <h2 id="producto-title">{product.name}</h2>
-        <p className="muted">
-          SKU {product.sku} · {productStatusLabel[product.status]} ·{" "}
+        <div className="account__head">
+          <h2 id="producto-title">{product.name}</h2>
           {product.status === "active" ? (
-            <Link href={`/producto/${product.slug}`}>Ver en la tienda</Link>
+            <Link className="btn btn--acid" href={`/producto/${product.slug}`}>
+              Ver en la tienda
+            </Link>
           ) : (
-            "No visible en la tienda"
+            <span className="badge badge--pending">No visible en la tienda ({productStatusLabel[product.status].toLowerCase()})</span>
           )}
+        </div>
+        <p className="muted">
+          SKU {product.sku} · {productStatusLabel[product.status]}
         </p>
         {query.creado && (
           <p className="panel panel--muted" role="status">
             Producto creado. {product.status === "draft" && "Está en borrador: publicalo cuando esté completo."}
+          </p>
+        )}
+        {query.imagen === "error" && (
+          <p className="form-alert" role="alert">
+            El producto se creó, pero no pudimos guardar la foto. Probá subirla de nuevo en la sección Imágenes.
           </p>
         )}
         <ProductForm

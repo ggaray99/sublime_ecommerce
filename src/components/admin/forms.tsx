@@ -71,6 +71,35 @@ export function Checkbox({ name, label, defaultChecked, hint }: { name: string; 
   );
 }
 
+const ACCEPT = "image/jpeg,image/png,image/webp";
+const HINT = "JPG, PNG o WebP, hasta 4 MB, entre 400 y 4000 px por lado.";
+
+export function FileField({ state }: { state: AdminFormState }) {
+  const id = useId();
+  const error = state.fields?.file;
+  return (
+    <div className="field">
+      <label htmlFor={id}>Archivo</label>
+      <p className="field__hint" id={`${id}-hint`}>
+        {HINT}
+      </p>
+      <input
+        id={id}
+        name="file"
+        type="file"
+        accept={ACCEPT}
+        aria-invalid={Boolean(error)}
+        aria-describedby={[`${id}-hint`, error ? `${id}-error` : ""].filter(Boolean).join(" ")}
+      />
+      {error && (
+        <p className="field__error" id={`${id}-error`}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function Status({ state }: { state: AdminFormState }) {
   if (state.error) {
     return (
@@ -124,10 +153,12 @@ type ProductFormProps = {
   initial: ProductFormValues;
   categories: Option[];
   themes: Option[];
+  /** Create mode: offer the first photo when image storage is available. */
+  uploadsEnabled?: boolean;
 };
 
 /** One form for creating and editing: content, price and status. */
-export function ProductForm({ mode, productId, requiresQuote = false, initial, categories, themes }: ProductFormProps) {
+export function ProductForm({ mode, productId, requiresQuote = false, initial, categories, themes, uploadsEnabled = false }: ProductFormProps) {
   const [state, action, pending] = useActionState(mode === "create" ? createProductAction : updateProductAction, {});
   const value = (key: keyof ProductFormValues) => state.values?.[key] ?? String(initial[key]);
   const featured = state.values ? state.values.featured === "on" : initial.featured;
@@ -168,25 +199,45 @@ export function ProductForm({ mode, productId, requiresQuote = false, initial, c
       <Checkbox name="featured" label="Destacado (aparece primero y en el inicio)" defaultChecked={featured} />
 
       {mode === "create" && (
-        <fieldset className="admin-fieldset">
-          <legend>Alta</legend>
-          <Checkbox
-            name="requiresQuote"
-            label="Producto a pedido (se cotiza, sin precio ni stock)"
-            defaultChecked={state.values?.requiresQuote === "on"}
-          />
-          <div className="form-grid">
-            <Field name="sku" label="SKU" state={state} defaultValue={state.values?.sku ?? ""} hint="Vacío = se genera automáticamente." />
-            <Field
-              name="initialStock"
-              label="Stock inicial"
-              state={state}
-              defaultValue={state.values?.initialStock ?? "0"}
-              hint="Unidades contadas. Queda registrado como conteo inicial."
-              inputMode="numeric"
+        <>
+          <fieldset className="admin-fieldset">
+            <legend>Alta</legend>
+            <Checkbox
+              name="requiresQuote"
+              label="Producto a pedido (se cotiza, sin precio ni stock)"
+              defaultChecked={state.values?.requiresQuote === "on"}
             />
-          </div>
-        </fieldset>
+            <div className="form-grid">
+              <Field name="sku" label="SKU" state={state} defaultValue={state.values?.sku ?? ""} hint="Vacío = se genera automáticamente." />
+              <Field
+                name="initialStock"
+                label="Stock inicial"
+                state={state}
+                defaultValue={state.values?.initialStock ?? "0"}
+                hint="Unidades contadas. Queda registrado como conteo inicial."
+                inputMode="numeric"
+              />
+            </div>
+          </fieldset>
+          <fieldset className="admin-fieldset">
+            <legend>Foto principal (opcional)</legend>
+            {uploadsEnabled ? (
+              <div className="form-grid">
+                <FileField state={state} />
+                <Field
+                  name="alt"
+                  label="Texto alternativo"
+                  state={state}
+                  defaultValue={state.values?.alt ?? ""}
+                  hint="Qué muestra la foto. Vacío = el nombre del producto."
+                />
+              </div>
+            ) : (
+              <p className="muted">La carga de imágenes no está configurada en este entorno.</p>
+            )}
+            <p className="field__hint">Después de crearlo podés sumar más fotos y elegir la portada.</p>
+          </fieldset>
+        </>
       )}
 
       <button type="submit" className="btn btn--coal" disabled={pending}>

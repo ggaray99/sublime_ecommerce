@@ -23,6 +23,8 @@ export type AdminProduct = {
   trackStock: boolean;
   onHand: number;
   reserved: number;
+  /** First image, or the category image when the product has none. */
+  coverUrl: string;
 };
 
 export type StockMovement = { id: string; deltaOnHand: number; reason: string; actor: string; note: string; createdAt: Date };
@@ -70,6 +72,7 @@ type ProductRow = {
   track_stock: boolean;
   on_hand: number | null;
   reserved: number | null;
+  cover_url: string | null;
 };
 
 const toProduct = (row: ProductRow): AdminProduct => ({
@@ -91,11 +94,16 @@ const toProduct = (row: ProductRow): AdminProduct => ({
   trackStock: row.track_stock,
   onHand: row.on_hand ?? 0,
   reserved: row.reserved ?? 0,
+  coverUrl: row.cover_url || "/demo/categories/stickers.webp",
 });
 
 const SELECT_PRODUCTS = `
   SELECT p.legacy_id, p.name, p.slug, p.description, p.category_id, p.theme, p.tags, p.details, p.featured,
-         p.catalog_code, v.sku, p.status, p.requires_quote, v.price_minor, v.track_stock, i.on_hand, i.reserved
+         p.catalog_code, v.sku, p.status, p.requires_quote, v.price_minor, v.track_stock, i.on_hand, i.reserved,
+         coalesce(
+           (SELECT im.url FROM product_images im WHERE im.product_id = p.id ORDER BY im.sort_order LIMIT 1),
+           nullif((SELECT c.image_url FROM categories c WHERE c.id = p.category_id), '')
+         ) AS cover_url
   FROM products p
   JOIN product_variants v ON v.product_id = p.id AND v.is_default
   LEFT JOIN inventory i ON i.variant_id = v.id`;

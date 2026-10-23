@@ -37,6 +37,10 @@ Reglas:
 - Quitar una imagen.
 - Hasta 12 imágenes por producto.
 
+**En el alta de producto:** foto principal opcional. Se valida antes de crear el producto, así un archivo inválido no deja un producto a medias. Si después falla solo el guardado de la foto, el producto queda creado y la página lo avisa.
+
+**En el listado de productos:** miniatura de cada producto (su portada, o la imagen de la categoría si no tiene fotos) y enlace "Ver en la tienda" para los publicados. En la edición, "Ver en la tienda" es un botón; si el producto no está publicado, se indica "No visible en la tienda".
+
 **En la categoría:** reemplazar su imagen. La anterior se borra si se había subido desde el panel.
 
 **Validación, siempre en el servidor:**
@@ -95,6 +99,8 @@ El historial de cada producto y de cada categoría los muestra en lenguaje simpl
 - Total del proyecto: **132 tests**. Lint, typecheck y los dos builds (staging y simulando producción) OK.
 - **Local contra staging:** inicio, tienda, categorías, ficha y carrito responden, y las categorías salen de la base.
 
+**Prueba en la preview (23/10/2026, con sesión de admin):** subir una foto a un producto, verla en la tienda y rechazo de una imagen demasiado chica. Funcionó.
+
 **Pendiente:**
-- Conectar Blob y probar en la preview: subir una foto, ponerla de portada y verla en la tienda.
+- Probar en la preview la foto en el alta y el cambio de portada.
 - Crear una categoría, asignarle un producto y ocultarla.

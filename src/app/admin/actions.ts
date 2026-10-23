@@ -8,19 +8,50 @@ import { deleteStoredImage, hasBlobStorage, storeImage } from "@/server/media/bl
 import { inspectImage } from "@/server/media/image-file";
 import type { ImageMove } from "@/server/admin/images-repository";
 
+/**
+ * Creates the product and, optionally, its first photo. The photo is validated
+ * before the product exists, so a bad file never leaves a half-created product;
+ * if only storing the photo fails, the product stays and the page says so.
+ */
 export async function createProductAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
   const admin = await requireAdmin();
   const values = formValues(form);
   const parsed = parseProductCreate(values);
   if (!parsed.ok) return { fields: parsed.errors, values };
+
+  const file = form.get("file");
+  const photo = file instanceof File && file.size && hasBlobStorage() ? new Uint8Array(await file.arrayBuffer()) : null;
+  let photoInfo: ReturnType<typeof inspectImage> | null = null;
+  if (photo) {
+    try {
+      photoInfo = inspectImage(photo);
+    } catch (error) {
+      return { ...dataError(error, values), fields: { file: (error as Error).message } };
+    }
+  }
+
   let productId: string;
   try {
     productId = (await getAdminRepository().createProduct(admin, parsed.value)).id;
   } catch (error) {
     return dataError(error, values);
   }
+
+  let photoFailed = false;
+  if (photo && photoInfo) {
+    let stored: { url: string; pathname: string } | null = null;
+    try {
+      stored = await storeImage(`productos/${productId}`, photo, photoInfo);
+      const alt = values.alt?.trim().slice(0, 200) || parsed.value.name;
+      await getImageRepository().addImage(admin, productId, { ...stored, alt, info: photoInfo });
+    } catch (error) {
+      console.warn("[admin] product created but its photo failed", { productId, error: (error as Error).message });
+      if (stored) await deleteStoredImage(stored.url);
+      photoFailed = true;
+    }
+  }
   catalogChanged();
-  redirect(`/admin/productos/${productId}?creado=1`);
+  redirect(`/admin/productos/${productId}?creado=1${photoFailed ? "&imagen=error" : ""}`);
 }
 
 export async function updateProductAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {

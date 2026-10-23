@@ -2482,3 +2482,21 @@ li:nth-child(3n) > .category-card .category-card__body {
     grid-template-columns: 1fr;
   }
 }
+
+.admin-table__thumb {
+  width: 72px;
+}
+
+.admin-table__thumb img {
+  display: block;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: 1px solid var(--black);
+  background: var(--light);
+}
+
+.admin-table__store {
+  font-weight: 400;
+  font-size: 14px;
+}
