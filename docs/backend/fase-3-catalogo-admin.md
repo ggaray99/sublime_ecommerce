@@ -14,7 +14,7 @@ Numeración según el roadmap de `docs/auditoria-tecnica-backend-v1.1.md` (secci
 | 3C · Contenido en la base, alta y edición completa de productos, capa de servicios | [fase-3c-contenido-en-la-base.md](fase-3c-contenido-en-la-base.md) | ✅ Staging |
 | 3D · CRUD de categorías | [fase-3d-3f-categorias-e-imagenes.md](fase-3d-3f-categorias-e-imagenes.md) | ✅ Staging |
 | 3E · API `/api/admin/v1` con API keys y operaciones masivas | [api-admin-v1.md](api-admin-v1.md) (contrato en revisión) | Pendiente |
-| 3F · Imágenes: subida validada (Vercel Blob) | [fase-3d-3f-categorias-e-imagenes.md](fase-3d-3f-categorias-e-imagenes.md) | ✅ Código listo · falta conectar el store a Preview/Development |
+| 3F · Imágenes: subida validada (Vercel Blob) | [fase-3d-3f-categorias-e-imagenes.md](fase-3d-3f-categorias-e-imagenes.md) | ✅ Staging (Blob conectado a Preview/Development) |
 | 3G · Variantes con SKU, precio y stock propios (talles) | — | Pendiente |
 
 ## Contra los criterios del documento
@@ -26,7 +26,7 @@ Numeración según el roadmap de `docs/auditoria-tecnica-backend-v1.1.md` (secci
 | Categorías | ✅ Alta, edición, ocultar, eliminar vacías e imagen. |
 | Variantes / SKU | ⚠️ SKU por producto. Variantes múltiples en 3G. |
 | Precio y stock | ✅ |
-| Imágenes | ✅ Subida, portada, orden, texto alternativo y quitar (falta conectar Blob). |
+| Imágenes | ✅ Subida, portada, orden, texto alternativo y quitar . |
 | Auditoría | ✅ |
 | Permisos en el backend | ✅ En cada acción. La API usará claves con permisos acotados (3E). |
 | Validación de subidas | ✅ Tipo real por bytes, tamaño y medidas (`tests/image-file.test.mjs`). |

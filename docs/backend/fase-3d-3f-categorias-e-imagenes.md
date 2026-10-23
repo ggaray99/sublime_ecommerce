@@ -2,7 +2,7 @@
 
 Estado:
 - **3D (categorías): activa en staging.** La migración 0005 está aplicada desde el 23/10/2026.
-- **3F (imágenes): código listo.** Solo falta conectar el store de Vercel Blob a Preview y Development. Hasta entonces el panel muestra "La carga de imágenes no está configurada en este entorno".
+- **3F (imágenes): activa en la preview.** El store de Vercel Blob quedó conectado a Preview y Development el 23/10/2026.
 
 Producción no cambia: sin base de datos sigue con el catálogo fijo, y Blob está apagado ahí por código.
 
@@ -26,7 +26,7 @@ Reglas:
 
 **Almacenamiento:**
 - Store público `sublime-staging-images` (`store_YhNSqnzTcWoSKzb6`), en la región gru1 (São Paulo).
-- Creado el 23/10/2026 y **sin conectar todavía**.
+- Creado y conectado a **Preview y Development** (no Production) el 23/10/2026.
 - Es público porque las fotos de la tienda se ven sin login.
 
 **En la edición de producto, sección "Imágenes":**
@@ -64,7 +64,7 @@ Reglas:
 
 1. Vercel → **Storage** → `sublime-staging-images` → **Connect Project** → `sublime-ecommerce`.
 2. Entornos: **solo Preview y Development**, no Production.
-3. Esto crea `BLOB_READ_WRITE_TOKEN` en el proyecto. Para probar en local, copiarla en `.env.local`.
+3. Esto crea `BLOB_STORE_ID` (no un token): en Vercel el SDK se autentica con el token OIDC de corta duración de cada función. Para probar en local hace falta `BLOB_STORE_ID` más `VERCEL_OIDC_TOKEN` (lo trae `vercel env pull` y vence en horas) o un `BLOB_READ_WRITE_TOKEN` clásico en `.env.local`.
 4. Volver a desplegar la rama para que la preview tome la variable.
 
 ## Auditoría

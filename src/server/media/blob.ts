@@ -5,9 +5,13 @@ import type { ImageInfo } from "./image-file.ts";
  * Image storage (Vercel Blob, public store). Like the database, it is off in
  * Vercel production unless SUBLIME_BLOB_IN_PRODUCTION=enabled, so a staging
  * store connected by mistake is never written from the public site.
+ *
+ * Credentials: stores connected to the project expose BLOB_STORE_ID and the SDK
+ * authenticates with the function's short-lived OIDC token; BLOB_READ_WRITE_TOKEN
+ * (classic token) also works, e.g. for local runs.
  */
 export function hasBlobStorage(env: NodeJS.ProcessEnv = process.env): boolean {
-  if (!env.BLOB_READ_WRITE_TOKEN) return false;
+  if (!env.BLOB_STORE_ID && !env.BLOB_READ_WRITE_TOKEN) return false;
   if (env.VERCEL_ENV === "production") return env.SUBLIME_BLOB_IN_PRODUCTION === "enabled";
   return true;
 }

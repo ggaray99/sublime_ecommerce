@@ -68,6 +68,8 @@ describe("Blob storage guard", () => {
   it("needs the token and stays off in production unless enabled", () => {
     assert.equal(hasBlobStorage({}), false);
     assert.equal(hasBlobStorage({ BLOB_READ_WRITE_TOKEN: "x", VERCEL_ENV: "preview" }), true);
+    assert.equal(hasBlobStorage({ BLOB_STORE_ID: "store_x", VERCEL_ENV: "preview" }), true, "OIDC-connected store");
+    assert.equal(hasBlobStorage({ BLOB_STORE_ID: "store_x", VERCEL_ENV: "production" }), false);
     assert.equal(hasBlobStorage({ BLOB_READ_WRITE_TOKEN: "x", VERCEL_ENV: "production" }), false);
     assert.equal(hasBlobStorage({ BLOB_READ_WRITE_TOKEN: "x", VERCEL_ENV: "production", SUBLIME_BLOB_IN_PRODUCTION: "enabled" }), true);
   });
