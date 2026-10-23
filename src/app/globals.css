@@ -2360,11 +2360,6 @@ li:nth-child(3n) > .category-card .category-card__body {
   border-bottom: 1px solid var(--black);
 }
 
-.stock-note-group {
-  display: grid;
-  gap: 4px;
-}
-
 .stock-note {
   margin: 0;
   font-weight: 800;
@@ -2381,4 +2376,12 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .stock-note--out::before {
   color: #c81e3a;
+}
+
+.product-card__out {
+  margin: 0;
+  padding: 10px 0;
+  font-weight: 800;
+  text-align: center;
+  border: 2px dashed currentColor;
 }

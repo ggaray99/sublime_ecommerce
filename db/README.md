@@ -23,4 +23,4 @@ Migraciones aplicadas en staging: `0001_catalog_inventory` (catálogo e inventar
 
 **Antes de migrar, crear una rama de backup en Neon.** Procedimiento completo: [docs/backend/backup-y-rollback.md](../docs/backend/backup-y-rollback.md).
 
-Detalle: [Fase 1](../docs/backend/fase-1-fundaciones.md) · [Fase 2](../docs/backend/fase-2-identidad.md) · [Fase 3](../docs/backend/fase-3-administracion.md).
+Detalle: [Fase 1](../docs/backend/fase-1-fundaciones.md) · [Fase 2](../docs/backend/fase-2-identidad.md) · [Fase 3](../docs/backend/fase-3-administracion.md) · [Fase 4](../docs/backend/fase-4-tienda-desde-la-base.md).

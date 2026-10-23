@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { PageIntro } from "@/components/page-intro";
 import { categories } from "@/data/categories";
-import { products } from "@/data/products";
+import { getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
   title: "Categorías",
@@ -11,7 +11,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/categorias" },
 };
 
-export default function CategoriasPage() {
+export default async function CategoriasPage() {
+  const products = await getStorefrontProducts();
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Formatos" title="CATEGORÍAS." tone="light">

@@ -1,15 +1,15 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { AddToCartPanel } from "@/components/cart/add-to-cart";
 import { ProductCard } from "@/components/product-card";
-import { ProductAvailability } from "@/components/product-availability";
 import { ProductGallery } from "@/components/product-gallery";
 import { categoryById } from "@/data/categories";
-import { productBySlug, products, themes } from "@/data/products";
+import { productBySlug, products, themes, type Product } from "@/data/products";
 import { relatedProducts } from "@/lib/catalog";
 import { priceLabel } from "@/lib/format";
+import { isOutOfStock } from "@/server/catalog/storefront";
+import { getStorefrontProduct, getStorefrontProducts } from "@/server/storefront";
 
 export function generateStaticParams() {
   return products.map((product) => ({ slug: product.slug }));
@@ -31,13 +31,26 @@ export async function generateMetadata({ params }: PageProps<"/producto/[slug]">
   };
 }
 
+/** Stock line, only where the database provides it (staging/previews). */
+function StockNote({ product }: { product: Product }) {
+  if (product.stock === undefined || product.requiresQuote) return null;
+  if (product.stock === null) return <p className="stock-note">Se fabrica a pedido.</p>;
+  if (product.stock === 0) return <p className="stock-note stock-note--out">Sin stock por ahora.</p>;
+  return (
+    <p className="stock-note stock-note--in">
+      Stock disponible: {product.stock} {product.stock === 1 ? "unidad" : "unidades"}
+    </p>
+  );
+}
+
 export default async function ProductPage({ params }: PageProps<"/producto/[slug]">) {
   const { slug } = await params;
-  const product = productBySlug(slug);
+  // Hidden (draft/archived) products disappear from the store as well.
+  const product = await getStorefrontProduct(slug);
   if (!product) notFound();
 
   const category = categoryById(product.category);
-  const related = relatedProducts(products, product);
+  const related = relatedProducts(await getStorefrontProducts(), product);
 
   return (
     <main id="contenido" className="page page--light">
@@ -65,9 +78,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             {priceLabel(product.price)}
             <span className="badge badge--violet">{product.price === null ? "Se cotiza a pedido" : "Precio demo"}</span>
           </p>
-          <Suspense fallback={null}>
-            <ProductAvailability productId={product.id} staticPriceMinor={product.price === null ? null : product.price * 100} />
-          </Suspense>
+          <StockNote product={product} />
           <p className="product-detail__description">{product.description}</p>
           {product.code && (
             <p className="product-detail__code">
@@ -75,7 +86,11 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             </p>
           )}
 
-          {product.availableForDirectPurchase ? (
+          {isOutOfStock(product) ? (
+            <div className="purchase purchase--quote">
+              <p>Este producto está sin stock. Volvé a consultar más adelante.</p>
+            </div>
+          ) : product.availableForDirectPurchase ? (
             <AddToCartPanel productId={product.id} productName={product.name} />
           ) : (
             <div className="purchase purchase--quote">
@@ -106,7 +121,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
           </section>
 
           <p className="fine-print">
-            Producto de demostración. No se informa stock, plazos de producción ni características técnicas definitivas.
+            Producto de demostración. Los plazos de producción y las características técnicas no son definitivos.
           </p>
         </div>
       </div>

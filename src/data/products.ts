@@ -33,6 +33,11 @@ export type Product = {
   details: string[];
   /** Ordering code from the client's printed sticker catalog, when the product comes from it. */
   code?: string;
+  /**
+   * Available units from the database (staging/previews). `null` = made to order;
+   * absent = unknown (static catalog, production today).
+   */
+  stock?: number | null;
 };
 
 export const themes: Record<ThemeId, string> = {

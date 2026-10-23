@@ -1,10 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { notFound } from "next/navigation";
 import { AdminDataError } from "@/server/admin/repository";
 import { getAdminRepository, getCurrentAdmin } from "@/server/admin/session";
 import { parseProductUpdate, parseStockCount } from "@/server/admin/validation";
+import { CATALOG_TAG } from "@/server/storefront";
 
 export type AdminFormState = {
   error?: string;
@@ -41,6 +42,7 @@ export async function updateProductAction(_state: AdminFormState, form: FormData
   } catch (error) {
     return dataError(error);
   }
+  updateTag(CATALOG_TAG);
   revalidatePath(`/admin/productos/${productId}`);
   return { ok: "Cambios guardados.", values };
 }
@@ -56,6 +58,7 @@ export async function countStockAction(_state: AdminFormState, form: FormData): 
   } catch (error) {
     return { ...dataError(error), values };
   }
+  updateTag(CATALOG_TAG);
   revalidatePath(`/admin/productos/${productId}`);
   return { ok: "Stock actualizado." };
 }

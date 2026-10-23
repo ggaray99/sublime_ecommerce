@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { categories } from "@/data/categories";
-import { products, themes } from "@/data/products";
+import { themes, type Product } from "@/data/products";
 import {
   defaultFilters,
   filterProducts,
@@ -18,7 +18,8 @@ import { ProductCard } from "./product-card";
 
 const valid = { categories: categories.map((category) => category.id), themes: Object.keys(themes) };
 
-export function Shop() {
+/** `products` comes from the server: the static catalog or its database overlay. */
+export function Shop({ products }: { products: Product[] }) {
   const searchParams = useSearchParams();
   const filters = useMemo(() => parseFilters(searchParams, valid), [searchParams]);
   const id = useId();
@@ -33,7 +34,7 @@ export function Shop() {
   }
 
   const view = useMemo(() => ({ ...filters, query: draft }), [filters, draft]);
-  const results = useMemo(() => filterProducts(products, view), [view]);
+  const results = useMemo(() => filterProducts(products, view), [products, view]);
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {

@@ -9,7 +9,7 @@ Estado: **activo en staging** (migración 0003 aplicada el 23/10/2026). Producci
 | `/admin` | Lista de productos con búsqueda (nombre, SKU o código de catálogo) y filtro por estado. Muestra precio y stock disponible; resalta los productos con 5 unidades o menos. Abajo, los últimos 10 cambios. |
 | `/admin/productos/[id]` | Cambiar precio y estado (publicado, borrador, archivado). Registrar un conteo de stock con motivo y nota. Ver movimientos de stock e historial de cambios del producto. |
 | `/cuenta` | Si la cuenta es de un administrador, muestra el enlace al panel. |
-| `/producto/[slug]` | En staging muestra el stock real y, si cambió, el precio vigente de la base. En producción no muestra nada nuevo. |
+| `/producto/[slug]` | En staging muestra el stock real y el precio de la base (ver Fase 4). En producción no muestra nada nuevo. |
 
 ## Decisiones
 
@@ -39,7 +39,7 @@ Estado: **activo en staging** (migración 0003 aplicada el 23/10/2026). Producci
 | Admin actual desde la sesión | `src/server/admin/session.ts` |
 | Acciones de servidor | `src/app/admin/actions.ts` |
 | Pantallas y componentes | `src/app/admin/*`, `src/components/admin/*` |
-| Stock en la ficha pública | `src/components/product-availability.tsx` |
+| Stock y precio en la tienda | `src/server/storefront.ts` (Fase 4) |
 | Script para dar permisos | `scripts/admin-grant.mjs` |
 
 ## Dar acceso a una persona
@@ -84,7 +84,7 @@ Verificación en local contra staging (23/10/2026):
 
 ## Fuera de alcance (próximas fases)
 
-- **Alta y baja de productos y categorías.** La tienda sigue mostrando el catálogo estático (`src/data`). Crear productos en la base no los haría aparecer en la tienda hasta que la tienda lea de la base.
+- **Alta y baja de productos y categorías.** Desde la Fase 4 la tienda toma de la base visibilidad, precio y stock, pero fotos y textos siguen en el código: un producto creado solo en la base no aparecería.
 - **Imágenes.** Subirlas requiere un almacenamiento (por ejemplo, Vercel Blob), que necesita aprobación.
 - **Variantes** (talles, materiales): el esquema las soporta, pero el panel edita solo la variante por defecto.
 - Gestión de administradores desde la web y quitar permisos con script.

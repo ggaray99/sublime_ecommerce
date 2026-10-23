@@ -1,5 +1,6 @@
 "use client";
 
+import type { Product } from "@/data/products";
 import Image from "next/image";
 import Link from "next/link";
 import { MAX_QUANTITY } from "@/lib/cart";
@@ -8,9 +9,9 @@ import { categoryById } from "@/data/categories";
 import { cartActions, useCartSummary, useHydrated } from "./cart-store";
 import { QuantityStepper } from "./quantity-stepper";
 
-export function CartView() {
+export function CartView({ catalog }: { catalog: Product[] }) {
   const hydrated = useHydrated();
-  const { items, count, subtotal } = useCartSummary();
+  const { items, count, subtotal } = useCartSummary(catalog);
 
   if (!hydrated) {
     return <p className="panel panel--muted">Cargando tu carrito demo…</p>;
@@ -51,6 +52,11 @@ export function CartView() {
                   <Link href={`/producto/${product.slug}`}>{product.name}</Link>
                 </h3>
                 <p className="muted">{formatPrice(product.price ?? 0)} c/u · precio demo</p>
+                {product.stock !== undefined && product.stock !== null && quantity > product.stock && (
+                  <p className="field__error">
+                    {product.stock === 0 ? "Sin stock por ahora." : `Solo quedan ${product.stock} unidades.`}
+                  </p>
+                )}
               </div>
               <div className="cart-item__controls">
                 <QuantityStepper

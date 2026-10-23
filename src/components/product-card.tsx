@@ -3,6 +3,7 @@ import Link from "next/link";
 import { categoryById } from "@/data/categories";
 import type { Product } from "@/data/products";
 import { priceLabel } from "@/lib/format";
+import { isOutOfStock } from "@/server/catalog/storefront";
 import { AddToCartButton } from "./cart/add-to-cart";
 
 type Props = { product: Product; headingLevel?: "h2" | "h3"; preload?: boolean };
@@ -26,6 +27,7 @@ export function ProductCard({ product, headingLevel = "h3", preload = false }: P
         <span className="product-card__badges">
           {product.featured && <span className="badge badge--acid">Destacado</span>}
           {product.requiresQuote && <span className="badge badge--violet">A medida</span>}
+          {isOutOfStock(product) && <span className="badge badge--pending">Sin stock</span>}
         </span>
       </Link>
       <div className="product-card__body">
@@ -41,7 +43,9 @@ export function ProductCard({ product, headingLevel = "h3", preload = false }: P
           <span className="product-card__demo">{product.price === null ? "demo" : "precio demo"}</span>
         </p>
         <div className="product-card__actions">
-          {product.availableForDirectPurchase ? (
+          {isOutOfStock(product) ? (
+            <p className="product-card__out">Sin stock por ahora</p>
+          ) : product.availableForDirectPurchase ? (
             <AddToCartButton productId={product.id} productName={product.name} />
           ) : (
             <Link className="btn btn--violet btn--block" href={`/encargos?producto=${product.slug}`}>

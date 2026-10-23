@@ -1,19 +1,11 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { categories } from "@/data/categories";
-import { productBySlug, products } from "@/data/products";
+import { getStorefrontProducts } from "@/server/storefront";
 import { priceLabel } from "@/lib/format";
 
-const heroProducts = ["pack-caos-grafico", "remera-ruido-visual", "sticker-gato-de-la-suerte-137"]
-  .map((slug) => productBySlug(slug))
-  .filter((product) => product !== undefined);
-
-// Featured mix: catalog stickers first, then the rest of the product lines.
-const featured = [
-  ...products.filter((product) => product.featured && product.code).slice(0, 4),
-  ...products.filter((product) => product.featured && !product.code).slice(0, 4),
-];
+const heroSlugs = ["pack-caos-grafico", "remera-ruido-visual", "sticker-gato-de-la-suerte-137"];
 
 const applications = [
   { src: "/demo/editorial/laptop.webp", label: "Laptops", alt: "Stickers de demostración pegados en una laptop" },
@@ -42,7 +34,17 @@ const processTracks = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const products = await getStorefrontProducts();
+  const heroProducts = heroSlugs
+    .map((slug) => products.find((product) => product.slug === slug))
+    .filter((product) => product !== undefined);
+  // Featured mix: catalog stickers first, then the rest of the product lines.
+  const featured = [
+    ...products.filter((product) => product.featured && product.code).slice(0, 4),
+    ...products.filter((product) => product.featured && !product.code).slice(0, 4),
+  ];
+
   return (
     <main id="contenido">
       <section className="hero" aria-labelledby="hero-title">

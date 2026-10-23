@@ -1,5 +1,6 @@
 "use client";
 
+import type { Product } from "@/data/products";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { formatPrice } from "@/lib/format";
@@ -11,9 +12,9 @@ const steps = [
   { title: "Pago", body: "No hay medios de pago integrados. Ningún dato de tarjeta se solicita ni se procesa." },
 ];
 
-export function CheckoutDemo() {
+export function CheckoutDemo({ catalog }: { catalog: Product[] }) {
   const hydrated = useHydrated();
-  const { items, count, subtotal } = useCartSummary();
+  const { items, count, subtotal } = useCartSummary(catalog);
   const [result, setResult] = useState<{ count: number; subtotal: number } | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 

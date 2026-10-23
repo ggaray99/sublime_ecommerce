@@ -1,9 +1,10 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageIntro } from "@/components/page-intro";
 import { ProductCard } from "@/components/product-card";
 import { Shop } from "@/components/shop";
-import { products } from "@/data/products";
+import type { Product } from "@/data/products";
+import { getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
   title: "Tienda",
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 /** Static fallback while the URL-driven filters load: the full catalog, unfiltered. */
-function CatalogFallback() {
+function CatalogFallback({ products }: { products: Product[] }) {
   return (
     <ul className="product-grid">
       {products.map((product) => (
@@ -24,7 +25,8 @@ function CatalogFallback() {
   );
 }
 
-export default function TiendaPage() {
+export default async function TiendaPage() {
+  const products = await getStorefrontProducts();
   return (
     <main id="contenido" className="page">
       <PageIntro
@@ -37,11 +39,11 @@ export default function TiendaPage() {
       >
         <p>
           {products.length} productos para probar la experiencia: diseños demo y una selección del catálogo de stickers
-          (buscalos por código). Los precios son ilustrativos y no hay stock ni ventas reales.
+          (buscalos por código). Los precios son ilustrativos y no hay ventas reales.
         </p>
       </PageIntro>
-      <Suspense fallback={<CatalogFallback />}>
-        <Shop />
+      <Suspense fallback={<CatalogFallback products={products} />}>
+        <Shop products={products} />
       </Suspense>
     </main>
   );

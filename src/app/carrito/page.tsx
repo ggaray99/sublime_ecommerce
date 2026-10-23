@@ -1,6 +1,7 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { CartView } from "@/components/cart/cart-view";
 import { PageIntro } from "@/components/page-intro";
+import { getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
   title: "Carrito demo",
@@ -8,7 +9,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/carrito" },
 };
 
-export default function CarritoPage() {
+export default async function CarritoPage() {
+  const catalog = await getStorefrontProducts();
   return (
     <main id="contenido" className="page">
       <PageIntro
@@ -21,7 +23,7 @@ export default function CarritoPage() {
       >
         <p>El carrito se guarda solo en este navegador y no contiene datos personales.</p>
       </PageIntro>
-      <CartView />
+      <CartView catalog={catalog} />
     </main>
   );
 }
