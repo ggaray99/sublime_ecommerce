@@ -83,4 +83,4 @@ Errores: `415` no JSON · `413` > 16 KB · `400` JSON inválido · `422` validac
 ## Pendiente
 
 - Conteo real de stock antes de cualquier venta.
-- Fase 2 (identidad/clientes) requiere elegir proveedor de autenticación.
+- Fase 2 (identidad/clientes): ver [fase-2-identidad.md](./fase-2-identidad.md). Backup y rollback: [backup-y-rollback.md](./backup-y-rollback.md).

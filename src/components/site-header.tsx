@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { mainNav } from "@/data/site";
+import { accountsAvailable } from "@/server/customers/session";
 import { BrandLogo } from "./brand-logo";
 import { CartLink } from "./cart/cart-link";
 import { MobileNav } from "./mobile-nav";
 
 export function SiteHeader() {
+  // The account link only appears where customer accounts are enabled (staging/previews today).
+  const links = accountsAvailable() ? [...mainNav, { href: "/cuenta", label: "Mi cuenta" }] : mainNav;
   return (
     <>
       <p className="demo-bar">
@@ -14,7 +17,7 @@ export function SiteHeader() {
         <BrandLogo />
         <nav className="site-nav" aria-label="Principal">
           <ul>
-            {mainNav.map((link) => (
+            {links.map((link) => (
               <li key={link.href}>
                 <Link href={link.href}>{link.label}</Link>
               </li>
@@ -23,7 +26,7 @@ export function SiteHeader() {
         </nav>
         <div className="site-header__actions">
           <CartLink />
-          <MobileNav links={mainNav} />
+          <MobileNav links={links} />
         </div>
       </header>
     </>

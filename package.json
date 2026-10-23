@@ -16,6 +16,7 @@
     "test:db": "node --env-file-if-exists=.env.local --test tests/db-integration.test.mjs"
   },
   "dependencies": {
+    "@neondatabase/auth": "^0.7.0-beta",
     "@neondatabase/serverless": "^1.0.2",
     "next": "16.4.2",
     "react": "19.3.0",

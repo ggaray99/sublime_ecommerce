@@ -21,6 +21,14 @@ npm.cmd run build
 
 `npm.cmd test` runs the domain unit tests (catalog filters, cart, quote validation, price format) with Node's built-in test runner; no extra dependencies.
 
+## Backend (staging only)
+Production remains a static, guest-only demo. Preview and Development deployments use:
+- Neon PostgreSQL (`sublime-staging`) for catalog, stock and customers — see `db/README.md`.
+- Neon Auth for customer accounts (`/cuenta`).
+- `POST /api/cart/quote` to recompute carts on the server.
+
+Docs: `docs/backend/fase-1-fundaciones.md`, `docs/backend/fase-2-identidad.md`, `docs/backend/backup-y-rollback.md`.
+
 ## Brand system
 Implemented from the client's branding kit:
 - Colors: black `#000000` (backgrounds, header, dark panels), white `#FFFFFF` (text on dark, light cards) and cyan `#35BDF2` (main buttons, links, active states, indicators). Cyan is never used as text on light surfaces (insufficient contrast); there it becomes a fill or underline marker.
