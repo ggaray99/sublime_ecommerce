@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { categories } from "../src/data/categories.ts";
 import { products } from "../src/data/products.ts";
-import { buildImportPlan, renderSeedSql } from "../src/server/catalog/import-plan.ts";
+import { buildImportPlan, renderContentSql, renderSeedSql } from "../src/server/catalog/import-plan.ts";
 
 const plan = buildImportPlan(categories, products);
 
@@ -25,7 +25,8 @@ if (plan.errors.length) {
   process.exit(1);
 }
 
-const out = join(dirname(fileURLToPath(import.meta.url)), "..", "db", "seed", "0001_catalog_seed.sql");
-mkdirSync(dirname(out), { recursive: true });
-writeFileSync(out, renderSeedSql(plan));
-console.log(`\nSin problemas. Seed generado para revisión: db/seed/0001_catalog_seed.sql`);
+const seedDir = join(dirname(fileURLToPath(import.meta.url)), "..", "db", "seed");
+mkdirSync(seedDir, { recursive: true });
+writeFileSync(join(seedDir, "0001_catalog_seed.sql"), renderSeedSql(plan));
+writeFileSync(join(seedDir, "0002_catalog_content.sql"), renderContentSql(categories, products));
+console.log(`\nSin problemas. Seeds generados para revisión: db/seed/0001_catalog_seed.sql y 0002_catalog_content.sql`);

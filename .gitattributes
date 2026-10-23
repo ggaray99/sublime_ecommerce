@@ -1,0 +1,2 @@
+# Migrations and seeds are checksummed by scripts/db-migrate.mjs: keep them byte-stable.
+*.sql text eol=lf

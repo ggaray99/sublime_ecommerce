@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { categoryById } from "@/data/categories";
 import type { Product } from "@/data/products";
+import { isOutOfStock } from "@/lib/catalog";
 import { priceLabel } from "@/lib/format";
-import { isOutOfStock } from "@/server/catalog/storefront";
 import { AddToCartButton } from "./cart/add-to-cart";
 
 type Props = { product: Product; headingLevel?: "h2" | "h3"; preload?: boolean };

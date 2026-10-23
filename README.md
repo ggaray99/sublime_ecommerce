@@ -1,4 +1,4 @@
-﻿# Sublime Ecommerce
+# Sublime Ecommerce
 
 First functional version of a demo storefront for custom stickers, sublimated T-shirts, DTF and vinyl in Argentina.
 
@@ -27,7 +27,7 @@ Production remains a static, guest-only demo. Preview and Development deployment
 - Neon Auth for customer accounts (`/cuenta`).
 - `POST /api/cart/quote` to recompute carts on the server.
 
-Docs: `docs/backend/fase-1-fundaciones.md`, `docs/backend/fase-2-identidad.md`, `docs/backend/fase-3-administracion.md`, `docs/backend/fase-4-tienda-desde-la-base.md`, `docs/backend/backup-y-rollback.md`.
+Docs: `docs/backend/fase-1-fundaciones.md`, `docs/backend/fase-2-identidad.md`, `docs/backend/fase-3-catalogo-admin.md` (índice de 3A, 3B y 3C), `docs/backend/api-admin-v1.md`, `docs/backend/backup-y-rollback.md`.
 
 ## Brand system
 Implemented from the client's branding kit:

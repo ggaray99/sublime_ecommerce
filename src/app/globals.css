@@ -2385,3 +2385,33 @@ li:nth-child(3n) > .category-card .category-card__body {
   text-align: center;
   border: 2px dashed currentColor;
 }
+
+.field--check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.field--check input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--black);
+}
+
+.field--check .field__hint {
+  flex-basis: 100%;
+}
+
+.admin-fieldset {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 16px;
+  border: 2px dashed var(--black);
+}
+
+.admin-fieldset legend {
+  padding: 0 6px;
+  font-weight: 800;
+}

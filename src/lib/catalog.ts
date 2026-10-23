@@ -120,3 +120,6 @@ export function relatedProducts(products: readonly Product[], product: Product, 
     .slice(0, limit)
     .map((entry) => entry.candidate);
 }
+
+/** True when the product tracks stock and none is available (database catalog only). */
+export const isOutOfStock = (product: Pick<Product, "stock">) => product.stock === 0;

@@ -4,7 +4,15 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ProductForm, StockForm } from "@/components/admin/forms";
-import { AdminUnavailable, AuditList, productStatusLabel, stockLabel } from "@/components/admin/shared";
+import {
+  AdminUnavailable,
+  AuditList,
+  categoryOptions,
+  productFormValues,
+  productStatusLabel,
+  stockLabel,
+  themeOptions,
+} from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { AdminDataError } from "@/server/admin/repository";
 import { adminAvailable, getAdminRepository, getCurrentAdmin } from "@/server/admin/session";
@@ -21,11 +29,9 @@ const REASON_LABEL: Record<string, string> = {
   sale: "Venta",
 };
 
-/** Formats centavos for the price input ("2500" or "2500,50"). */
-const priceInput = (minor: number | null) =>
-  minor === null ? "" : minor % 100 ? `${Math.floor(minor / 100)},${String(minor % 100).padStart(2, "0")}` : String(minor / 100);
+type Props = PageProps<"/admin/productos/[id]">;
 
-async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[id]">["params"] }) {
+async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "searchParams">) {
   // Always request-time: also keeps the route dynamic where the panel is disabled.
   await connection();
   if (!adminAvailable()) return <AdminUnavailable />;
@@ -38,7 +44,11 @@ async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[i
     if (error instanceof AdminDataError) notFound();
     throw error;
   });
-  const [movements, audit] = await Promise.all([repo.listMovements(id), repo.listAudit({ entityId: id, limit: 20 })]);
+  const [movements, audit, query] = await Promise.all([
+    repo.listMovements(id),
+    repo.listAudit({ entityId: id, limit: 20 }),
+    searchParams,
+  ]);
 
   return (
     <div className="account">
@@ -49,13 +59,24 @@ async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[i
         <h2 id="producto-title">{product.name}</h2>
         <p className="muted">
           SKU {product.sku} · {productStatusLabel[product.status]} ·{" "}
-          <Link href={`/producto/${product.slug}`}>Ver en la tienda</Link>
+          {product.status === "active" ? (
+            <Link href={`/producto/${product.slug}`}>Ver en la tienda</Link>
+          ) : (
+            "No visible en la tienda"
+          )}
         </p>
+        {query.creado && (
+          <p className="panel panel--muted" role="status">
+            Producto creado. {product.status === "draft" && "Está en borrador: publicalo cuando esté completo."}
+          </p>
+        )}
         <ProductForm
+          mode="edit"
           productId={product.id}
-          price={priceInput(product.priceMinor)}
-          status={product.status}
           requiresQuote={product.requiresQuote}
+          initial={productFormValues(product)}
+          categories={categoryOptions}
+          themes={themeOptions}
         />
       </section>
 
@@ -103,14 +124,14 @@ async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[i
   );
 }
 
-export default function AdminProductPage({ params }: PageProps<"/admin/productos/[id]">) {
+export default function AdminProductPage({ params, searchParams }: Props) {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="EDITAR PRODUCTO." tone="light">
         <p>Entorno de prueba: los cambios se guardan en la base de staging y quedan registrados.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando el producto…</p>}>
-        <ProductAdmin params={params} />
+        <ProductAdmin params={params} searchParams={searchParams} />
       </Suspense>
     </main>
   );

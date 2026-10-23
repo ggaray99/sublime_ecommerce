@@ -30,11 +30,20 @@ const files = [
     .filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name))
     .sort()
     .map((name) => ({ name: `migrations/${name}`, path: join(root, "migrations", name) })),
-  ...(args.has("--seed") ? [{ name: "seed/0001_catalog_seed.sql", path: join(root, "seed", "0001_catalog_seed.sql") }] : []),
+  ...(args.has("--seed")
+    ? readdirSync(join(root, "seed"))
+        .filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name))
+        .sort()
+        .map((name) => ({ name: `seed/${name}`, path: join(root, "seed", name) }))
+    : []),
 ].map((file) => {
-  const sql = readFileSync(file.path, "utf8");
+  // Checksums ignore line endings: Git on Windows may rewrite LF as CRLF on checkout.
+  const sql = readFileSync(file.path, "utf8").replace(/\r\n/g, "\n");
   if (/^\s*(BEGIN|COMMIT|ROLLBACK)\s*;/im.test(sql)) fail(`${file.name} no debe manejar su propia transacción.`);
-  return { ...file, sql, checksum: createHash("sha256").update(sql).digest("hex") };
+  const checksum = createHash("sha256").update(sql).digest("hex");
+  // Files applied before this normalization may have been hashed with CRLF.
+  const crlfChecksum = createHash("sha256").update(sql.replace(/\n/g, "\r\n")).digest("hex");
+  return { ...file, sql, checksum, accepted: new Set([checksum, crlfChecksum]) };
 });
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -51,7 +60,7 @@ try {
 
   for (const [name, checksum] of applied) {
     const file = files.find((candidate) => candidate.name === name);
-    if (file && file.checksum !== checksum) fail(`${name} cambió después de aplicarse. Creá una migración nueva.`);
+    if (file && !file.accepted.has(checksum)) fail(`${name} cambió después de aplicarse. Creá una migración nueva.`);
   }
 
   const pending = files.filter((file) => !applied.has(file.name));

@@ -37,7 +37,12 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
       </p>
 
       <section className="account__section" aria-labelledby="productos-title">
-        <h2 id="productos-title">Productos</h2>
+        <div className="account__head">
+          <h2 id="productos-title">Productos</h2>
+          <Link className="btn btn--acid" href="/admin/productos/nuevo">
+            Nuevo producto
+          </Link>
+        </div>
         <form className="admin-filters" role="search" action="/admin">
           <div className="field">
             <label htmlFor="admin-q">Buscar</label>

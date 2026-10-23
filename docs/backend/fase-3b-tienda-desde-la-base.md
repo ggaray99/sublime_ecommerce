@@ -1,4 +1,6 @@
-# Fase 4 — La tienda lee de la base
+# Fase 3B — La tienda lee de la base
+
+> **Actualización (Fase 3C):** la combinación catálogo fijo + base que se describe acá fue reemplazada por la lectura completa desde la base (`src/server/catalog/postgres-storefront.ts`). Las reglas de visibilidad, precio, stock y caché siguen igual.
 
 Estado: **activo en staging y previews**. Producción no tiene base de datos conectada y sigue mostrando el catálogo fijo, sin cambios visibles.
 
@@ -37,9 +39,9 @@ Efectos visibles:
 
 ## Límites conocidos
 
-- **Productos nuevos:** un producto creado solo en la base no aparece, porque fotos y textos siguen en el código. Crear productos desde el panel requiere guardar contenido e imágenes en la base (Fase 6, imágenes, necesita aprobación de almacenamiento).
+- **Productos nuevos:** un producto creado solo en la base no aparece, porque fotos y textos siguen en el código. Crear productos desde el panel requiere guardar contenido e imágenes en la base (resuelto en la Fase 3C, salvo imágenes).
 - **Stock en el carrito:** el carrito guarda solo ids y cantidades en el navegador. Un producto que pasa a borrador desaparece del carrito sin aviso.
-- **Reservas:** el stock mostrado no descuenta todavía compras, porque no hay pedidos. Eso llega con la Fase 5 (pedidos y reservas), que también invalidará la caché al vender.
+- **Reservas:** el stock mostrado no descuenta todavía compras, porque no hay pedidos. Eso llega con la Fase 4 (carrito, reservas y pedidos), que también invalidará la caché al vender.
 
 ## Verificación (23/10/2026)
 

@@ -5,19 +5,18 @@ import { AddToCartPanel } from "@/components/cart/add-to-cart";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
 import { categoryById } from "@/data/categories";
-import { productBySlug, products, themes, type Product } from "@/data/products";
-import { relatedProducts } from "@/lib/catalog";
+import { themes, type Product } from "@/data/products";
+import { isOutOfStock, relatedProducts } from "@/lib/catalog";
 import { priceLabel } from "@/lib/format";
-import { isOutOfStock } from "@/server/catalog/storefront";
 import { getStorefrontProduct, getStorefrontProducts } from "@/server/storefront";
 
-export function generateStaticParams() {
-  return products.map((product) => ({ slug: product.slug }));
+export async function generateStaticParams() {
+  return (await getStorefrontProducts()).map((product) => ({ slug: product.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/producto/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const product = productBySlug(slug);
+  const product = await getStorefrontProduct(slug);
   if (!product) return { title: "Producto no encontrado" };
   return {
     title: product.name,

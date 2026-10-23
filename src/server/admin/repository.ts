@@ -1,5 +1,6 @@
+import { randomBytes } from "node:crypto";
 import type { QueryFn } from "../customers/repository.ts";
-import type { ProductStatus, ProductUpdateInput, StockCountInput } from "./validation.ts";
+import type { ProductCreateInput, ProductStatus, ProductUpdateInput, StockCountInput } from "./validation.ts";
 
 export type AdminRole = "owner" | "editor";
 export type Admin = { authUserId: string; email: string; role: AdminRole };
@@ -8,7 +9,12 @@ export type AdminProduct = {
   id: string;
   name: string;
   slug: string;
+  description: string;
   categoryId: string;
+  theme: string;
+  tags: string[];
+  details: string[];
+  featured: boolean;
   catalogCode: string | null;
   sku: string;
   status: ProductStatus;
@@ -32,10 +38,12 @@ export type AuditEntry = {
 
 export type ProductFilter = { query?: string; status?: ProductStatus };
 
-export class AdminDataError extends Error {
-  readonly code: "not_found" | "untracked" | "below_reserved";
+type AdminDataErrorCode = "not_found" | "untracked" | "below_reserved" | "conflict";
 
-  constructor(code: "not_found" | "untracked" | "below_reserved", message: string) {
+export class AdminDataError extends Error {
+  readonly code: AdminDataErrorCode;
+
+  constructor(code: AdminDataErrorCode, message: string) {
     super(message);
     this.code = code;
   }
@@ -45,7 +53,12 @@ type ProductRow = {
   legacy_id: string;
   name: string;
   slug: string;
+  description: string;
   category_id: string;
+  theme: string;
+  tags: string[];
+  details: string[];
+  featured: boolean;
   catalog_code: string | null;
   sku: string;
   status: ProductStatus;
@@ -60,7 +73,12 @@ const toProduct = (row: ProductRow): AdminProduct => ({
   id: row.legacy_id,
   name: row.name,
   slug: row.slug,
+  description: row.description,
   categoryId: row.category_id,
+  theme: row.theme,
+  tags: row.tags,
+  details: row.details,
+  featured: row.featured,
   catalogCode: row.catalog_code,
   sku: row.sku,
   status: row.status,
@@ -73,28 +91,66 @@ const toProduct = (row: ProductRow): AdminProduct => ({
 });
 
 const SELECT_PRODUCTS = `
-  SELECT p.legacy_id, p.name, p.slug, p.category_id, p.catalog_code, v.sku, p.status, p.requires_quote,
-         v.price_minor, v.track_stock, i.on_hand, i.reserved
+  SELECT p.legacy_id, p.name, p.slug, p.description, p.category_id, p.theme, p.tags, p.details, p.featured,
+         p.catalog_code, v.sku, p.status, p.requires_quote, v.price_minor, v.track_stock, i.on_hand, i.reserved
   FROM products p
   JOIN product_variants v ON v.product_id = p.id AND v.is_default
   LEFT JOIN inventory i ON i.variant_id = v.id`;
 
-/** Public product ids look like p13 or c088; anything else never reaches SQL. */
+/** Public product ids look like p13, c088 or x1a2b3c4d; anything else never reaches SQL. */
 const PRODUCT_ID = /^[a-z0-9]{1,20}$/;
 
 function assertProductId(productId: string) {
   if (!PRODUCT_ID.test(productId)) throw new AdminDataError("not_found", "El producto no existe.");
 }
 
+/** Public ids for new products: "x" + 8 base-36 characters (never collides with p13/c088). */
+const newProductId = () => `x${[...randomBytes(8)].map((byte) => (byte % 36).toString(36)).join("")}`;
+
 /** Escapes LIKE wildcards so a search for "50%" means the literal text. */
 const likePattern = (value: string) => `%${value.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
 
-const isCheckViolation = (error: unknown) => (error as { code?: string } | null)?.code === "23514";
+type PgError = { code?: string; constraint?: string; detail?: string } | null;
+const isCheckViolation = (error: unknown) => (error as PgError)?.code === "23514";
+
+/** Unique violations (slug, SKU, catalog code) become messages people can act on. */
+function conflictError(error: unknown): AdminDataError | null {
+  const pg = error as PgError;
+  if (pg?.code !== "23505") return null;
+  const where = `${pg.constraint ?? ""} ${pg.detail ?? ""}`;
+  if (where.includes("slug")) return new AdminDataError("conflict", "Ya existe un producto con esa URL (slug).");
+  if (where.includes("sku")) return new AdminDataError("conflict", "Ya existe un producto con ese SKU.");
+  if (where.includes("catalog_code")) return new AdminDataError("conflict", "Ya existe un producto con ese código de catálogo.");
+  return new AdminDataError("conflict", "Ya existe un producto con esos datos.");
+}
+
+const EDITABLE = [
+  "name",
+  "slug",
+  "description",
+  "categoryId",
+  "theme",
+  "tags",
+  "details",
+  "featured",
+  "catalogCode",
+  "status",
+  "priceMinor",
+] as const satisfies readonly (keyof ProductUpdateInput & keyof AdminProduct)[];
+
+/** Only the fields that actually change, as { field: { before, after } }. */
+function diff(current: AdminProduct, next: ProductUpdateInput) {
+  const changes: Record<string, { before: unknown; after: unknown }> = {};
+  for (const key of EDITABLE) {
+    if (JSON.stringify(current[key]) !== JSON.stringify(next[key])) changes[key] = { before: current[key], after: next[key] };
+  }
+  return changes;
+}
 
 /**
- * Catalog administration over the 0001/0003 schema. Every change is a single
- * SQL statement (data-modifying CTEs), so the change, its stock movement and
- * its audit entry are committed together or not at all.
+ * Catalog administration over the 0001/0003/0004 schema. Every change is a
+ * single SQL statement (data-modifying CTEs), so the change, its stock movement
+ * and its audit entry are committed together or not at all.
  */
 export function createAdminRepository(sql: QueryFn) {
   async function getProduct(productId: string): Promise<AdminProduct> {
@@ -133,8 +189,8 @@ export function createAdminRepository(sql: QueryFn) {
         `${SELECT_PRODUCTS}
          WHERE ($1::text IS NULL OR p.name ILIKE $2 OR v.sku ILIKE $2 OR p.catalog_code = $1)
            AND ($3::text IS NULL OR p.status = $3)
-         ORDER BY p.category_id, p.name
-         LIMIT 300`,
+         ORDER BY p.sort_order, p.name
+         LIMIT 500`,
         [query, query && likePattern(query), filter.status ?? null],
       )) as ProductRow[];
       return rows.map(toProduct);
@@ -142,33 +198,116 @@ export function createAdminRepository(sql: QueryFn) {
 
     getProduct,
 
-    /** Updates price and status; writes an audit entry only when something changed. */
+    /**
+     * Updates content, price and status in one statement with an audit entry
+     * listing only what changed. Saving without changes writes nothing.
+     */
     async updateProduct(actor: Admin, productId: string, input: ProductUpdateInput): Promise<AdminProduct> {
       const current = await getProduct(productId);
-      await sql.query(
-        `WITH target AS (
-           SELECT p.id, v.id AS variant_id, p.status, v.price_minor
-           FROM products p JOIN product_variants v ON v.product_id = p.id AND v.is_default
-           WHERE p.legacy_id = $1
-         ),
-         product_update AS (
-           UPDATE products SET status = $2, updated_at = now() FROM target
-           WHERE products.id = target.id AND products.status <> $2 RETURNING products.id
-         ),
-         variant_update AS (
-           UPDATE product_variants SET price_minor = $3, updated_at = now() FROM target
-           WHERE product_variants.id = target.variant_id AND product_variants.price_minor IS DISTINCT FROM $3::bigint
-           RETURNING product_variants.id
-         )
-         INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
-         SELECT $4, $5, 'product.update', 'product', $1,
-                jsonb_build_object(
-                  'before', jsonb_build_object('status', status, 'priceMinor', price_minor),
-                  'after', jsonb_build_object('status', $2::text, 'priceMinor', $3::bigint))
-         FROM target
-         WHERE status <> $2 OR price_minor IS DISTINCT FROM $3::bigint`,
-        [productId, input.status, current.requiresQuote ? null : input.priceMinor, actor.authUserId, actor.email],
-      );
+      const next = { ...input, priceMinor: current.requiresQuote ? null : input.priceMinor };
+      const changes = diff(current, next);
+      if (!Object.keys(changes).length) return current;
+      try {
+        await sql.query(
+          `WITH target AS (
+             SELECT p.id, v.id AS variant_id FROM products p
+             JOIN product_variants v ON v.product_id = p.id AND v.is_default
+             WHERE p.legacy_id = $1
+           ),
+           product_update AS (
+             UPDATE products SET name = $2, slug = $3, description = $4, category_id = $5, theme = $6,
+                    tags = $7::text[], details = $8::text[], featured = $9, catalog_code = $10, status = $11,
+                    updated_at = now()
+             FROM target WHERE products.id = target.id
+             RETURNING products.id
+           ),
+           variant_update AS (
+             UPDATE product_variants SET price_minor = $12::bigint, updated_at = now() FROM target
+             WHERE product_variants.id = target.variant_id AND product_variants.price_minor IS DISTINCT FROM $12::bigint
+             RETURNING product_variants.id
+           )
+           INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
+           SELECT $13, $14, 'product.update', 'product', $1, $15::jsonb FROM target`,
+          [
+            productId,
+            next.name,
+            next.slug,
+            next.description,
+            next.categoryId,
+            next.theme,
+            next.tags,
+            next.details,
+            next.featured,
+            next.catalogCode,
+            next.status,
+            next.priceMinor,
+            actor.authUserId,
+            actor.email,
+            JSON.stringify(changes),
+          ],
+        );
+      } catch (error) {
+        throw conflictError(error) ?? error;
+      }
+      return getProduct(productId);
+    },
+
+    /**
+     * Creates a product with its default variant, the initial stock count (as an
+     * inventory movement) and an audit entry, all in one statement.
+     */
+    async createProduct(actor: Admin, input: ProductCreateInput): Promise<AdminProduct> {
+      const productId = newProductId();
+      const sku = input.sku ?? `SUB-${productId.toUpperCase()}`;
+      try {
+        await sql.query(
+          `WITH product AS (
+             INSERT INTO products (legacy_id, slug, name, description, category_id, catalog_code, requires_quote,
+                                   status, tags, theme, featured, details, sort_order)
+             SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9::text[], $10, $11, $12::text[],
+                    coalesce((SELECT max(sort_order) FROM products), 0) + 1
+             RETURNING id
+           ),
+           variant AS (
+             INSERT INTO product_variants (product_id, sku, price_minor, track_stock, is_default)
+             SELECT id, $13, $14::bigint, NOT $7::boolean, true FROM product
+             RETURNING id, track_stock
+           ),
+           stock AS (
+             INSERT INTO inventory (variant_id, on_hand) SELECT id, $15::int FROM variant WHERE track_stock
+             RETURNING variant_id
+           ),
+           movement AS (
+             INSERT INTO inventory_movements (variant_id, delta_on_hand, reason, actor, note)
+             SELECT variant_id, $15::int, 'initial_count', $17, 'Alta del producto' FROM stock WHERE $15::int > 0
+             RETURNING id
+           )
+           INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
+           SELECT $16, $17, 'product.create', 'product', $1, $18::jsonb FROM product`,
+          [
+            productId,
+            input.slug,
+            input.name,
+            input.description,
+            input.categoryId,
+            input.catalogCode,
+            input.requiresQuote,
+            input.status,
+            input.tags,
+            input.theme,
+            input.featured,
+            input.details,
+            sku,
+            input.requiresQuote ? null : input.priceMinor,
+            input.initialStock,
+            actor.authUserId,
+            actor.email,
+            JSON.stringify({ ...input, sku }),
+          ],
+        );
+      } catch (error) {
+        throw conflictError(error) ?? error;
+      }
       return getProduct(productId);
     },
 

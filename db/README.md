@@ -19,8 +19,8 @@ Los archivos aplicados quedan con checksum: modificar uno ya aplicado aborta la 
 
 `npm test` incluye `tests/db-schema.test.mjs`, que corre la migración y el seed en PostgreSQL embebido (PGlite) sin tocar ninguna base.
 
-Migraciones aplicadas en staging: `0001_catalog_inventory` (catálogo e inventario), `0002_customers` (clientes y direcciones) y `0003_admin` (administradores y auditoría).
+Migraciones aplicadas en staging: `0001_catalog_inventory` (catálogo e inventario), `0002_customers` (clientes y direcciones) , `0003_admin` (administradores y auditoría) y `0004_catalog_content` (contenido del catálogo). Seeds: `0001_catalog_seed` y `0002_catalog_content`.
 
 **Antes de migrar, crear una rama de backup en Neon.** Procedimiento completo: [docs/backend/backup-y-rollback.md](../docs/backend/backup-y-rollback.md).
 
-Detalle: [Fase 1](../docs/backend/fase-1-fundaciones.md) · [Fase 2](../docs/backend/fase-2-identidad.md) · [Fase 3](../docs/backend/fase-3-administracion.md) · [Fase 4](../docs/backend/fase-4-tienda-desde-la-base.md).
+Detalle: [Fase 1](../docs/backend/fase-1-fundaciones.md) · [Fase 2](../docs/backend/fase-2-identidad.md) · [Fase 3](../docs/backend/fase-3-catalogo-admin.md).

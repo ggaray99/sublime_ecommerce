@@ -1,4 +1,4 @@
-# Fase 3 — Panel de administración
+# Fase 3A — Panel de administración
 
 Estado: **activo en staging** (migración 0003 aplicada el 23/10/2026). Producción no tiene panel: depende de las cuentas, que el código desactiva en `VERCEL_ENV=production`.
 
@@ -9,7 +9,7 @@ Estado: **activo en staging** (migración 0003 aplicada el 23/10/2026). Producci
 | `/admin` | Lista de productos con búsqueda (nombre, SKU o código de catálogo) y filtro por estado. Muestra precio y stock disponible; resalta los productos con 5 unidades o menos. Abajo, los últimos 10 cambios. |
 | `/admin/productos/[id]` | Cambiar precio y estado (publicado, borrador, archivado). Registrar un conteo de stock con motivo y nota. Ver movimientos de stock e historial de cambios del producto. |
 | `/cuenta` | Si la cuenta es de un administrador, muestra el enlace al panel. |
-| `/producto/[slug]` | En staging muestra el stock real y el precio de la base (ver Fase 4). En producción no muestra nada nuevo. |
+| `/producto/[slug]` | En staging muestra el stock real y el precio de la base (ver Fase 3B). En producción no muestra nada nuevo. |
 
 ## Decisiones
 
@@ -39,7 +39,7 @@ Estado: **activo en staging** (migración 0003 aplicada el 23/10/2026). Producci
 | Admin actual desde la sesión | `src/server/admin/session.ts` |
 | Acciones de servidor | `src/app/admin/actions.ts` |
 | Pantallas y componentes | `src/app/admin/*`, `src/components/admin/*` |
-| Stock y precio en la tienda | `src/server/storefront.ts` (Fase 4) |
+| Stock y precio en la tienda | `src/server/storefront.ts` (Fase 3B) |
 | Script para dar permisos | `scripts/admin-grant.mjs` |
 
 ## Dar acceso a una persona
@@ -84,7 +84,7 @@ Verificación en local contra staging (23/10/2026):
 
 ## Fuera de alcance (próximas fases)
 
-- **Alta y baja de productos y categorías.** Desde la Fase 4 la tienda toma de la base visibilidad, precio y stock, pero fotos y textos siguen en el código: un producto creado solo en la base no aparecería.
+- **Alta y baja de productos y categorías.** Resuelto para productos en la Fase 3C; categorías, pendiente.
 - **Imágenes.** Subirlas requiere un almacenamiento (por ejemplo, Vercel Blob), que necesita aprobación.
 - **Variantes** (talles, materiales): el esquema las soporta, pero el panel edita solo la variante por defecto.
 - Gestión de administradores desde la web y quitar permisos con script.
