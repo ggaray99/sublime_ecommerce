@@ -60,6 +60,10 @@ describe("authErrorMessage", () => {
     assert.match(authErrorMessage(duplicate, "sign-in"), /No pudimos completar/);
   });
 
+  it("explains untrusted domains (Neon Auth answers 403)", () => {
+    assert.match(authErrorMessage({ code: "feature_not_supported", status: 403 }, "sign-up"), /no está habilitado desde esta dirección/);
+  });
+
   it("never echoes provider messages", () => {
     assert.match(authErrorMessage({ code: "internal_error", message: "db host 10.0.0.1 down" }), /No pudimos completar/);
     assert.match(authErrorMessage(null), /No pudimos completar/);

@@ -37,7 +37,7 @@ Estado: **activo en staging y verificado de punta a punta**. Producción no tien
 
 ### Pruebas
 
-`tests/customers.test.mjs` (17 tests): traducción de errores de auth,: activación por entorno, validaciones, y repositorio sobre PostgreSQL (PGlite) — vínculo idempotente, dirección principal única, promoción al borrar, **aislamiento entre clientes**, ids maliciosos, límite de direcciones y restricciones de la base.
+`tests/customers.test.mjs` (18 tests): traducción de errores de auth (incluye dominio no permitido), activación por entorno, validaciones, y repositorio sobre PostgreSQL (PGlite) — vínculo idempotente, dirección principal única, promoción al borrar, **aislamiento entre clientes**, ids maliciosos, límite de direcciones y restricciones de la base.
 
 ## Prueba de punta a punta (22/10/2026, local contra staging)
 
@@ -61,5 +61,5 @@ Neon Auth necesita dos variables. `NEON_AUTH_BASE_URL` la crea la integración (
 
 - **Recuperación de contraseña:** el SDK la soporta, pero requiere configurar envío de emails en Neon Auth. Sin proveedor de email confirmado, no está habilitada.
 - **Verificación de email:** depende de la misma configuración de emails.
-- **Dominios permitidos:** si Neon Auth rechaza pedidos desde las URLs de preview o `localhost`, agregarlas en Neon Console → Auth → Configuration.
+- **Dominios permitidos (bloquea el registro en la preview):** el 23/10/2026 el registro en la URL de preview falló. Neon Auth respondió `feature_not_supported` / 403 porque el dominio no está en su lista de confianza; `localhost` viene aprobado por defecto. Solución: Neon Console → Auth → Configuration → Domains, agregar la URL de preview o un comodín para las previews del proyecto. Mientras tanto, el sitio muestra "El ingreso no está habilitado desde esta dirección del sitio." Referencia: https://neon.com/docs/auth/guides/configure-domains
 - **Producción:** habilitar cuentas requiere base de producción, política de privacidad publicada y aprobación explícita.

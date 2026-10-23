@@ -13,6 +13,7 @@ const MESSAGES = {
   notVerified: "Tenés que verificar tu email antes de ingresar.",
   rateLimit: "Hiciste demasiados intentos. Esperá unos minutos y probá de nuevo.",
   signUpRejected: "No pudimos crear una cuenta con ese email. Si ya tenés cuenta, probá ingresar.",
+  originNotAllowed: "El ingreso no está habilitado desde esta dirección del sitio. Avisá al equipo de Sublime.",
   generic: "No pudimos completar la operación. Probá de nuevo en unos minutos.",
 } as const;
 
@@ -46,6 +47,11 @@ const BY_CODE: Record<string, keyof typeof MESSAGES> = {
 export function authErrorMessage(error: AuthErrorLike, context: "sign-in" | "sign-up" = "sign-in"): string {
   const kind = error?.code ? BY_CODE[error.code.toLowerCase()] : undefined;
   if (kind) return MESSAGES[kind];
+  // Neon Auth answers requests from domains missing in its trusted list with 403.
+  if (error?.status === 403 || error?.code === "feature_not_supported") {
+    console.warn("[auth] rejected origin: add this deployment's domain in Neon Console → Auth → Domains");
+    return MESSAGES.originNotAllowed;
+  }
   if (context === "sign-up" && (error?.code === "validation_failed" || error?.status === 422)) {
     return MESSAGES.signUpRejected;
   }
