@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { QueryFn } from "../customers/repository.ts";
+import { LOW_STOCK, PAGE_SIZE, type ProductSearch } from "./product-search.ts";
 import type { ProductCreateInput, ProductStatus, ProductUpdateInput, StockCountInput } from "./validation.ts";
 
 export type AdminRole = "owner" | "editor";
@@ -41,7 +42,31 @@ export type AuditEntry = {
 export type AuditEntity = "product" | "inventory" | "admin" | "category" | "integration";
 const AUDIT_ENTITY_ID = /^[a-z0-9-]{1,40}$/;
 
-export type ProductFilter = { query?: string; status?: ProductStatus };
+export type ProductSearchResult = { items: AdminProduct[]; total: number; page: number; pageSize: number; pages: number };
+
+/** Option counts for the filter sidebar, over the whole catalog. */
+export type ProductFacets = {
+  total: number;
+  status: Record<ProductStatus, number>;
+  stock: { con: number; sin: number; bajo: number; pedido: number };
+  images: { con: number; sin: number };
+  featured: { si: number; no: number };
+  categories: Record<string, number>;
+  themes: Record<string, number>;
+};
+
+/** Whitelisted ORDER BY clauses; user input never reaches SQL text. */
+const SORTS: Record<ProductSearch["sort"], string> = {
+  orden: "p.sort_order, p.name",
+  nombre: "p.name, p.legacy_id",
+  "precio-asc": "v.price_minor ASC NULLS LAST, p.name",
+  "precio-desc": "v.price_minor DESC NULLS LAST, p.name",
+  "stock-asc": "v.track_stock DESC, (coalesce(i.on_hand, 0) - coalesce(i.reserved, 0)), p.name",
+  modificado: "p.updated_at DESC, p.legacy_id",
+};
+
+const AVAILABLE = "(coalesce(i.on_hand, 0) - coalesce(i.reserved, 0))";
+const HAS_IMAGES = "EXISTS (SELECT 1 FROM product_images im WHERE im.product_id = p.id)";
 
 type AdminDataErrorCode = "not_found" | "untracked" | "below_reserved" | "conflict";
 
@@ -197,20 +222,82 @@ export function createAdminRepository(sql: QueryFn) {
       );
     },
 
-    async listProducts(filter: ProductFilter = {}): Promise<AdminProduct[]> {
-      const query = filter.query?.trim().slice(0, 60) || null;
+    getProduct,
+
+    /** Filtered, sorted and paginated list for the admin; the database does the work. */
+    async searchProducts(search: ProductSearch): Promise<ProductSearchResult> {
+      const params = [
+        search.query || null,
+        search.query ? likePattern(search.query) : null,
+        search.status ?? null,
+        search.categoryId ?? null,
+        search.theme ?? null,
+        search.stock ?? null,
+        search.images ?? null,
+        search.featured ?? null,
+        LOW_STOCK,
+      ];
+      const where = `
+        WHERE ($1::text IS NULL OR p.name ILIKE $2 OR v.sku ILIKE $2 OR p.catalog_code = $1 OR $1 = ANY (p.tags))
+          AND ($3::text IS NULL OR p.status = $3)
+          AND ($4::text IS NULL OR p.category_id = $4)
+          AND ($5::text IS NULL OR p.theme = $5)
+          AND ($6::text IS NULL
+               OR ($6 = 'pedido' AND NOT v.track_stock)
+               OR ($6 = 'con' AND v.track_stock AND ${AVAILABLE} > 0)
+               OR ($6 = 'sin' AND v.track_stock AND ${AVAILABLE} <= 0)
+               OR ($6 = 'bajo' AND v.track_stock AND ${AVAILABLE} BETWEEN 1 AND $9::int))
+          AND ($7::text IS NULL OR ($7 = 'con') = ${HAS_IMAGES})
+          AND ($8::text IS NULL OR ($8 = 'si') = p.featured)`;
+      const [countRow] = (await sql.query(
+        `SELECT count(*)::int AS total FROM products p
+         JOIN product_variants v ON v.product_id = p.id AND v.is_default
+         LEFT JOIN inventory i ON i.variant_id = v.id ${where}`,
+        params,
+      )) as { total: number }[];
+      const total = countRow?.total ?? 0;
+      const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      const page = Math.min(search.page, pages);
       const rows = (await sql.query(
-        `${SELECT_PRODUCTS}
-         WHERE ($1::text IS NULL OR p.name ILIKE $2 OR v.sku ILIKE $2 OR p.catalog_code = $1)
-           AND ($3::text IS NULL OR p.status = $3)
-         ORDER BY p.sort_order, p.name
-         LIMIT 500`,
-        [query, query && likePattern(query), filter.status ?? null],
+        `${SELECT_PRODUCTS} ${where} ORDER BY ${SORTS[search.sort]} LIMIT ${PAGE_SIZE} OFFSET $10`,
+        [...params, (page - 1) * PAGE_SIZE],
       )) as ProductRow[];
-      return rows.map(toProduct);
+      return { items: rows.map(toProduct), total, page, pageSize: PAGE_SIZE, pages };
     },
 
-    getProduct,
+    async productFacets(): Promise<ProductFacets> {
+      const [[summary], categories, themes] = (await Promise.all([
+        sql.query(
+          `SELECT count(*)::int AS total,
+                  count(*) FILTER (WHERE p.status = 'active')::int AS active,
+                  count(*) FILTER (WHERE p.status = 'draft')::int AS draft,
+                  count(*) FILTER (WHERE p.status = 'archived')::int AS archived,
+                  count(*) FILTER (WHERE v.track_stock AND ${AVAILABLE} > 0)::int AS stock_con,
+                  count(*) FILTER (WHERE v.track_stock AND ${AVAILABLE} <= 0)::int AS stock_sin,
+                  count(*) FILTER (WHERE v.track_stock AND ${AVAILABLE} BETWEEN 1 AND $1::int)::int AS stock_bajo,
+                  count(*) FILTER (WHERE NOT v.track_stock)::int AS stock_pedido,
+                  count(*) FILTER (WHERE ${HAS_IMAGES})::int AS images_con,
+                  count(*) FILTER (WHERE NOT ${HAS_IMAGES})::int AS images_sin,
+                  count(*) FILTER (WHERE p.featured)::int AS featured_si
+           FROM products p
+           JOIN product_variants v ON v.product_id = p.id AND v.is_default
+           LEFT JOIN inventory i ON i.variant_id = v.id`,
+          [LOW_STOCK],
+        ),
+        sql.query("SELECT category_id AS key, count(*)::int AS n FROM products GROUP BY category_id"),
+        sql.query("SELECT theme AS key, count(*)::int AS n FROM products GROUP BY theme"),
+      ])) as [Record<string, number>[], { key: string; n: number }[], { key: string; n: number }[]];
+      const byKey = (rows: { key: string; n: number }[]) => Object.fromEntries(rows.map((row) => [row.key, row.n]));
+      return {
+        total: summary.total,
+        status: { active: summary.active, draft: summary.draft, archived: summary.archived },
+        stock: { con: summary.stock_con, sin: summary.stock_sin, bajo: summary.stock_bajo, pedido: summary.stock_pedido },
+        images: { con: summary.images_con, sin: summary.images_sin },
+        featured: { si: summary.featured_si, no: summary.total - summary.featured_si },
+        categories: byKey(categories),
+        themes: byKey(themes),
+      };
+    },
 
     /**
      * Updates content, price and status in one statement with an audit entry

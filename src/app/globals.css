@@ -2500,3 +2500,66 @@ li:nth-child(3n) > .category-card .category-card__body {
   font-weight: 400;
   font-size: 14px;
 }
+
+/* Admin list: filters on the side, table using the full width. */
+.account--wide {
+  max-width: none;
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.admin-layout__main {
+  min-width: 0;
+}
+
+.admin-sidebar {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: var(--line);
+  background: var(--white);
+}
+
+.admin-sidebar__title {
+  font-size: 32px;
+}
+
+.admin-sidebar__form {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-sidebar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.admin-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+}
+
+.admin-table .badge {
+  margin-left: 6px;
+}
+
+@media (min-width: 1024px) {
+  .admin-layout {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .admin-sidebar {
+    position: sticky;
+    top: 16px;
+  }
+}

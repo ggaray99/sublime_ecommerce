@@ -6,7 +6,7 @@ Estado: **activo en staging** (migración 0003 aplicada el 23/10/2026). Producci
 
 | Pantalla | Para qué |
 | --- | --- |
-| `/admin` | Lista de productos con búsqueda (nombre, SKU o código de catálogo) y filtro por estado. Muestra precio y stock disponible; resalta los productos con 5 unidades o menos. Abajo, los últimos 10 cambios. |
+| `/admin` | Listado de productos con miniatura, categoría, SKU, estado, precio y stock disponible (resalta 5 unidades o menos). **Filtros a la izquierda** (arriba en celular): búsqueda por nombre, SKU, código o etiqueta; estado; categoría; temática; stock (con, bajo, sin, a pedido); imágenes (con o sin fotos); destacado; y orden (nombre, precio, stock, modificados). Cada opción muestra cuántos productos tiene. Los filtros viajan en la URL (`/admin?categoria=stickers&stock=sin`), se aplican al cambiar y filtra la base; paginado de a 50. Abajo, los últimos 10 cambios. |
 | `/admin/productos/[id]` | Cambiar precio y estado (publicado, borrador, archivado). Registrar un conteo de stock con motivo y nota. Ver movimientos de stock e historial de cambios del producto. |
 | `/cuenta` | Si la cuenta es de un administrador, muestra el enlace al panel. |
 | `/producto/[slug]` | En staging muestra el stock real y el precio de la base (ver Fase 3B). En producción no muestra nada nuevo. |

@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
+import { parseProductSearch } from "../src/server/admin/product-search.ts";
 import { AdminDataError, createAdminRepository } from "../src/server/admin/repository.ts";
 import { listStorefrontProducts } from "../src/server/catalog/postgres-storefront.ts";
 import {
@@ -126,6 +127,7 @@ describe("admin repository on PostgreSQL (PGlite)", () => {
   let db;
   let repo;
   let query;
+  let list;
   const owner = { authUserId: "auth-owner", email: "owner@example.com", role: "owner" };
 
   before(async () => {
@@ -145,6 +147,7 @@ describe("admin repository on PostgreSQL (PGlite)", () => {
     `);
     query = { query: async (text, params) => (await db.query(text, params)).rows };
     repo = createAdminRepository(query);
+    list = async (params = {}) => (await repo.searchProducts(parseProductSearch(params))).items;
   });
   after(() => db.close());
 
@@ -158,11 +161,11 @@ describe("admin repository on PostgreSQL (PGlite)", () => {
   });
 
   it("lists and searches products with stock", async () => {
-    assert.equal((await repo.listProducts()).length, 2);
-    const [sticker] = await repo.listProducts({ query: "088" });
+    assert.equal((await list()).length, 2);
+    const [sticker] = await list({ q: "088" });
     assert.deepEqual([sticker.sku, sticker.onHand, sticker.reserved], ["STK-088", 20, 2]);
-    assert.equal((await repo.listProducts({ query: "%" })).length, 0, "LIKE wildcards are literal");
-    assert.equal((await repo.listProducts({ status: "draft" })).length, 0);
+    assert.equal((await list({ q: "%" })).length, 0, "LIKE wildcards are literal");
+    assert.equal((await list({ estado: "draft" })).length, 0);
   });
 
   it("updates content, price and status with an audit entry of only what changed", async () => {
@@ -235,11 +238,11 @@ describe("admin repository on PostgreSQL (PGlite)", () => {
   });
 
   it("rejects a new product whose slug or SKU already exists, leaving nothing behind", async () => {
-    const count = (await repo.listProducts()).length;
+    const count = (await list()).length;
     const duplicate = parseProductCreate({ ...content, price: "100", sku: "STK-088" }).value;
     await assert.rejects(repo.createProduct(owner, { ...duplicate, slug: "otro-slug" }), (error) => error.code === "conflict");
     await assert.rejects(repo.createProduct(owner, duplicate), (error) => error.code === "conflict");
-    assert.equal((await repo.listProducts()).length, count);
+    assert.equal((await list()).length, count);
   });
 
   it("records stock counts as a movement and an audit entry", async () => {
