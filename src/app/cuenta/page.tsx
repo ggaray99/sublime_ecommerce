@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AddressForm, ProfileForm } from "@/components/account/forms";
 import { AccountsUnavailable } from "@/components/account/unavailable";
 import { PageIntro } from "@/components/page-intro";
+import { getCurrentAdmin } from "@/server/admin/session";
 import { accountsAvailable, getCurrentCustomer, getCustomerRepository } from "@/server/customers/session";
 import { deleteAddressAction, setDefaultAddressAction, signOutAction } from "./actions";
 
@@ -20,7 +22,7 @@ async function AccountContent() {
   await connection();
   const customer = await getCurrentCustomer();
   if (!customer) redirect("/cuenta/ingresar");
-  const addresses = await getCustomerRepository().listAddresses(customer.id);
+  const [addresses, admin] = await Promise.all([getCustomerRepository().listAddresses(customer.id), getCurrentAdmin()]);
 
   return (
     <div className="account">
@@ -34,6 +36,11 @@ async function AccountContent() {
           </form>
         </div>
         <p className="muted">Email: {customer.email}</p>
+        {admin && (
+          <p>
+            <Link href="/admin">Ir al panel de administración</Link>
+          </p>
+        )}
         <ProfileForm fullName={customer.fullName} phone={customer.phone} />
       </section>
 

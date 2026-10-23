@@ -27,7 +27,7 @@ Production remains a static, guest-only demo. Preview and Development deployment
 - Neon Auth for customer accounts (`/cuenta`).
 - `POST /api/cart/quote` to recompute carts on the server.
 
-Docs: `docs/backend/fase-1-fundaciones.md`, `docs/backend/fase-2-identidad.md`, `docs/backend/backup-y-rollback.md`.
+Docs: `docs/backend/fase-1-fundaciones.md`, `docs/backend/fase-2-identidad.md`, `docs/backend/fase-3-administracion.md`, `docs/backend/backup-y-rollback.md`.
 
 ## Brand system
 Implemented from the client's branding kit:

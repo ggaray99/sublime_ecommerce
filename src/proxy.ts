@@ -3,7 +3,8 @@ import { isAuthEnabled } from "@/server/auth/config";
 import { getAuth } from "@/server/auth/neon";
 
 /**
- * Protects the account area. Where accounts are disabled (production today),
+ * Protects the account area and the admin panel (admin pages additionally check
+ * admin_users on the server). Where accounts are disabled (production today),
  * requests pass through and the pages explain that accounts are not available.
  */
 export default async function proxy(request: NextRequest) {
@@ -12,5 +13,5 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/cuenta", "/cuenta/direcciones/:path*"],
+  matcher: ["/cuenta", "/cuenta/direcciones/:path*", "/admin", "/admin/:path*"],
 };

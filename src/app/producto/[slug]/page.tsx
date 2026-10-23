@@ -1,8 +1,10 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { AddToCartPanel } from "@/components/cart/add-to-cart";
 import { ProductCard } from "@/components/product-card";
+import { ProductAvailability } from "@/components/product-availability";
 import { ProductGallery } from "@/components/product-gallery";
 import { categoryById } from "@/data/categories";
 import { productBySlug, products, themes } from "@/data/products";
@@ -63,6 +65,9 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             {priceLabel(product.price)}
             <span className="badge badge--violet">{product.price === null ? "Se cotiza a pedido" : "Precio demo"}</span>
           </p>
+          <Suspense fallback={null}>
+            <ProductAvailability productId={product.id} staticPriceMinor={product.price === null ? null : product.price * 100} />
+          </Suspense>
           <p className="product-detail__description">{product.description}</p>
           {product.code && (
             <p className="product-detail__code">

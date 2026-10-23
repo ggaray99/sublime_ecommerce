@@ -2296,3 +2296,89 @@ li:nth-child(3n) > .category-card .category-card__body {
   flex-wrap: wrap;
   gap: 16px;
 }
+
+/* ==========================================================================
+   Admin panel and live stock (staging/previews)
+   ========================================================================== */
+
+.admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.admin-filters .field {
+  flex: 1 1 200px;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  border: var(--line);
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--black);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table thead th {
+  background: var(--black);
+  color: var(--white);
+  font-weight: 800;
+}
+
+.admin-table tbody th {
+  font-weight: 700;
+}
+
+.admin-table tr.is-low td:last-child {
+  background: var(--error);
+  font-weight: 800;
+}
+
+.audit-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.audit-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--black);
+}
+
+.stock-note-group {
+  display: grid;
+  gap: 4px;
+}
+
+.stock-note {
+  margin: 0;
+  font-weight: 800;
+}
+
+.stock-note--in::before,
+.stock-note--out::before {
+  content: "■ ";
+}
+
+.stock-note--in::before {
+  color: #1f9d55;
+}
+
+.stock-note--out::before {
+  color: #c81e3a;
+}
