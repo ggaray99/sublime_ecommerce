@@ -15,6 +15,8 @@ export type CatalogVariant = {
   currency: Currency;
   purchasable: boolean;
   requiresQuote: boolean;
+  /** Business rule: every product tracks stock except custom orders, which are made to order. */
+  trackStock: boolean;
   active: boolean;
 };
 
@@ -39,6 +41,7 @@ export function toCatalogVariant(product: Product): CatalogVariant {
     currency: DEFAULT_CURRENCY,
     purchasable: product.availableForDirectPurchase && product.price !== null,
     requiresQuote: product.requiresQuote,
+    trackStock: !product.requiresQuote,
     active: true,
   };
 }

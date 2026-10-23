@@ -1,29 +1,46 @@
 # Fase 1 — Fundaciones backend
 
-Estado: **en curso, sin base de datos conectada**. Nada de esta fase cambia el sitio público hasta mergear a `main`.
+Estado: **código listo y verificado contra PostgreSQL local; falta provisionar la base de staging**. Producción no usa base de datos y no cambia hasta mergear a `main`.
+
+## Decisiones tomadas
+
+| Tema | Decisión |
+| --- | --- |
+| Base de datos | PostgreSQL en **Neon** vía Vercel Marketplace (ya instalado en la cuenta). |
+| Staging | Base Neon conectada **solo a Preview y Development**. Producción sigue con el catálogo estático. |
+| Driver | `@neondatabase/serverless` (HTTP para consultas, `Pool` para migraciones). SQL explícito, sin ORM. |
+| Stock | **Todo producto controla stock, excepto los personalizados** (`requiresQuote`), que se fabrican a pedido. |
+| Dinero | Enteros en centavos (`bigint`), moneda `ARS` explícita. |
+| SKU | `STK-<código>` para stickers del catálogo impreso, `SUB-<ID>` para el resto. |
 
 ## Qué existe
 
-| Pieza | Ubicación | Estado |
-|---|---|---|
-| Dinero en centavos con moneda explícita | `src/server/money.ts` | Hecho |
-| Repositorio de catálogo (interfaz + implementación estática) | `src/server/catalog/repository.ts` | Hecho; falta implementación Postgres |
-| Repositorio de inventario (interfaz; stock no controlado por ahora) | `src/server/inventory/repository.ts` | Hecho; falta implementación Postgres |
-| Recotización del carrito en servidor | `src/server/cart/quote.ts` | Hecho |
-| Validación estricta de entrada | `src/server/cart/validation.ts` | Hecho |
-| `POST /api/cart/quote` | `src/app/api/cart/quote/route.ts` → `src/server/cart/handler.ts` | Hecho; la UI todavía no lo usa (Fase 4) |
-| Migración 0001 (catálogo, variantes/SKU, imágenes, inventario, reservas, movimientos) | `db/migrations/0001_catalog_inventory.sql` | Propuesta para revisión, **no aplicada** |
-| Ensayo de importación del catálogo | `src/server/catalog/import-plan.ts`, `npm run db:dry-run` | Hecho; genera `db/seed/0001_catalog_seed.sql` |
-| Tests | `tests/server-quote.test.mjs`, `tests/catalog-import.test.mjs` | 19 tests nuevos (44 en total) |
+| Pieza | Ubicación |
+| --- | --- |
+| Dinero | `src/server/money.ts` |
+| Repositorios de catálogo (estático y Postgres) | `src/server/catalog/repository.ts`, `postgres-repository.ts` |
+| Repositorios de inventario (sin control y Postgres) | `src/server/inventory/repository.ts`, `postgres-repository.ts` |
+| Selección de repositorios por entorno | `src/server/repositories.ts` (Postgres si hay `DATABASE_URL`) |
+| Recotización del carrito en servidor | `src/server/cart/quote.ts` |
+| Validación estricta de entrada | `src/server/cart/validation.ts` |
+| `POST /api/cart/quote` | `src/app/api/cart/quote/route.ts` → `src/server/cart/handler.ts` (la UI todavía no lo usa: Fase 4) |
+| Migración 0001 | `db/migrations/0001_catalog_inventory.sql` |
+| Ensayo de importación + seed | `src/server/catalog/import-plan.ts`, `npm run db:dry-run` → `db/seed/0001_catalog_seed.sql` |
+| Runner de migraciones (solo staging) | `scripts/db-migrate.mjs`, `npm run db:status` / `db:migrate` / `db:seed` |
 
-### Reglas que ya quedan fijadas en código
+### Reglas fijadas en código y en la base
 
-- El servidor **nunca** lee precios del cliente: el pedido solo trae `productId` y `quantity`; campos extra se rechazan.
-- Importes enteros en centavos (`bigint` en la base), moneda `ARS` explícita.
-- SKU estable: `STK-<código>` para stickers del catálogo impreso, `SUB-<ID>` para el resto.
-- Productos a cotizar no tienen precio y no se pueden comprar directo.
-- Stock: si un SKU no se controla (`null`), la cotización ni bloquea ni promete; si se controla, se limita a lo disponible y se informa.
-- El envío figura como `pending`: no se calcula ni se promete hasta definir reglas (Fase 6).
+- El servidor **nunca** lee precios del cliente: el pedido trae solo `productId` y `quantity`; campos extra → 422.
+- Disponible = `on_hand − reserved`. Un producto con stock controlado **sin fila de inventario** tiene 0 disponible (no se vende lo que no se contó). Los personalizados devuelven `null` (a pedido).
+- La base rechaza: stock negativo, reservas mayores al stock, precios negativos, SKU/slug/código duplicados, movimientos sin cambio y reservas con estado inconsistente.
+- Cada cambio de stock queda en `inventory_movements` (el seed registra el conteo inicial).
+- El envío figura como `pending`: no se calcula ni se promete (Fase 6).
+
+### Verificación
+
+- `npm test` — 53 tests. Incluye `tests/db-schema.test.mjs`, que aplica **la migración y el seed reales en PostgreSQL (PGlite, en memoria)** y prueba restricciones, repositorios y cotización con stock.
+- `npm run test:db` — los mismos chequeos contra la base de staging real (solo lectura), cuando exista.
+- Stock del seed: **20 unidades provisorias por producto**, solo para ensayo. Antes de vender hace falta el conteo real.
 
 ## Contrato: `POST /api/cart/quote`
 
@@ -33,7 +50,7 @@ Request (`application/json`, máximo 16 KB):
 { "lines": [{ "productId": "c088", "quantity": 3 }] }
 ```
 
-- `lines`: 1 a 50 líneas. `productId`: `[a-z0-9-]{1,40}`. `quantity`: entero 1–99. Cualquier otro campo → 422.
+- `lines`: 1 a 50. `productId`: `[a-z0-9-]{1,40}`. `quantity`: entero 1–99. Otros campos → 422.
 
 Respuesta 200 (`Cache-Control: no-store`):
 
@@ -41,7 +58,7 @@ Respuesta 200 (`Cache-Control: no-store`):
 {
   "currency": "ARS",
   "lines": [{ "productId": "c088", "sku": "STK-088", "name": "Sticker Girasol", "quantity": 3,
-              "unitPriceMinor": 180000, "lineTotalMinor": 540000, "available": null }],
+              "unitPriceMinor": 180000, "lineTotalMinor": 540000, "available": 20 }],
   "issues": [{ "productId": "p21", "code": "requires_quote", "message": "Este producto se cotiza a pedido." }],
   "subtotalMinor": 540000,
   "shipping": { "status": "pending" },
@@ -49,21 +66,22 @@ Respuesta 200 (`Cache-Control: no-store`):
 }
 ```
 
+- `available`: unidades disponibles, o `null` si el producto se fabrica a pedido (o si no hay base conectada).
 - `issues[].code`: `unknown_product` · `requires_quote` · `not_purchasable` · `insufficient_stock`.
-- `valid` es `true` solo si todas las líneas se pueden comprar tal como se pidieron.
+- `valid`: `true` solo si todas las líneas se pueden comprar tal como se pidieron.
 
-Errores: `415` content-type no JSON · `413` cuerpo > 16 KB · `400` JSON inválido · `422` validación (con `fields[]`) · `405` otros métodos.
+Errores: `415` no JSON · `413` > 16 KB · `400` JSON inválido · `422` validación (`fields[]`) · `405` otros métodos.
 
-## Decisiones que necesito del negocio / del dueño de la cuenta
+## Provisionar staging (pasos del dueño de la cuenta)
 
-1. **Proveedor de PostgreSQL.** Recomendación: **Neon**, que ya está instalado en la cuenta de Vercel (plan gratis, sin vincular a ningún proyecto). Alternativa: cualquier Postgres 15+ administrado. Antes de elegir, revisar retención de backups y restauración del plan.
-2. **Staging.** Opciones: (a) una rama de Neon para staging + previews de Vercel; (b) un segundo proyecto de Vercel; (c) plan Pro con entornos personalizados. Recomendación inicial: (a), sin costo.
-3. **Autorización para provisionar.** Crear la base, vincularla al proyecto y que Vercel agregue la variable de conexión (no se imprime ni se commitea).
-4. **Reglas de stock** (qué productos controlan stock y cuáles se fabrican a pedido) — define `track_stock` por variante.
+1. Vercel → proyecto **sublime-ecommerce** → **Storage** → **Create Database** → **Neon**.
+2. Nombre sugerido `sublime-staging`; región **US East (Washington, `us-east-1`)**, la misma de las funciones (`iad1`).
+3. Al conectar al proyecto, marcar **solo Preview y Development**. **No marcar Production.**
+4. Para correr migraciones desde una máquina: `npm i -g vercel`, `vercel login`, `vercel link`, `vercel env pull .env.local --environment=preview` (el archivo está ignorado por Git y nunca se imprime).
+5. Luego: `npm run db:status` → `npm run db:seed` → `npm run test:db`.
 
-## Próximos pasos técnicos (cuando haya aprobación)
+## Pendiente
 
-1. Provisionar Postgres de staging y aplicar `0001` + seed de ensayo **solo en staging**.
-2. Elegir driver/cliente (propuesta: `@neondatabase/serverless` o `pg` con SQL explícito; sin ORM hasta que haga falta) y un runner de migraciones con tabla de control.
-3. Implementar `PostgresCatalogRepository` / `PostgresInventoryRepository` contra las mismas interfaces y correr los mismos tests en modo integración.
-4. Recién después, conectar la UI del carrito a `/api/cart/quote` (Fase 4).
+- Provisionar la base (pasos de arriba) y aplicar `0001` + seed **solo en staging**.
+- Conteo real de stock antes de cualquier venta.
+- Fase 2 (identidad/clientes) requiere elegir proveedor de autenticación.

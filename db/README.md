@@ -1,10 +1,22 @@
 # Base de datos
 
-PostgreSQL 15+. **Ninguna migración fue aplicada todavía**: no hay base provisionada.
+PostgreSQL 15+ (Neon en staging). **Solo staging**: producción no tiene base conectada.
 
-- `migrations/` — SQL versionado, revisable y transaccional (`NNNN_descripcion.sql`). Se aplica en orden, primero en staging.
-- `seed/0001_catalog_seed.sql` — generado por `npm run db:dry-run` desde `src/data`. No editar a mano. Precios ilustrativos: solo para staging.
+- `migrations/` — SQL versionado y revisable (`NNNN_descripcion.sql`). Sin `BEGIN/COMMIT`: el runner envuelve cada archivo y su registro en `schema_migrations` en una transacción.
+- `seed/0001_catalog_seed.sql` — generado por `npm run db:dry-run` desde `src/data`. No editar a mano. Precios y stock (20 u.) provisorios: solo staging.
 
-El ensayo (`npm run db:dry-run`) valida el catálogo contra las mismas reglas que la migración (slugs, SKUs, códigos, duplicados, precios) y falla si encuentra problemas. No se conecta a ninguna base.
+Comandos (leen `DATABASE_URL` de `.env.local`; el runner exige `--target=staging` y se bloquea si `VERCEL_ENV=production`):
 
-Detalle y decisiones pendientes: [docs/backend/fase-1-fundaciones.md](../docs/backend/fase-1-fundaciones.md).
+| Comando | Qué hace |
+| --- | --- |
+| `npm run db:dry-run` | Valida el catálogo contra las reglas del esquema y regenera el seed. No se conecta. |
+| `npm run db:status` | Muestra migraciones aplicadas y pendientes. |
+| `npm run db:migrate` | Aplica migraciones pendientes. |
+| `npm run db:seed` | Aplica migraciones pendientes y el seed (una sola vez). |
+| `npm run test:db` | Chequeos de solo lectura contra la base de staging. |
+
+Los archivos aplicados quedan con checksum: modificar uno ya aplicado aborta la ejecución (se crea una migración nueva).
+
+`npm test` incluye `tests/db-schema.test.mjs`, que corre la migración y el seed en PostgreSQL embebido (PGlite) sin tocar ninguna base.
+
+Detalle: [docs/backend/fase-1-fundaciones.md](../docs/backend/fase-1-fundaciones.md).

@@ -25,6 +25,15 @@ describe("catalog import rehearsal", () => {
     assert.equal(custom.price_minor, null);
   });
 
+  it("tracks stock for everything except custom made-to-order products", () => {
+    for (const variant of plan.variants) {
+      const product = products.find((item) => item.id === variant.product_legacy_id);
+      assert.equal(variant.track_stock, !product.requiresQuote, product.slug);
+    }
+    const tracked = plan.variants.filter((variant) => variant.track_stock).map((variant) => variant.sku).sort();
+    assert.deepEqual(plan.inventory.map((row) => row.sku).sort(), tracked);
+  });
+
   it("detects duplicates and invalid values before touching a database", () => {
     const broken = [
       ...products.slice(0, 2),
@@ -37,12 +46,12 @@ describe("catalog import rehearsal", () => {
     assert.match(errors, /sin precio y sin cotización/);
   });
 
-  it("renders a transactional seed that escapes quotes", () => {
+  it("renders a seed that escapes quotes and leaves transactions to the runner", () => {
     const sql = renderSeedSql(
       buildImportPlan(categories, [{ ...products.find((product) => product.id === "c088"), name: "Sticker D'Artagnan" }]),
     );
     assert.match(sql, /^-- Generated/);
-    assert.match(sql, /BEGIN;[\s\S]*COMMIT;/);
+    assert.doesNotMatch(sql, /\bBEGIN;|\bCOMMIT;/, "the runner owns the transaction");
     assert.match(sql, /'Sticker D''Artagnan'/);
   });
 

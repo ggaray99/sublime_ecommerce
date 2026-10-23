@@ -9,14 +9,20 @@
     "lint": "eslint",
     "test": "node --test \"tests/*.test.mjs\"",
     "art": "node scripts/generate-art.mjs",
-    "db:dry-run": "node scripts/catalog-import-dry-run.mjs"
+    "db:dry-run": "node scripts/catalog-import-dry-run.mjs",
+    "db:status": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs --target=staging",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs --target=staging --apply",
+    "db:seed": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs --target=staging --apply --seed",
+    "test:db": "node --env-file-if-exists=.env.local --test tests/db-integration.test.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
     "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

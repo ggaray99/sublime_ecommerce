@@ -1,8 +1,8 @@
 -- 0001 · Catalog and inventory foundations (PostgreSQL 15+).
 -- Status: PROPOSAL FOR REVIEW. Not applied to any environment.
 -- Apply only to a staging database first; never to production without approval.
-
-BEGIN;
+-- No BEGIN/COMMIT here: scripts/db-migrate.mjs wraps each file and its version
+-- record in a single transaction.
 
 CREATE TABLE categories (
   id          text PRIMARY KEY CHECK (id ~ '^[a-z0-9-]{1,40}$'),
@@ -102,5 +102,3 @@ CREATE TABLE inventory_movements (
 );
 
 CREATE INDEX inventory_movements_variant_idx ON inventory_movements (variant_id, created_at);
-
-COMMIT;
