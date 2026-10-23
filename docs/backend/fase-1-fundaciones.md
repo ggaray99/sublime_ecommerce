@@ -1,6 +1,6 @@
 # Fase 1 — Fundaciones backend
 
-Estado: **código listo y verificado contra PostgreSQL local; falta provisionar la base de staging**. Producción no usa base de datos y no cambia hasta mergear a `main`.
+Estado: **staging operativa**. Base Neon `sublime-staging` conectada solo a Preview y Development, con la migración 0001 y el seed aplicados y verificados (`npm run test:db`). Producción no usa base de datos: además de no tener la variable, `hasDatabase()` la ignora en `VERCEL_ENV=production` salvo `SUBLIME_DB_IN_PRODUCTION=enabled`.
 
 ## Decisiones tomadas
 
@@ -72,16 +72,15 @@ Respuesta 200 (`Cache-Control: no-store`):
 
 Errores: `415` no JSON · `413` > 16 KB · `400` JSON inválido · `422` validación (`fields[]`) · `405` otros métodos.
 
-## Provisionar staging (pasos del dueño de la cuenta)
+## Cómo se provisionó staging (referencia)
 
 1. Vercel → proyecto **sublime-ecommerce** → **Storage** → **Create Database** → **Neon**.
 2. Nombre sugerido `sublime-staging`; región **US East (Washington, `us-east-1`)**, la misma de las funciones (`iad1`).
-3. Al conectar al proyecto, marcar **solo Preview y Development**. **No marcar Production.**
-4. Para correr migraciones desde una máquina: `npm i -g vercel`, `vercel login`, `vercel link`, `vercel env pull .env.local --environment=preview` (el archivo está ignorado por Git y nunca se imprime).
+3. Al conectar al proyecto, marcar **solo Preview y Development**, sin ramas por deployment, prefijo vacío (`DATABASE_URL`) y sin "Sensitive". **No marcar Production.**
+4. Para correr migraciones desde una máquina: copiar el snippet `.env.local` del panel de Neon a `.env.local` en la raíz (ignorado por Git), o `vercel env pull .env.local --environment=development`.
 5. Luego: `npm run db:status` → `npm run db:seed` → `npm run test:db`.
 
 ## Pendiente
 
-- Provisionar la base (pasos de arriba) y aplicar `0001` + seed **solo en staging**.
 - Conteo real de stock antes de cualquier venta.
 - Fase 2 (identidad/clientes) requiere elegir proveedor de autenticación.
