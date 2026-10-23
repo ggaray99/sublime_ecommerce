@@ -78,8 +78,18 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   return (
     <form action={action} className="quote-form account-form" noValidate>
       <Status state={state} />
-      {mode === "signup" && <Field name="name" label="Nombre" state={state} autoComplete="name" required />}
-      <Field name="email" label="Email" type="email" state={state} autoComplete="email" required />
+      {mode === "signup" && (
+        <Field name="name" label="Nombre" state={state} autoComplete="name" defaultValue={state.values?.name} required />
+      )}
+      <Field
+        name="email"
+        label="Email"
+        type="email"
+        state={state}
+        autoComplete="email"
+        defaultValue={state.values?.email}
+        required
+      />
       <Field
         name="password"
         label="Contraseña"

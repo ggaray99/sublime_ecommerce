@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { isAuthEnabled } from "../src/server/auth/config.ts";
+import { authErrorMessage } from "../src/server/auth/errors.ts";
 import { createCustomerRepository, CustomerDataError } from "../src/server/customers/repository.ts";
 import {
   MAX_ADDRESSES,
@@ -41,6 +42,27 @@ describe("isAuthEnabled (environment guard)", () => {
     assert.equal(isAuthEnabled({ ...base, VERCEL_ENV: "production" }), false);
     assert.equal(isAuthEnabled({ ...base, VERCEL_ENV: "production", SUBLIME_AUTH_IN_PRODUCTION: "enabled" }), true);
     assert.equal(isAuthEnabled({ ...base, VERCEL_ENV: "preview" }), true);
+  });
+});
+
+describe("authErrorMessage", () => {
+  it("maps Better Auth, normalized and HTTP-only errors to Spanish", () => {
+    assert.equal(authErrorMessage({ code: "INVALID_EMAIL_OR_PASSWORD" }), "Email o contraseña incorrectos.");
+    assert.equal(authErrorMessage({ code: "invalid_credentials" }), "Email o contraseña incorrectos.");
+    assert.equal(authErrorMessage({ status: 401 }), "Email o contraseña incorrectos.");
+    assert.match(authErrorMessage({ code: "user_already_exists" }), /Ya existe una cuenta/);
+    assert.match(authErrorMessage({ status: 429 }), /demasiados intentos/);
+  });
+
+  it("explains a rejected sign-up (Neon reports existing emails as validation_failed/422)", () => {
+    const duplicate = { code: "validation_failed", status: 422 };
+    assert.match(authErrorMessage(duplicate, "sign-up"), /Si ya tenés cuenta, probá ingresar/);
+    assert.match(authErrorMessage(duplicate, "sign-in"), /No pudimos completar/);
+  });
+
+  it("never echoes provider messages", () => {
+    assert.match(authErrorMessage({ code: "internal_error", message: "db host 10.0.0.1 down" }), /No pudimos completar/);
+    assert.match(authErrorMessage(null), /No pudimos completar/);
   });
 });
 

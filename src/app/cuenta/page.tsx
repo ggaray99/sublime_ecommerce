@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { AddressForm, ProfileForm } from "@/components/account/forms";
 import { AccountsUnavailable } from "@/components/account/unavailable";
@@ -15,6 +16,8 @@ export const metadata: Metadata = {
 
 /** Reads the session cookie, so it renders per request inside Suspense. */
 async function AccountContent() {
+  // Opt out of prerendering before touching the session cookie.
+  await connection();
   const customer = await getCurrentCustomer();
   if (!customer) redirect("/cuenta/ingresar");
   const addresses = await getCustomerRepository().listAddresses(customer.id);

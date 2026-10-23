@@ -1,6 +1,6 @@
 # Fase 2 — Identidad y clientes
 
-Estado: **implementado en staging; falta configurar dos variables para activarlo**. Producción no tiene cuentas: el código las desactiva en `VERCEL_ENV=production`.
+Estado: **activo en staging y verificado de punta a punta**. Producción no tiene cuentas: el código las desactiva en `VERCEL_ENV=production`.
 
 ## Decisiones
 
@@ -31,24 +31,30 @@ Estado: **implementado en staging; falta configurar dos variables para activarlo
 - El cliente se resuelve **siempre desde la cookie de sesión**. Los ids que llegan del formulario solo identifican qué dirección tocar, y toda consulta filtra además por el `customer_id` de la sesión: nadie puede leer, cambiar ni borrar direcciones ajenas (probado).
 - Ids malformados se rechazan antes de llegar a SQL.
 - Protección doble: `proxy.ts` redirige a `/cuenta/ingresar`, y la página vuelve a verificar la sesión en el servidor.
-- Errores de Neon Auth se traducen a mensajes en español sin exponer detalles internos.
+- Errores de Neon Auth se traducen a mensajes en español sin exponer detalles internos (`src/server/auth/errors.ts`). Neon informa un email ya registrado como `validation_failed` / 422; en el registro se muestra "No pudimos crear una cuenta con ese email. Si ya tenés cuenta, probá ingresar." Los códigos no reconocidos se registran en el log del servidor solo con código y estado HTTP, nunca con el mensaje.
 - Límite de 10 direcciones por cliente; una sola dirección principal (también forzado por índice único en la base).
 - Código postal argentino (CPA `C1425ABC` o 4 dígitos) y provincia de una lista cerrada.
 
 ### Pruebas
 
-`tests/customers.test.mjs` (13 tests): activación por entorno, validaciones, y repositorio sobre PostgreSQL (PGlite) — vínculo idempotente, dirección principal única, promoción al borrar, **aislamiento entre clientes**, ids maliciosos, límite de direcciones y restricciones de la base.
+`tests/customers.test.mjs` (17 tests): traducción de errores de auth,: activación por entorno, validaciones, y repositorio sobre PostgreSQL (PGlite) — vínculo idempotente, dirección principal única, promoción al borrar, **aislamiento entre clientes**, ids maliciosos, límite de direcciones y restricciones de la base.
 
-## Activación (pasos pendientes)
+## Prueba de punta a punta (22/10/2026, local contra staging)
 
-Neon Auth necesita dos variables. `NEON_AUTH_BASE_URL` ya la creó la integración en Vercel (Preview y Development). Falta:
+Registro → sesión iniciada y cliente vinculado → guardar teléfono → agregar dirección (queda principal) → cerrar sesión → `/cuenta` redirige a ingresar → contraseña incorrecta ("Email o contraseña incorrectos.", conserva el email) → ingreso correcto con la dirección guardada → registro duplicado rechazado con mensaje claro.
+
+Usuario de prueba en staging: `qa.sublime.staging.1022@example.com` (contraseña fuera del repositorio). Se puede borrar desde Neon Console → Auth → Users.
+
+## Activación (referencia)
+
+Neon Auth necesita dos variables. `NEON_AUTH_BASE_URL` la crea la integración (Preview y Development). Configuración aplicada:
 
 1. **Vercel → proyecto → Settings → Environment Variables → Add**
    - Nombre: `NEON_AUTH_COOKIE_SECRET`
    - Valor: un texto aleatorio de 32+ caracteres. Generarlo con:
      `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
-   - Entornos: **Preview** y **Development** (no Production). Marcar **Sensitive**.
-2. **Local:** agregar `NEON_AUTH_BASE_URL` a `.env.local` (valor en Vercel → Environment Variables, o Neon Console → Auth → Configuration). `NEON_AUTH_COOKIE_SECRET` local ya fue generado.
+   - Entornos: **solo Preview** (Vercel no permite secretos en Development; local usa `.env.local`). Tipo **Secret**.
+2. **Local:** `.env.local` con `NEON_AUTH_BASE_URL` (valor en Vercel → Environment Variables) y un `NEON_AUTH_COOKIE_SECRET` propio.
 3. Hacer un nuevo deploy de la rama para que la preview tome las variables.
 
 ## Pendiente
