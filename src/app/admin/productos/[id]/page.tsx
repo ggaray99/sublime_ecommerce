@@ -26,7 +26,9 @@ const priceInput = (minor: number | null) =>
   minor === null ? "" : minor % 100 ? `${Math.floor(minor / 100)},${String(minor % 100).padStart(2, "0")}` : String(minor / 100);
 
 async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[id]">["params"] }) {
+  // Always request-time: also keeps the route dynamic where the panel is disabled.
   await connection();
+  if (!adminAvailable()) return <AdminUnavailable />;
   const admin = await getCurrentAdmin();
   if (!admin) notFound();
 
@@ -107,13 +109,9 @@ export default function AdminProductPage({ params }: PageProps<"/admin/productos
       <PageIntro kicker="Administración" title="EDITAR PRODUCTO." tone="light">
         <p>Entorno de prueba: los cambios se guardan en la base de staging y quedan registrados.</p>
       </PageIntro>
-      {adminAvailable() ? (
-        <Suspense fallback={<p className="panel panel--muted">Cargando el producto…</p>}>
-          <ProductAdmin params={params} />
-        </Suspense>
-      ) : (
-        <AdminUnavailable />
-      )}
+      <Suspense fallback={<p className="panel panel--muted">Cargando el producto…</p>}>
+        <ProductAdmin params={params} />
+      </Suspense>
     </main>
   );
 }

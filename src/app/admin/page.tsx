@@ -18,7 +18,9 @@ export const metadata: Metadata = {
 const LOW_STOCK = 5;
 
 async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin">["searchParams"] }) {
+  // Always request-time: also keeps the route dynamic where the panel is disabled.
   await connection();
+  if (!adminAvailable()) return <AdminUnavailable />;
   const admin = await getCurrentAdmin();
   if (!admin) notFound();
 
@@ -105,13 +107,9 @@ export default function AdminPage({ searchParams }: PageProps<"/admin">) {
       <PageIntro kicker="Interno" title="ADMINISTRACIÓN." tone="light">
         <p>Entorno de prueba: los cambios se guardan en la base de staging y quedan registrados.</p>
       </PageIntro>
-      {adminAvailable() ? (
-        <Suspense fallback={<p className="panel panel--muted">Cargando el panel…</p>}>
-          <AdminContent searchParams={searchParams} />
-        </Suspense>
-      ) : (
-        <AdminUnavailable />
-      )}
+      <Suspense fallback={<p className="panel panel--muted">Cargando el panel…</p>}>
+        <AdminContent searchParams={searchParams} />
+      </Suspense>
     </main>
   );
 }
