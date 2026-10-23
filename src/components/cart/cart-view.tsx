@@ -9,7 +9,8 @@ import { categoryLabelOf } from "@/lib/catalog";
 import { cartActions, useCartSummary, useHydrated } from "./cart-store";
 import { QuantityStepper } from "./quantity-stepper";
 
-export function CartView({ catalog }: { catalog: Product[] }) {
+/** `realCheckout`: orders are enabled (staging) and the checkout places a real order. */
+export function CartView({ catalog, realCheckout = false }: { catalog: Product[]; realCheckout?: boolean }) {
   const hydrated = useHydrated();
   const { items, count, subtotal } = useCartSummary(catalog);
 
@@ -100,10 +101,10 @@ export function CartView({ catalog }: { catalog: Product[] }) {
           </div>
         </dl>
         <Link className="btn btn--acid btn--block btn--lg" href="/checkout">
-          Ir al checkout demo
+          {realCheckout ? "Ir al checkout" : "Ir al checkout demo"}
         </Link>
         <p className="fine-print">
-          Los precios son ilustrativos. El checkout es una simulación: no se cobra nada ni se genera un pedido.
+          {realCheckout ? "Entorno de prueba: el pedido se guarda y reserva el stock 15 minutos; no se cobra nada online." : "Los precios son ilustrativos. El checkout es una simulación: no se cobra nada ni se genera un pedido."}
         </p>
         <button type="button" className="link-button" onClick={cartActions.clear}>
           Vaciar carrito

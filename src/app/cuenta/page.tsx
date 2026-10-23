@@ -6,7 +6,11 @@ import { Suspense } from "react";
 import { AddressForm, ProfileForm } from "@/components/account/forms";
 import { AccountsUnavailable } from "@/components/account/unavailable";
 import { PageIntro } from "@/components/page-intro";
+import { argentinaTime, orderStatusLabel } from "@/components/orders/order-view";
+import { formatPrice } from "@/lib/format";
 import { getCurrentAdmin } from "@/server/admin/session";
+import { orderNumber } from "@/server/orders/repository";
+import { getOrderRepository, ordersAvailable } from "@/server/orders/session";
 import { accountsAvailable, getCurrentCustomer, getCustomerRepository } from "@/server/customers/session";
 import { deleteAddressAction, setDefaultAddressAction, signOutAction } from "./actions";
 
@@ -22,7 +26,11 @@ async function AccountContent() {
   await connection();
   const customer = await getCurrentCustomer();
   if (!customer) redirect("/cuenta/ingresar");
-  const [addresses, admin] = await Promise.all([getCustomerRepository().listAddresses(customer.id), getCurrentAdmin()]);
+  const [addresses, admin, orders] = await Promise.all([
+    getCustomerRepository().listAddresses(customer.id),
+    getCurrentAdmin(),
+    ordersAvailable() ? getOrderRepository().listOrders({ customerId: customer.id, limit: 20 }) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="account">
@@ -42,6 +50,27 @@ async function AccountContent() {
           </p>
         )}
         <ProfileForm fullName={customer.fullName} phone={customer.phone} />
+      </section>
+
+      <section className="account__section" aria-labelledby="pedidos-title">
+        <h2 id="pedidos-title">Mis pedidos</h2>
+        {orders.length ? (
+          <ul className="audit-list">
+            {orders.map((order) => (
+              <li key={order.id}>
+                <p>
+                  <Link href={`/pedido/${order.id}`}>
+                    <strong>{orderNumber(order)}</strong>
+                  </Link>{" "}
+                  · {orderStatusLabel[order.status]} · {formatPrice(order.subtotalMinor / 100)}
+                </p>
+                <p className="muted">{argentinaTime(order.createdAt)}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">Todavía no hiciste pedidos.</p>
+        )}
       </section>
 
       <section className="account__section" aria-labelledby="direcciones-title">

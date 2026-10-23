@@ -1,32 +1,77 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
+import { Suspense } from "react";
 import { CheckoutDemo } from "@/components/cart/checkout-demo";
+import { CheckoutForm } from "@/components/cart/checkout-form";
 import { PageIntro } from "@/components/page-intro";
+import { getCurrentCustomer, getCustomerRepository } from "@/server/customers/session";
+import { PROVINCES } from "@/server/customers/validation";
+import { ordersAvailable } from "@/server/orders/session";
 import { getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
-  title: "Checkout demo",
-  description: "Simulación del checkout de Sublime. No se procesan pagos ni se generan pedidos.",
+  title: "Checkout",
+  description: "Confirmá tu pedido en Sublime.",
   alternates: { canonical: "/checkout" },
+  robots: { index: false, follow: true },
 };
 
-export default async function CheckoutPage() {
+/** Request-time: reads the session to pre-fill contact data and saved addresses. */
+async function RealCheckout() {
+  await connection();
   const catalog = await getStorefrontProducts();
+  const customer = await getCurrentCustomer().catch(() => null);
+  const addresses = customer ? await getCustomerRepository().listAddresses(customer.id) : [];
+  return (
+    <CheckoutForm
+      catalog={catalog}
+      signedIn={Boolean(customer)}
+      prefill={{ name: customer?.fullName ?? "", email: customer?.email ?? "", phone: customer?.phone ?? "" }}
+      // The default address comes first and is pre-selected.
+      addresses={addresses}
+      provinces={PROVINCES}
+    />
+  );
+}
+
+export default async function CheckoutPage() {
+  if (!ordersAvailable()) {
+    const catalog = await getStorefrontProducts();
+    return (
+      <main id="contenido" className="page">
+        <PageIntro
+          kicker="Checkout simulado"
+          title={
+            <>
+              CHECKOUT <em>DEMO.</em>
+            </>
+          }
+        >
+          <p>
+            Así se organizaría la compra cuando la tienda esté habilitada. Hoy no hay pagos, envíos ni pedidos reales: ningún
+            paso solicita ni procesa datos.
+          </p>
+        </PageIntro>
+        <CheckoutDemo catalog={catalog} />
+      </main>
+    );
+  }
+
   return (
     <main id="contenido" className="page">
       <PageIntro
-        kicker="Checkout simulado"
+        kicker="Entorno de prueba"
         title={
           <>
-            CHECKOUT <em>DEMO.</em>
+            CONFIRMÁ TU <em>PEDIDO.</em>
           </>
         }
       >
-        <p>
-          Así se organizaría la compra cuando la tienda esté habilitada. Hoy no hay pagos, envíos ni pedidos reales: ningún
-          paso solicita ni procesa datos.
-        </p>
+        <p>Los pedidos se guardan en la base de staging. No se cobra nada online: el pago se coordina después.</p>
       </PageIntro>
-      <CheckoutDemo catalog={catalog} />
+      <Suspense fallback={<p className="panel panel--muted">Cargando el checkout…</p>}>
+        <RealCheckout />
+      </Suspense>
     </main>
   );
 }

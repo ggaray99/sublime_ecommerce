@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CartView } from "@/components/cart/cart-view";
 import { PageIntro } from "@/components/page-intro";
+import { ordersAvailable } from "@/server/orders/session";
 import { getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
@@ -23,7 +24,7 @@ export default async function CarritoPage() {
       >
         <p>El carrito se guarda solo en este navegador y no contiene datos personales.</p>
       </PageIntro>
-      <CartView catalog={catalog} />
+      <CartView catalog={catalog} realCheckout={ordersAvailable()} />
     </main>
   );
 }
