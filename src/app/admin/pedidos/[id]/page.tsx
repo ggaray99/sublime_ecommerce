@@ -53,7 +53,7 @@ async function OrderAdmin({ params }: { params: PageProps<"/admin/pedidos/[id]">
 
       <section className="account__section" aria-labelledby="acciones-title">
         <h2 id="acciones-title">Acciones</h2>
-        <OrderActions orderId={order.id} status={order.status} />
+        <OrderActions orderId={order.id} status={order.status} shipping={order.delivery.method === "shipping"} />
       </section>
 
       <section className="account__section" aria-labelledby="historial-title">

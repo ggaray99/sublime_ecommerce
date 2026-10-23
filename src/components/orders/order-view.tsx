@@ -1,9 +1,11 @@
 import { formatPrice } from "@/lib/format";
 import { orderNumber, type OrderDetail, type OrderStatus } from "@/server/orders/repository";
+import { etaLabel } from "@/server/shipping/rules";
 
 export const orderStatusLabel: Record<OrderStatus, string> = {
   pending_payment: "Pendiente de pago",
   paid: "Pago confirmado",
+  shipped: "Enviado",
   fulfilled: "Entregado",
   cancelled: "Cancelado",
   expired: "Vencido",
@@ -54,8 +56,31 @@ export function OrderSummary({ order }: { order: OrderDetail }) {
             ) : (
               "Retiro en el taller"
             )}
+            {order.shipping?.method === "shipping" && order.shipping.etaMaxDays !== null && (
+              <span className="muted">
+                {" "}
+                · {order.shipping.label}, {etaLabel(order.shipping.etaMinDays ?? 0, order.shipping.etaMaxDays)} desde que se despacha
+              </span>
+            )}
           </dd>
         </div>
+        {order.tracking && (
+          <div>
+            <dt>Seguimiento</dt>
+            <dd>
+              {order.tracking.carrier}
+              {order.tracking.code && ` · ${order.tracking.code}`}
+              {order.tracking.url && (
+                <>
+                  {" · "}
+                  <a href={order.tracking.url} target="_blank" rel="noopener noreferrer">
+                    Seguir el envío
+                  </a>
+                </>
+              )}
+            </dd>
+          </div>
+        )}
       </dl>
 
       <table className="admin-table order-items">
@@ -92,7 +117,17 @@ export function OrderSummary({ order }: { order: OrderDetail }) {
             <th scope="row" colSpan={3}>
               Envío
             </th>
-            <td>{order.shippingMinor === null ? (shipping ? "A confirmar" : "Sin cargo") : formatPrice(order.shippingMinor / 100)}</td>
+            <td>
+              {order.shippingMinor === null
+                ? shipping
+                  ? "A confirmar"
+                  : "Sin cargo"
+                : order.shippingMinor === 0
+                  ? order.shipping?.free
+                    ? "Gratis"
+                    : "Sin cargo"
+                  : formatPrice(order.shippingMinor / 100)}
+            </td>
           </tr>
           <tr className="order-items__total">
             <th scope="row" colSpan={3}>

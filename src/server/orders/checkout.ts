@@ -3,7 +3,9 @@ import { quoteCart, type CartQuote, type QuoteIssue } from "../cart/quote.ts";
 import { parseQuoteRequest } from "../cart/validation.ts";
 import { parseAddress, type FieldErrors } from "../customers/validation.ts";
 import type { InventoryRepository } from "../inventory/repository.ts";
-import { OrderError, type Delivery, type Order, type OrderRepository } from "./repository.ts";
+import type { ShippingRepository } from "../shipping/repository.ts";
+import { quoteShipping } from "../shipping/rules.ts";
+import { OrderError, type Delivery, type Order, type OrderRepository, type ShippingSnapshot } from "./repository.ts";
 
 export type CheckoutInput = {
   idempotencyKey: string;
@@ -71,7 +73,8 @@ export function parseCheckout(data: Data): { ok: true; value: CheckoutInput } | 
 export type CheckoutResult =
   | { ok: true; order: Order }
   | { ok: false; reason: "cart"; quote: CartQuote; issues: QuoteIssue[] }
-  | { ok: false; reason: "stock"; message: string };
+  | { ok: false; reason: "stock"; message: string }
+  | { ok: false; reason: "shipping"; message: string };
 
 /**
  * Places an order from the browser cart: releases expired holds, recomputes
@@ -80,7 +83,7 @@ export type CheckoutResult =
 export async function checkout(
   input: CheckoutInput,
   customerId: string | null,
-  deps: { catalog: CatalogRepository; inventory: InventoryRepository; orders: OrderRepository },
+  deps: { catalog: CatalogRepository; inventory: InventoryRepository; orders: OrderRepository; shipping: ShippingRepository },
 ): Promise<CheckoutResult> {
   // Retrying the same submit returns the order already created.
   const previous = await deps.orders.findByIdempotencyKey(input.idempotencyKey);
@@ -89,6 +92,27 @@ export async function checkout(
   await deps.orders.releaseExpired();
   const quote = await quoteCart(input.lines, deps);
   if (!quote.valid) return { ok: false, reason: "cart", quote, issues: quote.issues };
+
+  // Shipping is quoted on the server too: the browser only shows an estimate.
+  let shipping: ShippingSnapshot;
+  if (input.delivery.method === "pickup") {
+    const pickup = await deps.shipping.getPickup();
+    if (!pickup.enabled) return { ok: false, reason: "shipping", message: "El retiro no está disponible por ahora. Elegí envío a domicilio." };
+    shipping = { method: "pickup", costMinor: 0, label: "Retiro en el taller", ruleId: null, free: false, etaMinDays: null, etaMaxDays: null };
+  } else {
+    const rules = await deps.shipping.listRules({ activeOnly: true });
+    const estimate = quoteShipping(rules, input.delivery.address, quote.subtotalMinor);
+    if (!estimate.covered) return { ok: false, reason: "shipping", message: estimate.reason };
+    shipping = {
+      method: "shipping",
+      costMinor: estimate.costMinor,
+      label: estimate.label,
+      ruleId: estimate.ruleId,
+      free: estimate.free,
+      etaMinDays: estimate.etaMinDays,
+      etaMaxDays: estimate.etaMaxDays,
+    };
+  }
 
   try {
     const order = await deps.orders.placeOrder({
@@ -99,6 +123,7 @@ export async function checkout(
       contactPhone: input.contactPhone,
       delivery: input.delivery,
       notes: input.notes,
+      shipping,
       lines: quote.lines.map((line) => ({
         sku: line.sku,
         productId: line.productId,

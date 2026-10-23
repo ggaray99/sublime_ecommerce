@@ -6,7 +6,7 @@ import { OrderError } from "@/server/orders/repository";
 import { getOrderRepository } from "@/server/orders/session";
 import { CATALOG_TAG } from "@/server/storefront";
 
-const ACTIONS = ["confirm", "cancel", "fulfill"] as const;
+const ACTIONS = ["confirm", "cancel", "ship", "fulfill"] as const;
 
 /** One action for the order buttons; the clicked button says which transition. */
 export async function orderAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
@@ -23,6 +23,14 @@ export async function orderAction(_state: AdminFormState, form: FormData): Promi
     if (intent === "confirm") {
       const status = await orders.confirmPayment(admin.email, orderId, note);
       ok = status === "paid" ? "Pago confirmado: el stock reservado pasó a venta." : "Pago tardío sin stock suficiente: el pedido quedó en revisión.";
+    } else if (intent === "ship") {
+      const carrier = String(form.get("carrier") ?? "").trim().slice(0, 60);
+      const code = String(form.get("trackingCode") ?? "").trim().slice(0, 80);
+      const url = String(form.get("trackingUrl") ?? "").trim();
+      if (!carrier) return { fields: { carrier: "Indicá la empresa de envío." } };
+      if (url && !/^https:\/\/[^\s]{4,300}$/.test(url)) return { fields: { trackingUrl: "Enlace https:// válido o vacío." } };
+      await orders.markShipped(admin.email, orderId, { carrier, code, url }, note);
+      ok = "Pedido marcado como enviado.";
     } else if (intent === "cancel") {
       await orders.cancelOrder(admin.email, orderId, note);
       ok = "Pedido cancelado; el stock reservado se liberó.";

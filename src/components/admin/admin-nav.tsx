@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const LINKS = [
   { id: "pedidos", href: "/admin/pedidos", label: "Pedidos" },
+  { id: "envios", href: "/admin/envios", label: "Envíos" },
   { id: "productos", href: "/admin", label: "Productos" },
   { id: "categorias", href: "/admin/categorias", label: "Categorías" },
   { id: "integraciones", href: "/admin/integraciones", label: "Integraciones (API)" },

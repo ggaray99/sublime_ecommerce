@@ -6,7 +6,7 @@ import { CheckoutForm } from "@/components/cart/checkout-form";
 import { PageIntro } from "@/components/page-intro";
 import { getCurrentCustomer, getCustomerRepository } from "@/server/customers/session";
 import { PROVINCES } from "@/server/customers/validation";
-import { ordersAvailable } from "@/server/orders/session";
+import { getShippingRepository, ordersAvailable } from "@/server/orders/session";
 import { getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
@@ -21,7 +21,12 @@ async function RealCheckout() {
   await connection();
   const catalog = await getStorefrontProducts();
   const customer = await getCurrentCustomer().catch(() => null);
-  const addresses = customer ? await getCustomerRepository().listAddresses(customer.id) : [];
+  const shipping = getShippingRepository();
+  const [addresses, shippingRules, pickup] = await Promise.all([
+    customer ? getCustomerRepository().listAddresses(customer.id) : Promise.resolve([]),
+    shipping.listRules({ activeOnly: true }),
+    shipping.getPickup(),
+  ]);
   return (
     <CheckoutForm
       catalog={catalog}
@@ -30,6 +35,8 @@ async function RealCheckout() {
       // The default address comes first and is pre-selected.
       addresses={addresses}
       provinces={PROVINCES}
+      shippingRules={shippingRules}
+      pickup={pickup}
     />
   );
 }

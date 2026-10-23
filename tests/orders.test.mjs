@@ -9,6 +9,7 @@ import { createPostgresCatalogRepository } from "../src/server/catalog/postgres-
 import { createPostgresInventoryRepository } from "../src/server/inventory/postgres-repository.ts";
 import { checkout, parseCheckout } from "../src/server/orders/checkout.ts";
 import { createOrderRepository, orderNumber, OrderError } from "../src/server/orders/repository.ts";
+import { createShippingRepository } from "../src/server/shipping/repository.ts";
 
 const dbDir = join(import.meta.dirname, "..", "db");
 const sqlFiles = (folder) =>
@@ -20,6 +21,7 @@ const sqlFiles = (folder) =>
 let keyCounter = 0;
 const key = () => `test-order-${++keyCounter}-key`;
 
+const pickup = { shipping: { method: "pickup", costMinor: 0, label: "Retiro", ruleId: null, free: false, etaMinDays: null, etaMaxDays: null } };
 const contact = { contactName: "Ana Pérez", contactEmail: "ana@example.com", contactPhone: "", delivery: { method: "pickup" }, notes: "" };
 
 describe("checkout form", () => {
@@ -71,7 +73,12 @@ describe("orders and reservations (PGlite)", () => {
     for (const sql of [...sqlFiles("migrations"), ...sqlFiles("seed")]) await db.exec(sql);
     const query = { query: async (text, params) => (await db.query(text, params)).rows };
     orders = createOrderRepository(query);
-    deps = { catalog: createPostgresCatalogRepository(query), inventory: createPostgresInventoryRepository(query), orders };
+    deps = {
+      catalog: createPostgresCatalogRepository(query),
+      inventory: createPostgresInventoryRepository(query),
+      orders,
+      shipping: createShippingRepository(query),
+    };
   });
   after(() => db.close());
 
@@ -100,7 +107,7 @@ describe("orders and reservations (PGlite)", () => {
     assert.equal(first.ok, true);
     // A second checkout quoted while 5 were free still fails atomically when reserving.
     await assert.rejects(
-      orders.placeOrder({ ...contact, idempotencyKey: key(), customerId: null, lines: [{ sku: "SUB-P08", productId: "p08", name: "x", quantity: 2, unitPriceMinor: 890000 }] }),
+      orders.placeOrder({ ...contact, ...pickup, idempotencyKey: key(), customerId: null, lines: [{ sku: "SUB-P08", productId: "p08", name: "x", quantity: 2, unitPriceMinor: 890000 }] }),
       (error) => error instanceof OrderError && error.code === "insufficient_stock",
     );
     assert.deepEqual(await stock("SUB-P08"), { on_hand: 5, reserved: 4 }, "the failed order reserved nothing");
@@ -118,6 +125,7 @@ describe("orders and reservations (PGlite)", () => {
     await assert.rejects(
       orders.placeOrder({
         ...contact,
+        ...pickup,
         idempotencyKey: key(),
         customerId: null,
         lines: [

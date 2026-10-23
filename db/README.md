@@ -19,8 +19,8 @@ Los archivos aplicados quedan con checksum: modificar uno ya aplicado aborta la 
 
 `npm test` incluye `tests/db-schema.test.mjs`, que corre la migración y el seed en PostgreSQL embebido (PGlite) sin tocar ninguna base.
 
-Migraciones aplicadas en staging: `0001_catalog_inventory` (catálogo e inventario), `0002_customers` (clientes y direcciones) , `0003_admin` (administradores y auditoría) , `0004_catalog_content` (contenido del catálogo) , `0005_categories_images` (categorías administrables e imágenes subidas) , `0006_api_keys` (claves de integración, límites e idempotencia de la API) , `0007_variants` (opciones y variantes) y `0008_orders` (pedidos, ítems, historial y reservas vinculadas). Seeds: `0001_catalog_seed` y `0002_catalog_content`.
+Migraciones aplicadas en staging: `0001_catalog_inventory` (catálogo e inventario), `0002_customers` (clientes y direcciones) , `0003_admin` (administradores y auditoría) , `0004_catalog_content` (contenido del catálogo) , `0005_categories_images` (categorías administrables e imágenes subidas) , `0006_api_keys` (claves de integración, límites e idempotencia de la API) , `0007_variants` (opciones y variantes) , `0008_orders` (pedidos, ítems, historial y reservas vinculadas) y `0009_shipping` (reglas de envío, retiro y seguimiento). Seed solo para staging: `0003_shipping_demo` (no correr en producción). Seeds: `0001_catalog_seed` y `0002_catalog_content`.
 
 **Antes de migrar, crear una rama de backup en Neon.** Procedimiento completo: [docs/backend/backup-y-rollback.md](../docs/backend/backup-y-rollback.md).
 
-Detalle: [Fase 1](../docs/backend/fase-1-fundaciones.md) · [Fase 2](../docs/backend/fase-2-identidad.md) · [Fase 3](../docs/backend/fase-3-catalogo-admin.md) · [Fase 4](../docs/backend/fase-4-pedidos.md).
+Detalle: [Fase 1](../docs/backend/fase-1-fundaciones.md) · [Fase 2](../docs/backend/fase-2-identidad.md) · [Fase 3](../docs/backend/fase-3-catalogo-admin.md) · [Fase 4](../docs/backend/fase-4-pedidos.md) · [Fase 6](../docs/backend/fase-6-envios.md) · [Pendientes](../docs/backend/pendientes.md).

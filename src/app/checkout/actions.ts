@@ -4,7 +4,7 @@ import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentCustomer } from "@/server/customers/session";
 import { checkout, parseCheckout } from "@/server/orders/checkout";
-import { getOrderRepository, ordersAvailable } from "@/server/orders/session";
+import { getOrderRepository, getShippingRepository, ordersAvailable } from "@/server/orders/session";
 import { getRepositories } from "@/server/repositories";
 import { CATALOG_TAG } from "@/server/storefront";
 
@@ -29,12 +29,17 @@ export async function placeOrderAction(_state: CheckoutState, form: FormData): P
 
   // Signed-in customers get the order in "Mi cuenta"; guests use the private link.
   const customer = await getCurrentCustomer().catch(() => null);
-  const result = await checkout(parsed.value, customer?.id ?? null, { ...getRepositories(), orders: getOrderRepository() });
+  const result = await checkout(parsed.value, customer?.id ?? null, {
+    ...getRepositories(),
+    orders: getOrderRepository(),
+    shipping: getShippingRepository(),
+  });
   // Stock changed (reserved now or released by expired holds): refresh the store.
   updateTag(CATALOG_TAG);
 
   if (!result.ok) {
     if (result.reason === "stock") return { error: result.message, values };
+    if (result.reason === "shipping") return { error: result.message, fields: { postalCode: result.message }, values };
     return {
       error: "Algunos productos cambiaron. Revisá el carrito antes de confirmar.",
       issues: result.issues.map((issue) => ({ productId: issue.productId, sku: issue.sku, message: issue.message })),

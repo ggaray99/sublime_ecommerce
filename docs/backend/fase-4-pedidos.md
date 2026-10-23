@@ -90,6 +90,6 @@ Corresponde a la fila 4 del roadmap técnico (`docs/auditoria-tecnica-backend-v1
 - **Plazo de reserva para pagos por transferencia:** 15 minutos sirve para pagos online (Fase 5), pero es corto si se coordina una transferencia. El valor está en `RESERVATION_MINUTES` (`src/server/orders/repository.ts`) y se puede ajustar cuando se defina la política.
 - **Devoluciones y cancelación de pedidos pagados:** falta definir la política.
 - **Emails de confirmación al cliente:** requieren un proveedor de email, que necesita aprobación.
-- **Costo de envío:** Fase 6.
+- **Costo de envío:** resuelto en la [Fase 6](fase-6-envios.md).
 
 **Pendiente de probar en la preview:** comprar como invitado y con cuenta, ver "Mis pedidos", confirmar el pago desde el panel, dejar vencer un pedido y cancelar otro.

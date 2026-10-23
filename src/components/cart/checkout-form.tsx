@@ -6,6 +6,7 @@ import { placeOrderAction, type CheckoutState } from "@/app/checkout/actions";
 import { Field } from "@/components/admin/forms";
 import type { Product } from "@/data/products";
 import { formatPrice } from "@/lib/format";
+import { etaLabel, quoteShipping, type PickupSettings, type ShippingRule } from "@/server/shipping/rules";
 import { useCartLines, useCartSummary, useHydrated } from "./cart-store";
 
 export type SavedAddress = {
@@ -27,10 +28,13 @@ type Props = {
   addresses: SavedAddress[];
   provinces: readonly string[];
   signedIn: boolean;
+  /** Active rules, to show an estimate while typing; the server quotes again when placing the order. */
+  shippingRules: ShippingRule[];
+  pickup: PickupSettings;
 };
 
 /** Real checkout (staging): reserves stock for 15 minutes; payment is arranged afterwards. */
-export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn }: Props) {
+export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn, shippingRules, pickup }: Props) {
   const hydrated = useHydrated();
   const lines = useCartLines();
   const { items, count, subtotal } = useCartSummary(catalog);
@@ -38,8 +42,10 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn 
   // One key per checkout page: a double click or a retry returns the same order.
   const [idempotencyKey] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`));
   const defaultAddress = addresses.find(Boolean);
-  const [method, setMethod] = useState(state.values?.deliveryMethod ?? (defaultAddress ? "shipping" : "pickup"));
+  const [method, setMethod] = useState(state.values?.deliveryMethod ?? (defaultAddress || !pickup.enabled ? "shipping" : "pickup"));
   const [addressId, setAddressId] = useState(defaultAddress?.id ?? "nueva");
+  // Where the estimate comes from: follows what is typed in province, city and postal code.
+  const [typed, setTyped] = useState<{ province?: string; city?: string; postalCode?: string }>({});
   const ids = useId();
 
   if (!hydrated) return <p className="panel panel--muted">Cargando tu carrito…</p>;
@@ -56,14 +62,33 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn 
     );
   }
 
-  const address = addresses.find((candidate) => candidate.id === addressId);
   const value = (name: string, fallback = "") => state.values?.[name] ?? fallback;
+  const address = addresses.find((candidate) => candidate.id === addressId);
+  const destination = {
+    province: typed.province ?? value("province", address?.province ?? ""),
+    city: typed.city ?? value("city", address?.city ?? ""),
+    postalCode: typed.postalCode ?? value("postalCode", address?.postalCode ?? ""),
+  };
+  const subtotalMinor = Math.round(subtotal * 100);
+  const estimate =
+    method === "shipping" && destination.province && destination.postalCode
+      ? quoteShipping(shippingRules, destination, subtotalMinor)
+      : null;
+  const shippingMinor = method === "pickup" ? 0 : estimate?.covered ? estimate.costMinor : null;
   const issueFor = (productId: string, sku?: string) =>
     state.issues?.find((issue) => issue.productId === productId && (issue.sku ?? "") === (sku ?? ""))?.message ??
     state.issues?.find((issue) => issue.productId === productId && !issue.sku)?.message;
 
   return (
-    <form action={action} className="cart-layout checkout-form" noValidate>
+    <form
+      action={action}
+      className="cart-layout checkout-form"
+      noValidate
+      onChange={(event) => {
+        const field = event.target as unknown as HTMLInputElement;
+        if (["province", "city", "postalCode"].includes(field.name)) setTyped((current) => ({ ...current, [field.name]: field.value }));
+      }}
+    >
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
       <input type="hidden" name="cart" value={JSON.stringify(lines)} />
 
@@ -92,8 +117,10 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn 
           <legend>Entrega</legend>
           <div className="delivery-choice">
             {[
-              { value: "pickup", label: "Retiro en el taller", hint: "Coordinamos día y horario." },
-              { value: "shipping", label: "Envío a domicilio", hint: "El costo se confirma después del pedido." },
+              ...(pickup.enabled
+                ? [{ value: "pickup", label: "Retiro en el taller (sin cargo)", hint: [pickup.address, pickup.hours].filter(Boolean).join(" · ") || "Coordinamos día y horario." }]
+                : []),
+              { value: "shipping", label: "Envío a domicilio", hint: "El costo depende de la zona y se calcula al completar la dirección." },
             ].map((option) => (
               <label key={option.value} className="delivery-choice__option">
                 <input type="radio" name="deliveryMethod" value={option.value} checked={method === option.value} onChange={() => setMethod(option.value)} />
@@ -169,19 +196,42 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn 
           </div>
           <div>
             <dt>Envío</dt>
-            <dd>{method === "shipping" ? "A confirmar" : "Sin cargo (retiro)"}</dd>
+            <dd>
+              {method === "pickup"
+                ? "Sin cargo (retiro)"
+                : !estimate
+                  ? "Completá la dirección"
+                  : estimate.covered
+                    ? estimate.free
+                      ? "Gratis"
+                      : formatPrice(estimate.costMinor / 100)
+                    : "Sin cobertura"}
+            </dd>
           </div>
           <div className="summary__total">
             <dt>Total</dt>
-            <dd>{formatPrice(subtotal)}</dd>
+            <dd>{formatPrice((subtotalMinor + (shippingMinor ?? 0)) / 100)}</dd>
           </div>
         </dl>
+        {estimate?.covered && (
+          <p className="fine-print" aria-live="polite">
+            {estimate.label}: llega en {etaLabel(estimate.etaMinDays, estimate.etaMaxDays)} desde que se despacha.
+            {!estimate.free && estimate.covered && shippingRules.find((rule) => rule.id === estimate.ruleId)?.freeFromMinor
+              ? ` Envío gratis desde ${formatPrice((shippingRules.find((rule) => rule.id === estimate.ruleId)!.freeFromMinor ?? 0) / 100)}.`
+              : ""}
+          </p>
+        )}
+        {estimate && !estimate.covered && (
+          <p className="form-alert" role="alert">
+            {estimate.reason}
+          </p>
+        )}
         <button type="submit" className="btn btn--acid btn--block btn--lg" disabled={pending}>
           {pending ? "Confirmando…" : "Confirmar pedido"}
         </button>
         <p className="fine-print">
-          Entorno de prueba: no se cobra nada online. Reservamos el stock por 15 minutos y después coordinamos el pago. El total se
-          recalcula en el servidor con los precios vigentes.
+          Entorno de prueba: no se cobra nada online. Reservamos el stock por 15 minutos y después coordinamos el pago. Precios y
+          envío se recalculan en el servidor al confirmar.
         </p>
         {state.issues && (
           <Link className="link-button" href="/carrito">

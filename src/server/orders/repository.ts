@@ -4,7 +4,7 @@ import type { QueryFn } from "../customers/repository.ts";
 /** Minutes a checkout holds stock while the payment is arranged. */
 export const RESERVATION_MINUTES = 15;
 
-export const ORDER_STATUSES = ["pending_payment", "paid", "fulfilled", "cancelled", "expired", "needs_review"] as const;
+export const ORDER_STATUSES = ["pending_payment", "paid", "shipped", "fulfilled", "cancelled", "expired", "needs_review"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export type Delivery =
@@ -13,6 +13,19 @@ export type Delivery =
       method: "shipping";
       address: { recipient: string; street: string; streetNumber: string; apartment: string; city: string; province: string; postalCode: string; notes: string };
     };
+
+/** Shipping quote frozen at checkout. */
+export type ShippingSnapshot = {
+  method: "pickup" | "shipping";
+  costMinor: number;
+  label: string;
+  ruleId: string | null;
+  free: boolean;
+  etaMinDays: number | null;
+  etaMaxDays: number | null;
+};
+
+export type Tracking = { carrier: string; code: string; url: string };
 
 export type OrderItem = { sku: string; productId: string; name: string; options: Record<string, string>; quantity: number; unitPriceMinor: number; lineTotalMinor: number };
 export type OrderEvent = { fromStatus: string | null; toStatus: string; actor: string; note: string; createdAt: Date };
@@ -29,6 +42,9 @@ export type Order = {
   status: OrderStatus;
   subtotalMinor: number;
   shippingMinor: number | null;
+  shipping: ShippingSnapshot | null;
+  tracking: Tracking | null;
+  shippedAt: Date | null;
   notes: string;
   expiresAt: Date;
   createdAt: Date;
@@ -44,6 +60,8 @@ export type NewOrder = {
   contactPhone: string;
   delivery: Delivery;
   notes: string;
+  /** Shipping quoted by the server (rules in 0009). */
+  shipping: ShippingSnapshot;
   /** Lines already priced by the server quote (never by the browser). */
   lines: { sku: string; productId: string; name: string; quantity: number; unitPriceMinor: number }[];
 };
@@ -71,6 +89,9 @@ type OrderRow = {
   status: OrderStatus;
   subtotal_minor: string | number;
   shipping_minor: string | number | null;
+  shipping: ShippingSnapshot | null;
+  tracking: Tracking | null;
+  shipped_at: Date | null;
   notes: string;
   expires_at: Date;
   created_at: Date;
@@ -88,6 +109,9 @@ const toOrder = (row: OrderRow): Order => ({
   status: row.status,
   subtotalMinor: Number(row.subtotal_minor),
   shippingMinor: row.shipping_minor === null ? null : Number(row.shipping_minor),
+  shipping: row.shipping,
+  tracking: row.tracking,
+  shippedAt: row.shipped_at ? new Date(row.shipped_at) : null,
   notes: row.notes,
   expiresAt: new Date(row.expires_at),
   createdAt: new Date(row.created_at),
@@ -222,8 +246,8 @@ export function createOrderRepository(sql: QueryFn) {
            ),
            created AS (
              INSERT INTO orders (access_token, customer_id, contact_name, contact_email, contact_phone, delivery, notes,
-                                 subtotal_minor, idempotency_key, expires_at)
-             SELECT $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, now() + make_interval(mins => $11)
+                                 subtotal_minor, idempotency_key, expires_at, shipping_minor, shipping)
+             SELECT $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, now() + make_interval(mins => $11), $13, $14::jsonb
              WHERE (SELECT count(*) FROM req) = $12
              RETURNING *
            ),
@@ -261,6 +285,8 @@ export function createOrderRepository(sql: QueryFn) {
             input.idempotencyKey,
             RESERVATION_MINUTES,
             lines.length,
+            input.shipping.costMinor,
+            JSON.stringify(input.shipping),
           ],
         )) as OrderRow[];
         // A SKU that disappeared between the quote and the order: nothing was written.
@@ -416,13 +442,34 @@ export function createOrderRepository(sql: QueryFn) {
       );
     },
 
-    async markFulfilled(actor: string, id: string, note: string): Promise<void> {
+    /** Paid shipping orders go out with their tracking (carrier, code and an optional link). */
+    async markShipped(actor: string, id: string, tracking: Tracking, note: string): Promise<void> {
       await transition(
         id,
-        `WITH done AS (UPDATE orders SET status = 'fulfilled', updated_at = now() WHERE id = $1 AND status = 'paid' RETURNING id)
-         ${event("$2", "paid", "fulfilled", "$3")} FROM done RETURNING order_id AS id`,
-        [id, actor, note || "Pedido entregado."],
-        "Solo se entregan pedidos pagados.",
+        `WITH sent AS (
+           UPDATE orders SET status = 'shipped', tracking = $4::jsonb, shipped_at = now(), updated_at = now()
+           WHERE id = $1 AND status = 'paid' AND delivery ->> 'method' = 'shipping' RETURNING id
+         )
+         ${event("$2", "paid", "shipped", "$3")} FROM sent RETURNING order_id AS id`,
+        [id, actor, note || `Enviado por ${tracking.carrier}${tracking.code ? ` (${tracking.code})` : ""}.`, JSON.stringify(tracking)],
+        "Solo se envían pedidos pagados con envío a domicilio.",
+      );
+    },
+
+    /** Delivered: pickups straight from paid, shipments once shipped. */
+    async markFulfilled(actor: string, id: string, note: string): Promise<void> {
+      const order = await getOrder(id);
+      await transition(
+        id,
+        `WITH done AS (
+           UPDATE orders SET status = 'fulfilled', updated_at = now()
+           WHERE id = $1 AND (status = 'shipped' OR (status = 'paid' AND delivery ->> 'method' = 'pickup')) RETURNING id
+         )
+         ${event("$2", order.status, "fulfilled", "$3")} FROM done RETURNING order_id AS id`,
+        [id, actor, note || (order.delivery.method === "pickup" ? "Retirado en el taller." : "Pedido entregado.")],
+        order.delivery.method === "shipping" && order.status === "paid"
+          ? "Primero marcá el pedido como enviado (con el seguimiento)."
+          : "Solo se entregan pedidos pagados o enviados.",
       );
     },
   };
