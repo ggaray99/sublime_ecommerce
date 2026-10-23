@@ -1,5 +1,5 @@
 import type { Category } from "../../data/categories.ts";
-import { themes, type Product, type ProductImage, type ThemeId } from "../../data/products.ts";
+import { themes, type Product, type ProductImage, type ProductVariant, type ThemeId } from "../../data/products.ts";
 import type { QueryFn } from "../customers/repository.ts";
 
 /** Used when a category has no image yet. */
@@ -19,30 +19,43 @@ type StorefrontRow = {
   details: string[];
   catalog_code: string | null;
   requires_quote: boolean;
-  price_minor: string | number | null;
-  track_stock: boolean;
-  on_hand: number | null;
-  reserved: number | null;
+  option_names: string[];
+  variants: { sku: string; options: Record<string, string>; price_minor: string | number | null; track_stock: boolean; available: number }[];
   images: ProductImage[] | null;
 };
 
-/** Published products in visible categories, with their default variant. */
+/** Published products in visible categories, with their active variants. */
 const SELECT_PUBLISHED = `
   SELECT p.legacy_id, p.slug, p.name, p.description, p.category_id, c.label AS category_label,
          c.image_url AS category_image, p.theme, p.tags, p.featured, p.details,
-         p.catalog_code, p.requires_quote, v.price_minor, v.track_stock, i.on_hand, i.reserved,
+         p.catalog_code, p.requires_quote, p.option_names, vs.variants,
          (SELECT json_agg(json_build_object('src', im.url, 'alt', im.alt) ORDER BY im.sort_order)
           FROM product_images im WHERE im.product_id = p.id) AS images
   FROM products p
   JOIN categories c ON c.id = p.category_id AND c.active
-  JOIN product_variants v ON v.product_id = p.id AND v.is_default AND v.active
-  LEFT JOIN inventory i ON i.variant_id = v.id
+  JOIN LATERAL (
+    SELECT json_agg(json_build_object(
+             'sku', v.sku, 'options', v.options, 'price_minor', v.price_minor, 'track_stock', v.track_stock,
+             'available', greatest(0, coalesce(i.on_hand, 0) - coalesce(i.reserved, 0)))
+           ORDER BY v.sort_order, v.sku) AS variants
+    FROM product_variants v LEFT JOIN inventory i ON i.variant_id = v.id
+    WHERE v.product_id = p.id AND v.active
+  ) vs ON vs.variants IS NOT NULL
   WHERE p.status = 'active'
   ORDER BY p.sort_order, p.created_at, p.legacy_id`;
 
 /** Maps a database row to the shape the store components already use. */
 export function toStorefrontProduct(row: StorefrontRow): Product {
-  const priceMinor = row.price_minor === null ? null : Number(row.price_minor);
+  const variants: ProductVariant[] = row.variants.map((variant) => ({
+    sku: variant.sku,
+    options: variant.options,
+    price: variant.price_minor === null ? null : Number(variant.price_minor) / 100,
+    stock: variant.track_stock ? variant.available : null,
+  }));
+  const prices = variants.flatMap((variant) => (variant.price === null ? [] : [variant.price]));
+  // "Desde": the lowest price among the active variants.
+  const priceMinor = row.requires_quote || !prices.length ? null : Math.round(Math.min(...prices) * 100);
+  const tracked = variants.some((variant) => variant.stock !== null);
   // Products without photos yet show their category image instead of breaking the card.
   const images = row.images?.length ? row.images : [{ src: row.category_image || FALLBACK_CATEGORY_IMAGE, alt: row.name }];
   return {
@@ -62,11 +75,12 @@ export function toStorefrontProduct(row: StorefrontRow): Product {
     requiresQuote: row.requires_quote,
     details: row.details,
     ...(row.catalog_code ? { code: row.catalog_code } : {}),
-    stock: row.track_stock ? Math.max(0, (row.on_hand ?? 0) - (row.reserved ?? 0)) : null,
+    stock: tracked ? variants.reduce((total, variant) => total + (variant.stock ?? 0), 0) : null,
+    ...(row.option_names.length ? { optionNames: row.option_names, variants } : {}),
   };
 }
 
-/** Published products with their default variant, images and available stock. */
+/** Published products with their active variants, images and available stock. */
 export async function listStorefrontProducts(sql: QueryFn): Promise<Product[]> {
   return ((await sql.query(SELECT_PUBLISHED)) as StorefrontRow[]).map(toStorefrontProduct);
 }

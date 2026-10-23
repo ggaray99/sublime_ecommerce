@@ -73,10 +73,11 @@ export function CheckoutDemo({ catalog }: { catalog: Product[] }) {
       <aside className="summary" aria-labelledby="checkout-summary-title">
         <h2 id="checkout-summary-title">Tu selección</h2>
         <ul className="summary__items">
-          {items.map(({ product, quantity, lineTotal }) => (
-            <li key={product.id}>
+          {items.map(({ product, variant, optionsLabel, quantity, lineTotal }) => (
+            <li key={`${product.id}-${variant?.sku ?? ""}`}>
               <span>
                 {quantity} × {product.name}
+                {optionsLabel && ` (${optionsLabel})`}
               </span>
               <span>{formatPrice(lineTotal)}</span>
             </li>

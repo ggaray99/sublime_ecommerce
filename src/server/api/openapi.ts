@@ -90,10 +90,37 @@ export const OPENAPI_SPEC = {
       },
       patch: {
         summary: "Modificar un producto",
-        description: "Permiso: catalog:write. Solo cambian los campos enviados.",
+        description: "Permiso: catalog:write. Solo cambian los campos enviados. En productos con variantes, priceMinor se rechaza: el precio va por SKU de variante en /prices/bulk-update.",
         parameters: [sku, idempotencyKey],
         requestBody: jsonBody(ref("ProductUpdate")),
         responses: { "200": ok("Producto actualizado", ref("Product")), "404": errorResponse("No existe."), ...writeErrors },
+      },
+    },
+    "/products/{sku}/options": {
+      put: {
+        summary: "Definir opciones (talle, color…) y generar variantes",
+        description:
+          "Permiso: catalog:write. Hasta 2 opciones y 30 combinaciones. Se crea una variante por combinación (SKU generado, precio " +
+          "actual, stock 0); las variantes existentes conservan SKU y stock; las combinaciones quitadas se desactivan (no se borran).",
+        parameters: [sku, idempotencyKey],
+        requestBody: jsonBody({
+          type: "object",
+          required: ["options"],
+          additionalProperties: false,
+          properties: {
+            options: {
+              type: "array",
+              minItems: 1,
+              maxItems: 2,
+              items: {
+                type: "object",
+                required: ["name", "values"],
+                properties: { name: { type: "string", maxLength: 30 }, values: { type: "array", minItems: 1, maxItems: 20, items: { type: "string", maxLength: 30 } } },
+              },
+            },
+          },
+        }),
+        responses: { "200": ok("Producto con sus variantes", ref("Product")), "404": errorResponse("No existe."), ...writeErrors },
       },
     },
     "/products/{sku}/archive": {
@@ -136,8 +163,9 @@ export const OPENAPI_SPEC = {
       post: {
         summary: "Actualización masiva de precios",
         description:
-          "Permiso: prices:write. Dos formas: `items` con precio exacto por SKU, o `rule` + `scope` (+ `rounding`) para un ajuste " +
-          "porcentual o por monto. Nunca deja precios en $ 0 o menos; los productos a pedido se omiten.",
+          "Permiso: prices:write. Dos formas: `items` con precio exacto por SKU (de producto o de variante), o `rule` + `scope` " +
+          "(+ `rounding`) para un ajuste porcentual o por monto que se aplica a cada variante activa. Nunca deja precios en $ 0 o " +
+          "menos; los productos a pedido se omiten.",
         parameters: [idempotencyKey],
         requestBody: jsonBody({
           type: "object",
@@ -172,7 +200,9 @@ export const OPENAPI_SPEC = {
     "/stock/bulk-count": {
       post: {
         summary: "Conteos de stock masivos",
-        description: "Permiso: stock:write. onHand = unidades contadas; se registra la diferencia como movimiento. No puede quedar por debajo de lo reservado.",
+        description:
+          "Permiso: stock:write. Por SKU (de producto o de variante). onHand = unidades contadas; se registra la diferencia como " +
+          "movimiento. No puede quedar por debajo de lo reservado.",
         parameters: [idempotencyKey],
         requestBody: jsonBody({
           type: "object",
@@ -239,13 +269,16 @@ export const OPENAPI_SPEC = {
           catalogCode: { type: ["string", "null"] },
           requiresQuote: { type: "boolean" },
           status: { enum: ["draft", "active", "archived"] },
-          priceMinor: { type: ["integer", "null"], description: "Centavos. null = a pedido." },
+          priceMinor: { type: ["integer", "null"], description: "Centavos (de la variante principal). null = a pedido." },
           currency: { const: "ARS" },
           stock: {
             type: "object",
             properties: { tracked: { type: "boolean" }, onHand: { type: "integer" }, reserved: { type: "integer" }, available: { type: "integer" } },
           },
           coverUrl: { type: "string" },
+          optionNames: { type: "array", items: { type: "string" }, description: "Ej.: [\"Talle\"]. Vacío = una sola versión." },
+          variantCount: { type: "integer", description: "Variantes activas." },
+          variants: { type: "array", items: ref("Variant"), description: "Solo en GET /products/{sku}." },
           images: { type: "array", items: { type: "object", properties: { id: { type: "string" }, url: { type: "string" }, alt: { type: "string" }, position: { type: "integer" } } } },
           updatedAt: { type: "string", format: "date-time" },
         },
@@ -280,6 +313,19 @@ export const OPENAPI_SPEC = {
             },
           },
         ],
+      },
+      Variant: {
+        type: "object",
+        properties: {
+          sku: { type: "string" },
+          options: { type: "object", additionalProperties: { type: "string" }, examples: [{ Talle: "M" }] },
+          priceMinor: { type: ["integer", "null"] },
+          active: { type: "boolean" },
+          stock: {
+            type: "object",
+            properties: { tracked: { type: "boolean" }, onHand: { type: "integer" }, reserved: { type: "integer" }, available: { type: "integer" } },
+          },
+        },
       },
       BatchResult: {
         type: "object",

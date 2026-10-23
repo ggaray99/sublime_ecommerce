@@ -155,10 +155,21 @@ type ProductFormProps = {
   themes: Option[];
   /** Create mode: offer the first photo when image storage is available. */
   uploadsEnabled?: boolean;
+  /** With options, prices live in each variant (section Variantes). */
+  hasOptions?: boolean;
 };
 
 /** One form for creating and editing: content, price and status. */
-export function ProductForm({ mode, productId, requiresQuote = false, initial, categories, themes, uploadsEnabled = false }: ProductFormProps) {
+export function ProductForm({
+  mode,
+  productId,
+  requiresQuote = false,
+  initial,
+  categories,
+  themes,
+  uploadsEnabled = false,
+  hasOptions = false,
+}: ProductFormProps) {
   const [state, action, pending] = useActionState(mode === "create" ? createProductAction : updateProductAction, {});
   const value = (key: keyof ProductFormValues) => state.values?.[key] ?? String(initial[key]);
   const featured = state.values ? state.values.featured === "on" : initial.featured;
@@ -180,6 +191,11 @@ export function ProductForm({ mode, productId, requiresQuote = false, initial, c
         <Field name="theme" label="Temática" state={state} defaultValue={value("theme")} options={themes} required />
         {requiresQuote ? (
           <p className="muted">Producto a pedido: se cotiza en cada encargo, no lleva precio fijo.</p>
+        ) : hasOptions ? (
+          <>
+            <input type="hidden" name="price" value={value("price")} />
+            <p className="muted">Tiene variantes: el precio de cada una se edita en la sección Variantes.</p>
+          </>
         ) : (
           <Field
             name="price"
@@ -252,19 +268,23 @@ const REASON_OPTIONS: Option[] = [
   { value: "adjustment", label: "Ajuste (rotura, recuento, error)" },
 ];
 
-export function StockForm({ productId, onHand }: { productId: string; onHand: number }) {
+/** `variants` (products with options): choose which variant was counted. */
+export function StockForm({ productId, onHand, variants }: { productId: string; onHand: number; variants?: Option[] }) {
   const [state, action, pending] = useActionState(countStockAction, {});
   return (
     <form action={action} className="quote-form" noValidate key={state.ok ?? "stock-form"}>
       <Status state={state} />
       <input type="hidden" name="productId" value={productId} />
       <div className="form-grid">
+        {variants && (
+          <Field name="sku" label="Variante" state={state} defaultValue={state.values?.sku ?? variants[0]?.value ?? ""} options={variants} />
+        )}
         <Field
           name="onHand"
           label="Unidades en depósito"
           state={state}
-          defaultValue={state.values?.onHand ?? String(onHand)}
-          hint="Cantidad contada hoy. Se registra la diferencia."
+          defaultValue={state.values?.onHand ?? (variants ? "" : String(onHand))}
+          hint={variants ? "Cantidad contada de esa variante. Se registra la diferencia." : "Cantidad contada hoy. Se registra la diferencia."}
           inputMode="numeric"
         />
         <Field name="reason" label="Motivo" state={state} defaultValue={state.values?.reason ?? "restock"} options={REASON_OPTIONS} />

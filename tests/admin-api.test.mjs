@@ -71,6 +71,7 @@ describe("admin API v1 (PGlite)", () => {
         "/products",
         "/products/{sku}",
         "/products/{sku}/archive",
+        "/products/{sku}/options",
         "/products/bulk-upsert",
         "/products/bulk-archive",
         "/prices/bulk-update",

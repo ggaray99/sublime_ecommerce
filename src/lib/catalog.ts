@@ -127,3 +127,7 @@ export const isOutOfStock = (product: Pick<Product, "stock">) => product.stock =
 /** Category name: from the database when available, otherwise from the static list. */
 export const categoryLabelOf = (product: Pick<Product, "category" | "categoryLabel">) =>
   product.categoryLabel ?? categoryById(product.category)?.label ?? product.category;
+
+/** True when the product comes in variants whose prices differ (shown as "desde $ X"). */
+export const hasPriceRange = (product: Pick<Product, "variants">) =>
+  new Set((product.variants ?? []).map((variant) => variant.price)).size > 1;

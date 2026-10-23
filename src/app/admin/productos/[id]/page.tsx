@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { ProductForm, StockForm } from "@/components/admin/forms";
 import { ImageManager } from "@/components/admin/image-manager";
+import { VariantsManager } from "@/components/admin/variants-manager";
 import {
   AdminUnavailable,
   AuditList,
@@ -16,7 +17,8 @@ import {
 } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { AdminDataError } from "@/server/admin/repository";
-import { adminAvailable, getAdminRepository, getCurrentAdmin, getImageRepository } from "@/server/admin/session";
+import { adminAvailable, getAdminRepository, getCurrentAdmin, getImageRepository, getVariantRepository } from "@/server/admin/session";
+import { optionsLabel } from "@/server/admin/variants";
 import { hasBlobStorage } from "@/server/media/blob";
 
 export const metadata: Metadata = {
@@ -46,13 +48,20 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
     if (error instanceof AdminDataError) notFound();
     throw error;
   });
-  const [movements, audit, query, categoryOptions, images] = await Promise.all([
+  const [movements, audit, query, categoryOptions, images, variants] = await Promise.all([
     repo.listMovements(id),
     repo.listAudit({ entityId: id, limit: 20 }),
     searchParams,
     loadCategoryOptions(),
     getImageRepository().listImages(id),
+    getVariantRepository().listVariants(id),
   ]);
+  const hasOptions = product.optionNames.length > 0;
+  const stockVariants = hasOptions
+    ? variants
+        .filter((variant) => variant.active && variant.trackStock)
+        .map((variant) => ({ value: variant.sku, label: `${optionsLabel(variant.options, product.optionNames)} (${variant.sku})` }))
+    : undefined;
 
   return (
     <div className="account">
@@ -90,7 +99,13 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
           initial={productFormValues(product)}
           categories={categoryOptions}
           themes={themeOptions}
+          hasOptions={hasOptions}
         />
+      </section>
+
+      <section className="account__section" aria-labelledby="variantes-title">
+        <h2 id="variantes-title">Variantes</h2>
+        <VariantsManager product={product} variants={variants} />
       </section>
 
       <section className="account__section" aria-labelledby="imagenes-title">
@@ -105,7 +120,7 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
             <p className="muted">
               Disponible: {stockLabel(product)} · En depósito: {product.onHand}
             </p>
-            <StockForm productId={product.id} onHand={product.onHand} />
+            <StockForm productId={product.id} onHand={product.onHand} variants={stockVariants} />
             <h3 className="account__subtitle">Movimientos</h3>
             {movements.length ? (
               <ol className="audit-list">
@@ -117,6 +132,7 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
                         {movement.deltaOnHand}
                       </strong>{" "}
                       · {REASON_LABEL[movement.reason] ?? movement.reason}
+                      {hasOptions && ` · ${movement.sku}`}
                       {movement.note && ` · ${movement.note}`}
                     </p>
                     <p className="muted">

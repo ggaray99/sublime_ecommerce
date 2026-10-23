@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Product } from "@/data/products";
-import { categoryLabelOf, isOutOfStock } from "@/lib/catalog";
+import { categoryLabelOf, hasPriceRange, isOutOfStock } from "@/lib/catalog";
 import { priceLabel } from "@/lib/format";
 import { AddToCartButton } from "./cart/add-to-cart";
 
@@ -38,12 +38,18 @@ export function ProductCard({ product, headingLevel = "h3", preload = false }: P
           <Link href={href}>{product.name}</Link>
         </Heading>
         <p className="product-card__price">
+          {hasPriceRange(product) && <span className="product-card__from">desde </span>}
           {priceLabel(product.price)}
           <span className="product-card__demo">{product.price === null ? "demo" : "precio demo"}</span>
         </p>
         <div className="product-card__actions">
           {isOutOfStock(product) ? (
             <p className="product-card__out">Sin stock por ahora</p>
+          ) : product.availableForDirectPurchase && product.variants ? (
+            <Link className="btn btn--acid btn--block" href={href}>
+              Elegir {product.optionNames?.join(" y ").toLowerCase() ?? "opción"}
+              <span className="visually-hidden">: {product.name}</span>
+            </Link>
           ) : product.availableForDirectPurchase ? (
             <AddToCartButton productId={product.id} productName={product.name} />
           ) : (

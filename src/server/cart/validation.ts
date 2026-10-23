@@ -5,6 +5,7 @@ export type FieldError = { path: string; message: string };
 export type ParseResult = { ok: true; lines: QuoteRequestLine[] } | { ok: false; errors: FieldError[] };
 
 const PRODUCT_ID = /^[a-z0-9-]{1,40}$/i;
+const SKU = /^[A-Z0-9][A-Z0-9-]{1,39}$/;
 
 /**
  * Validates the POST /api/cart/quote body: `{ lines: [{ productId, quantity }] }`.
@@ -37,7 +38,7 @@ export function parseQuoteRequest(body: unknown): ParseResult {
     }
     const line = raw as Record<string, unknown>;
     for (const key of Object.keys(line)) {
-      if (key !== "productId" && key !== "quantity") errors.push({ path: `${path}.${key}`, message: "Campo no admitido." });
+      if (key !== "productId" && key !== "quantity" && key !== "sku") errors.push({ path: `${path}.${key}`, message: "Campo no admitido." });
     }
     if (typeof line.productId !== "string" || !PRODUCT_ID.test(line.productId)) {
       errors.push({ path: `${path}.productId`, message: "Identificador de producto inválido." });
@@ -50,8 +51,11 @@ export function parseQuoteRequest(body: unknown): ParseResult {
     ) {
       errors.push({ path: `${path}.quantity`, message: `La cantidad debe ser un entero entre 1 y ${MAX_LINE_QUANTITY}.` });
     }
+    if (line.sku !== undefined && (typeof line.sku !== "string" || !SKU.test(line.sku))) {
+      errors.push({ path: `${path}.sku`, message: "SKU inválido." });
+    }
     if (typeof line.productId === "string" && typeof line.quantity === "number") {
-      lines.push({ productId: line.productId, quantity: line.quantity });
+      lines.push({ productId: line.productId, quantity: line.quantity, ...(typeof line.sku === "string" ? { sku: line.sku } : {}) });
     }
   });
 

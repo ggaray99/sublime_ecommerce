@@ -56,14 +56,15 @@ function write(lines: CartLine[]) {
 }
 
 export const cartActions = {
-  add(productId: string, quantity = 1) {
-    write(addLine(getSnapshot(), productId, quantity));
+  /** `sku` picks the variant (size, color…) of products with options. */
+  add(productId: string, quantity = 1, sku?: string) {
+    write(addLine(getSnapshot(), productId, quantity, sku));
   },
-  setQuantity(productId: string, quantity: number) {
-    write(setQuantity(getSnapshot(), productId, quantity));
+  setQuantity(productId: string, quantity: number, sku?: string) {
+    write(setQuantity(getSnapshot(), productId, quantity, sku));
   },
-  remove(productId: string) {
-    write(removeLine(getSnapshot(), productId));
+  remove(productId: string, sku?: string) {
+    write(removeLine(getSnapshot(), productId, sku));
   },
   clear() {
     write(EMPTY);

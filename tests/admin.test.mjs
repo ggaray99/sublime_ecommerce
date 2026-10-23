@@ -251,7 +251,7 @@ describe("admin repository on PostgreSQL (PGlite)", () => {
     const [movement] = await repo.listMovements("c088");
     assert.deepEqual([movement.deltaOnHand, movement.reason, movement.actor], [15, "restock", "owner@example.com"]);
     const [entry] = await repo.listAudit({ entityId: "c088" });
-    assert.deepEqual(entry.changes, { before: 20, after: 35, reason: "restock", note: "Llegó tirada nueva" });
+    assert.deepEqual(entry.changes, { before: 20, after: 35, reason: "restock", note: "Llegó tirada nueva", sku: "STK-088" });
   });
 
   it("refuses counts below reserved units and products made to order", async () => {

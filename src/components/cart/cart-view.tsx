@@ -41,8 +41,8 @@ export function CartView({ catalog }: { catalog: Product[] }) {
           Artículos en el carrito
         </h2>
         <ul className="cart-list">
-          {items.map(({ product, quantity, lineTotal }) => (
-            <li key={product.id} className="cart-item">
+          {items.map(({ product, variant, optionsLabel, quantity, unitPrice, stock, lineTotal }) => (
+            <li key={`${product.id}-${variant?.sku ?? ""}`} className="cart-item">
               <Link href={`/producto/${product.slug}`} className="cart-item__image" tabIndex={-1} aria-hidden="true">
                 <Image src={product.images[0].src} alt="" width={160} height={160} />
               </Link>
@@ -51,23 +51,26 @@ export function CartView({ catalog }: { catalog: Product[] }) {
                 <h3>
                   <Link href={`/producto/${product.slug}`}>{product.name}</Link>
                 </h3>
-                <p className="muted">{formatPrice(product.price ?? 0)} c/u · precio demo</p>
-                {product.stock !== undefined && product.stock !== null && quantity > product.stock && (
-                  <p className="field__error">
-                    {product.stock === 0 ? "Sin stock por ahora." : `Solo quedan ${product.stock} unidades.`}
-                  </p>
+                {optionsLabel && <p className="cart-item__options">{optionsLabel}</p>}
+                <p className="muted">{formatPrice(unitPrice)} c/u · precio demo</p>
+                {stock !== undefined && stock !== null && quantity > stock && (
+                  <p className="field__error">{stock === 0 ? "Sin stock por ahora." : `Solo quedan ${stock} unidades.`}</p>
                 )}
               </div>
               <div className="cart-item__controls">
                 <QuantityStepper
-                  label={`Cantidad de ${product.name}`}
+                  label={`Cantidad de ${product.name}${optionsLabel ? ` (${optionsLabel})` : ""}`}
                   value={quantity}
                   min={1}
                   max={MAX_QUANTITY}
-                  onChange={(next) => cartActions.setQuantity(product.id, next)}
+                  onChange={(next) => cartActions.setQuantity(product.id, next, variant?.sku)}
                 />
-                <button type="button" className="link-button" onClick={() => cartActions.remove(product.id)}>
-                  Quitar<span className="visually-hidden"> {product.name}</span>
+                <button type="button" className="link-button" onClick={() => cartActions.remove(product.id, variant?.sku)}>
+                  Quitar
+                  <span className="visually-hidden">
+                    {" "}
+                    {product.name} {optionsLabel}
+                  </span>
                 </button>
               </div>
               <p className="cart-item__total">{formatPrice(lineTotal)}</p>

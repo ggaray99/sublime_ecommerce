@@ -18,4 +18,4 @@ async function handle(request: Request, { params }: RouteContext<"/api/admin/v1/
   });
 }
 
-export { handle as GET, handle as PATCH, handle as POST };
+export { handle as GET, handle as PATCH, handle as POST, handle as PUT };

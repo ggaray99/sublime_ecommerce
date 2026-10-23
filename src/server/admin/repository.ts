@@ -28,9 +28,12 @@ export type AdminProduct = {
   coverUrl: string;
   /** Latest change to the product, its price or its stock. */
   updatedAt: Date;
+  /** Option names (e.g. ["Talle"]); empty for single-variant products. */
+  optionNames: string[];
+  variantCount: number;
 };
 
-export type StockMovement = { id: string; deltaOnHand: number; reason: string; actor: string; note: string; createdAt: Date };
+export type StockMovement = { id: string; sku: string; deltaOnHand: number; reason: string; actor: string; note: string; createdAt: Date };
 export type AuditEntry = {
   id: string;
   actorEmail: string;
@@ -101,6 +104,8 @@ type ProductRow = {
   reserved: number | null;
   cover_url: string | null;
   updated_at: Date;
+  option_names: string[];
+  variant_count: number;
 };
 
 const toProduct = (row: ProductRow): AdminProduct => ({
@@ -124,11 +129,21 @@ const toProduct = (row: ProductRow): AdminProduct => ({
   reserved: row.reserved ?? 0,
   coverUrl: row.cover_url || "/demo/categories/stickers.webp",
   updatedAt: new Date(row.updated_at),
+  optionNames: row.option_names,
+  variantCount: row.variant_count,
 });
+
+/** Stock summed over the product's active variants (one row per product). */
+const ACTIVE_STOCK = `
+  SELECT sum(inv.on_hand)::int AS on_hand, sum(inv.reserved)::int AS reserved, max(inv.updated_at) AS updated_at
+  FROM product_variants pv JOIN inventory inv ON inv.variant_id = pv.id
+  WHERE pv.product_id = p.id AND pv.active`;
 
 const SELECT_PRODUCTS = `
   SELECT p.legacy_id, p.name, p.slug, p.description, p.category_id, p.theme, p.tags, p.details, p.featured,
          p.catalog_code, v.sku, p.status, p.requires_quote, v.price_minor, v.track_stock, i.on_hand, i.reserved,
+         p.option_names,
+         (SELECT count(*)::int FROM product_variants pv WHERE pv.product_id = p.id AND pv.active) AS variant_count,
          coalesce(
            (SELECT im.url FROM product_images im WHERE im.product_id = p.id ORDER BY im.sort_order LIMIT 1),
            nullif((SELECT c.image_url FROM categories c WHERE c.id = p.category_id), '')
@@ -136,7 +151,7 @@ const SELECT_PRODUCTS = `
          greatest(p.updated_at, v.updated_at, coalesce(i.updated_at, p.updated_at)) AS updated_at
   FROM products p
   JOIN product_variants v ON v.product_id = p.id AND v.is_default
-  LEFT JOIN inventory i ON i.variant_id = v.id`;
+  LEFT JOIN LATERAL (${ACTIVE_STOCK}) i ON true`;
 
 /** Public product ids look like p13, c088 or x1a2b3c4d; anything else never reaches SQL. */
 const PRODUCT_ID = /^[a-z0-9]{1,20}$/;
@@ -232,7 +247,10 @@ export function createAdminRepository(sql: QueryFn) {
     /** The API identifies products by SKU (stable and readable). */
     async getProductBySku(sku: string): Promise<AdminProduct> {
       if (!/^[A-Z0-9][A-Z0-9-]{1,39}$/.test(sku)) throw new AdminDataError("not_found", "El producto no existe.");
-      const [row] = (await sql.query(`${SELECT_PRODUCTS} WHERE v.sku = $1`, [sku])) as ProductRow[];
+      const [row] = (await sql.query(
+        `${SELECT_PRODUCTS} WHERE EXISTS (SELECT 1 FROM product_variants sv WHERE sv.product_id = p.id AND sv.sku = $1)`,
+        [sku],
+      )) as ProductRow[];
       if (!row) throw new AdminDataError("not_found", "El producto no existe.");
       return toProduct(row);
     },
@@ -253,7 +271,7 @@ export function createAdminRepository(sql: QueryFn) {
       ];
       const pageSize = Math.min(Math.max(search.pageSize ?? PAGE_SIZE, 1), 200);
       const where = `
-        WHERE ($1::text IS NULL OR p.name ILIKE $2 OR v.sku ILIKE $2 OR p.catalog_code = $1 OR $1 = ANY (p.tags))
+        WHERE ($1::text IS NULL OR p.name ILIKE $2 OR EXISTS (SELECT 1 FROM product_variants sv WHERE sv.product_id = p.id AND sv.sku ILIKE $2) OR p.catalog_code = $1 OR $1 = ANY (p.tags))
           AND ($3::text IS NULL OR p.status = $3)
           AND ($4::text IS NULL OR p.category_id = $4)
           AND ($5::text IS NULL OR p.theme = $5)
@@ -268,7 +286,7 @@ export function createAdminRepository(sql: QueryFn) {
       const [countRow] = (await sql.query(
         `SELECT count(*)::int AS total FROM products p
          JOIN product_variants v ON v.product_id = p.id AND v.is_default
-         LEFT JOIN inventory i ON i.variant_id = v.id ${where}`,
+         LEFT JOIN LATERAL (${ACTIVE_STOCK}) i ON true ${where}`,
         params,
       )) as { total: number }[];
       const total = countRow?.total ?? 0;
@@ -297,7 +315,7 @@ export function createAdminRepository(sql: QueryFn) {
                   count(*) FILTER (WHERE p.featured)::int AS featured_si
            FROM products p
            JOIN product_variants v ON v.product_id = p.id AND v.is_default
-           LEFT JOIN inventory i ON i.variant_id = v.id`,
+           LEFT JOIN LATERAL (${ACTIVE_STOCK}) i ON true`,
           [LOW_STOCK],
         ),
         sql.query("SELECT category_id AS key, count(*)::int AS n FROM products GROUP BY category_id"),
@@ -432,18 +450,28 @@ export function createAdminRepository(sql: QueryFn) {
      * Records a physical count: on_hand becomes the counted quantity, and the
      * difference is logged as a stock movement plus an audit entry.
      */
-    async countStock(actor: Admin, productId: string, input: StockCountInput): Promise<AdminProduct> {
-      const current = await getProduct(productId);
-      if (!current.trackStock) throw new AdminDataError("untracked", "Este producto se hace a pedido y no lleva stock.");
-      if (input.onHand < current.reserved) {
-        throw new AdminDataError("below_reserved", `Hay ${current.reserved} unidades reservadas: el stock no puede ser menor.`);
+    /** `variantSku` targets one variant (size, color…); without it, the default variant. */
+    async countStock(actor: Admin, productId: string, input: StockCountInput, variantSku?: string): Promise<AdminProduct> {
+      assertProductId(productId);
+      const [variant] = (await sql.query(
+        `SELECT v.sku, v.track_stock, coalesce(i.reserved, 0) AS reserved
+         FROM products p
+         JOIN product_variants v ON v.product_id = p.id AND (CASE WHEN $2::text IS NULL THEN v.is_default ELSE v.sku = $2 END)
+         LEFT JOIN inventory i ON i.variant_id = v.id
+         WHERE p.legacy_id = $1`,
+        [productId, variantSku ?? null],
+      )) as { sku: string; track_stock: boolean; reserved: number }[];
+      if (!variant) throw new AdminDataError("not_found", variantSku ? "La variante no existe." : "El producto no existe.");
+      if (!variant.track_stock) throw new AdminDataError("untracked", "Este producto se hace a pedido y no lleva stock.");
+      if (input.onHand < variant.reserved) {
+        throw new AdminDataError("below_reserved", `Hay ${variant.reserved} unidades reservadas: el stock no puede ser menor.`);
       }
       try {
         await sql.query(
           `WITH target AS (
              SELECT v.id AS variant_id, coalesce(i.on_hand, 0) AS previous
              FROM products p
-             JOIN product_variants v ON v.product_id = p.id AND v.is_default AND v.track_stock
+             JOIN product_variants v ON v.product_id = p.id AND v.sku = $7 AND v.track_stock
              LEFT JOIN inventory i ON i.variant_id = v.id
              WHERE p.legacy_id = $1
            ),
@@ -459,9 +487,9 @@ export function createAdminRepository(sql: QueryFn) {
            )
            INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
            SELECT $6, $5::text, 'inventory.count', 'inventory', $1,
-                  jsonb_build_object('before', previous, 'after', $2::int, 'reason', $3::text, 'note', $4::text)
+                  jsonb_build_object('before', previous, 'after', $2::int, 'reason', $3::text, 'note', $4::text, 'sku', $7::text)
            FROM target WHERE previous <> $2::int`,
-          [productId, input.onHand, input.reason, input.note, actor.email, actor.authUserId],
+          [productId, input.onHand, input.reason, input.note, actor.email, actor.authUserId, variant.sku],
         );
       } catch (error) {
         // A reservation may have landed between the read and the write.
@@ -474,17 +502,18 @@ export function createAdminRepository(sql: QueryFn) {
     async listMovements(productId: string, limit = 20): Promise<StockMovement[]> {
       assertProductId(productId);
       const rows = (await sql.query(
-        `SELECT m.id, m.delta_on_hand, m.reason, m.actor, m.note, m.created_at
+        `SELECT m.id, v.sku, m.delta_on_hand, m.reason, m.actor, m.note, m.created_at
          FROM inventory_movements m
-         JOIN product_variants v ON v.id = m.variant_id AND v.is_default
+         JOIN product_variants v ON v.id = m.variant_id
          JOIN products p ON p.id = v.product_id
          WHERE p.legacy_id = $1
          ORDER BY m.created_at DESC, m.id DESC
          LIMIT $2`,
         [productId, limit],
-      )) as { id: string | number; delta_on_hand: number; reason: string; actor: string; note: string; created_at: Date }[];
+      )) as { id: string | number; sku: string; delta_on_hand: number; reason: string; actor: string; note: string; created_at: Date }[];
       return rows.map((row) => ({
         id: String(row.id),
+        sku: row.sku,
         deltaOnHand: row.delta_on_hand,
         reason: row.reason,
         actor: row.actor,

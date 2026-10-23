@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCartPanel } from "@/components/cart/add-to-cart";
+import { VariantPurchase } from "@/components/cart/variant-purchase";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
 import { themes, type Product } from "@/data/products";
-import { categoryLabelOf, isOutOfStock, relatedProducts } from "@/lib/catalog";
+import { categoryLabelOf, hasPriceRange, isOutOfStock, relatedProducts } from "@/lib/catalog";
 import { priceLabel } from "@/lib/format";
 import { getStorefrontProduct, getStorefrontProducts } from "@/server/storefront";
 
@@ -48,6 +49,8 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
   if (!product) notFound();
 
   const categoryLabel = categoryLabelOf(product);
+  // Products with options (talle, color…) pick a variant; made-to-order ones keep the quote flow.
+  const withVariants = Boolean(product.variants?.length) && product.availableForDirectPurchase;
   const related = relatedProducts(await getStorefrontProducts(), product);
 
   return (
@@ -72,11 +75,17 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             {categoryLabel} · {themes[product.theme]}
           </p>
           <h1>{product.name}</h1>
-          <p className="product-detail__price">
-            {priceLabel(product.price)}
-            <span className="badge badge--violet">{product.price === null ? "Se cotiza a pedido" : "Precio demo"}</span>
-          </p>
-          <StockNote product={product} />
+          {withVariants ? (
+            hasPriceRange(product) && <p className="muted">Desde {priceLabel(product.price)} según la opción.</p>
+          ) : (
+            <>
+              <p className="product-detail__price">
+                {priceLabel(product.price)}
+                <span className="badge badge--violet">{product.price === null ? "Se cotiza a pedido" : "Precio demo"}</span>
+              </p>
+              <StockNote product={product} />
+            </>
+          )}
           <p className="product-detail__description">{product.description}</p>
           {product.code && (
             <p className="product-detail__code">
@@ -84,7 +93,9 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             </p>
           )}
 
-          {isOutOfStock(product) ? (
+          {withVariants && product.variants && product.optionNames ? (
+            <VariantPurchase productId={product.id} productName={product.name} optionNames={product.optionNames} variants={product.variants} />
+          ) : isOutOfStock(product) ? (
             <div className="purchase purchase--quote">
               <p>Este producto está sin stock. Volvé a consultar más adelante.</p>
             </div>

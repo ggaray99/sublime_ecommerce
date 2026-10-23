@@ -40,6 +40,19 @@ export type Product = {
    * absent = unknown (static catalog, production today).
    */
   stock?: number | null;
+  /** Option names in order (e.g. ["Talle"]) when the product comes in variants. */
+  optionNames?: string[];
+  /** Active variants (database catalog only). `price` and `stock` refer to each one. */
+  variants?: ProductVariant[];
+};
+
+export type ProductVariant = {
+  sku: string;
+  options: Record<string, string>;
+  /** ARS; null when made to order. */
+  price: number | null;
+  /** Available units; null when made to order. */
+  stock: number | null;
 };
 
 export const themes: Record<ThemeId, string> = {

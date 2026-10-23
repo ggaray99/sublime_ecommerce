@@ -1,8 +1,10 @@
 import { createCategoryRepository } from "../admin/categories-repository.ts";
 import { createImageRepository, type AdminImage } from "../admin/images-repository.ts";
+import { createVariantRepository, type AdminVariant } from "../admin/variants-repository.ts";
+import { parseOptionDefinitions } from "../admin/variants.ts";
 import { parseProductSearch, type ProductSearch } from "../admin/product-search.ts";
 import { AdminDataError, createAdminRepository, productChanges, type AdminProduct } from "../admin/repository.ts";
-import { parseProductCreate, parseProductUpdate, parseStockCount, type ProductUpdateInput } from "../admin/validation.ts";
+import { MAX_PRICE_MINOR, parseProductCreate, parseProductUpdate, parseStockCount, type ProductUpdateInput } from "../admin/validation.ts";
 import type { QueryFn } from "../customers/repository.ts";
 import { createApiKeyRepository, hashRequest, integrationActor, RATE_LIMIT, type ApiKey, type ApiScope } from "./keys.ts";
 import { OPENAPI_SPEC } from "./openapi.ts";
@@ -64,7 +66,17 @@ function fromDataError(cause: unknown): Result {
 
 // ---------------------------------------------------------------- resources
 
-function toApiProduct(product: AdminProduct, images?: AdminImage[]) {
+const toApiVariant = (variant: AdminVariant) => ({
+  sku: variant.sku,
+  options: variant.options,
+  priceMinor: variant.priceMinor,
+  active: variant.active,
+  stock: variant.trackStock
+    ? { tracked: true, onHand: variant.onHand, reserved: variant.reserved, available: Math.max(0, variant.onHand - variant.reserved) }
+    : { tracked: false },
+});
+
+function toApiProduct(product: AdminProduct, images?: AdminImage[], variants?: AdminVariant[]) {
   return {
     id: product.id,
     sku: product.sku,
@@ -85,6 +97,9 @@ function toApiProduct(product: AdminProduct, images?: AdminImage[]) {
       ? { tracked: true, onHand: product.onHand, reserved: product.reserved, available: Math.max(0, product.onHand - product.reserved) }
       : { tracked: false },
     coverUrl: product.coverUrl,
+    optionNames: product.optionNames,
+    variantCount: product.variantCount,
+    ...(variants ? { variants: variants.map(toApiVariant) } : {}),
     ...(images ? { images: images.map((image) => ({ id: image.id, url: image.url, alt: image.alt, position: image.position })) } : {}),
     updatedAt: product.updatedAt.toISOString(),
   };
@@ -104,6 +119,15 @@ const updateInputOf = (product: AdminProduct): ProductUpdateInput => ({
   status: product.status,
   priceMinor: product.priceMinor,
 });
+
+/** Products with options keep one price per variant: product-level priceMinor would be ambiguous. */
+function assertNoProductPrice(current: AdminProduct, data: Record<string, unknown>, path: string) {
+  if (current.optionNames.length && data.priceMinor !== undefined) {
+    throw new ApiError(
+      validation([{ path, message: "Este producto tiene variantes: el precio se cambia por SKU de variante en /prices/bulk-update." }]),
+    );
+  }
+}
 
 const UPDATE_FIELDS = ["name", "slug", "description", "categoryId", "theme", "tags", "details", "featured", "catalogCode", "status", "priceMinor"];
 const CREATE_FIELDS = [...UPDATE_FIELDS, "sku", "requiresQuote", "initialStock"];
@@ -207,6 +231,7 @@ const repositories = (sql: QueryFn) => ({
   products: createAdminRepository(sql),
   categories: createCategoryRepository(sql),
   images: createImageRepository(sql),
+  variants: createVariantRepository(sql),
 });
 
 const SKU = "([A-Z0-9][A-Z0-9-]{1,39})";
@@ -230,7 +255,8 @@ const routes: Route[] = [
     scope: "catalog:read",
     run: async ({ match, repos }) => {
       const product = await repos.products.getProductBySku(match[1]);
-      return { status: 200, body: toApiProduct(product, await repos.images.listImages(product.id)) };
+      const [images, variants] = await Promise.all([repos.images.listImages(product.id), repos.variants.listVariants(product.id)]);
+      return { status: 200, body: toApiProduct(product, images, variants) };
     },
   },
   {
@@ -274,6 +300,7 @@ const routes: Route[] = [
       assertKnownFields(body, UPDATE_FIELDS);
       await assertCategory(repos, body.categoryId, "categoryId");
       const current = await repos.products.getProductBySku(match[1]);
+      assertNoProductPrice(current, body, "priceMinor");
       const parsed = parseProductUpdate({ ...updateInputOf(current), ...body }, current.requiresQuote);
       if (!parsed.ok) return validation(fieldsFrom(parsed.errors));
       return { status: 200, body: toApiProduct(await repos.products.updateProduct(integrationActor(key), current.id, parsed.value)) };
@@ -288,6 +315,20 @@ const routes: Route[] = [
       const current = await repos.products.getProductBySku(match[1]);
       const archived = await repos.products.updateProduct(integrationActor(key), current.id, { ...updateInputOf(current), status: "archived" });
       return { status: 200, body: toApiProduct(archived) };
+    },
+  },
+  {
+    method: "PUT",
+    pattern: new RegExp(`^products/${SKU}/options$`),
+    scope: "catalog:write",
+    run: async ({ body, key, match, repos }) => {
+      assertKnownFields(body, ["options"]);
+      const parsed = parseOptionDefinitions(body);
+      if (!parsed.ok) return validation(fieldsFrom(parsed.errors as Record<string, string>));
+      const current = await repos.products.getProductBySku(match[1]);
+      const variants = await repos.variants.configureOptions(integrationActor(key), current.id, parsed.value);
+      const product = await repos.products.getProduct(current.id);
+      return { status: 200, body: toApiProduct(product, undefined, variants) };
     },
   },
   {
@@ -317,6 +358,7 @@ const routes: Route[] = [
         if (item.requiresQuote !== undefined || item.initialStock !== undefined) {
           throw new ApiError(validation([{ path: `items[${index}]`, message: "requiresQuote e initialStock solo se usan al crear; para stock usá /stock/bulk-count." }]));
         }
+        assertNoProductPrice(current, item, `items[${index}].priceMinor`);
         const patch = { ...item };
         delete patch.sku;
         const parsed = parseProductUpdate({ ...updateInputOf(current), ...patch }, current.requiresQuote);
@@ -352,13 +394,20 @@ const routes: Route[] = [
       assertKnownFields(body, ["items", "rule", "scope", "rounding", "dryRun"]);
       const dryRun = dryRunOf(body);
       const actor = integrationActor(key);
-      const setPrice = async (current: AdminProduct, priceMinor: number) => {
-        if (current.requiresQuote) throw new ApiError(validation([{ path: "sku", message: "Producto a pedido: no lleva precio." }]));
-        const parsed = parseProductUpdate({ ...updateInputOf(current), priceMinor }, false);
-        if (!parsed.ok) throw new ApiError(validation(fieldsFrom(parsed.errors)));
-        if (current.priceMinor === priceMinor) return { sku: current.sku, result: "unchanged" };
-        if (!dryRun) await repos.products.updateProduct(actor, current.id, parsed.value);
-        return { sku: current.sku, result: "updated", changes: ["priceMinor"], before: current.priceMinor, after: priceMinor };
+      /** Prices belong to variants: a SKU is a single product's or one of its variants'. */
+      const setPrice = async (productId: string, variant: AdminVariant, requiresQuote: boolean, priceMinor: unknown) => {
+        if (requiresQuote) throw new ApiError(validation([{ path: "sku", message: "Producto a pedido: no lleva precio." }]));
+        if (typeof priceMinor !== "number" || !Number.isInteger(priceMinor) || priceMinor <= 0 || priceMinor > MAX_PRICE_MINOR) {
+          throw new ApiError(validation([{ path: "priceMinor", message: "Centavos enteros, mayor a 0 y hasta 1000000000." }]));
+        }
+        if (variant.priceMinor === priceMinor) return { sku: variant.sku, result: "unchanged" };
+        if (!dryRun) await repos.variants.updateVariant(actor, productId, variant.id, { priceMinor, active: variant.active });
+        return { sku: variant.sku, result: "updated", changes: ["priceMinor"], before: variant.priceMinor, after: priceMinor };
+      };
+      const bySku = async (sku: string) => {
+        const found = await repos.variants.findBySku(sku);
+        if (!found) throw new AdminDataError("not_found", "El SKU no existe.");
+        return found;
       };
 
       if (body.items !== undefined) {
@@ -368,7 +417,8 @@ const routes: Route[] = [
         return batch(dryRun, assertBatch(body.items, "items"), async (raw, index) => {
           const item = assertObject(raw, `items[${index}]`);
           assertKnownFields(item, ["sku", "priceMinor"], `items[${index}].`);
-          return setPrice(await repos.products.getProductBySku(String(item.sku ?? "").toUpperCase()), item.priceMinor as number);
+          const found = await bySku(String(item.sku ?? "").toUpperCase());
+          return setPrice(found.productId, found.variant, found.requiresQuote, item.priceMinor);
         });
       }
 
@@ -377,13 +427,17 @@ const routes: Route[] = [
       if (!["none", "nearest_100", "nearest_1000"].includes(rounding)) {
         return validation([{ path: "rounding", message: "Valores posibles: none, nearest_100, nearest_1000." }]);
       }
-      const targets = await scopedProducts(body.scope, repos);
-      return batch(dryRun, targets, async (current) => {
-        const product = current as AdminProduct;
-        if (product.requiresQuote || product.priceMinor === null) return { sku: product.sku, result: "skipped", reason: "Producto a pedido." };
-        const next = applyPriceRule(product.priceMinor, rule, rounding);
+      // A rule applies to every active variant of the products in scope.
+      const targets: { product: AdminProduct; variant: AdminVariant }[] = [];
+      for (const product of await scopedProducts(body.scope, repos)) {
+        for (const variant of await repos.variants.listVariants(product.id)) if (variant.active) targets.push({ product, variant });
+      }
+      return batch(dryRun, targets, async (target) => {
+        const { product, variant } = target as { product: AdminProduct; variant: AdminVariant };
+        if (product.requiresQuote || variant.priceMinor === null) return { sku: variant.sku, result: "skipped", reason: "Producto a pedido." };
+        const next = applyPriceRule(variant.priceMinor, rule, rounding);
         if (next === null) throw new ApiError(validation([{ path: "rule", message: "El precio resultante quedaría en $ 0 o menos, o supera el máximo." }]));
-        return setPrice(product, next);
+        return setPrice(product.id, variant, false, next);
       });
     },
   },
@@ -399,14 +453,16 @@ const routes: Route[] = [
         assertKnownFields(item, ["sku", "onHand", "reason", "note"], `items[${index}].`);
         const parsed = parseStockCount({ onHand: String(item.onHand ?? ""), reason: item.reason, note: item.note ?? "" });
         if (!parsed.ok) throw new ApiError(validation(fieldsFrom(parsed.errors, `items[${index}].`)));
-        const current = await repos.products.getProductBySku(String(item.sku ?? "").toUpperCase());
-        if (!current.trackStock) throw new ApiError(validation([{ path: `items[${index}].sku`, message: "Producto a pedido: no lleva stock." }]));
-        if (parsed.value.onHand < current.reserved) {
-          throw new ApiError(validation([{ path: `items[${index}].onHand`, message: `Hay ${current.reserved} unidades reservadas: el stock no puede ser menor.` }]));
+        const found = await repos.variants.findBySku(String(item.sku ?? "").toUpperCase());
+        if (!found) throw new AdminDataError("not_found", "El SKU no existe.");
+        const { variant, productId } = found;
+        if (!variant.trackStock) throw new ApiError(validation([{ path: `items[${index}].sku`, message: "Producto a pedido: no lleva stock." }]));
+        if (parsed.value.onHand < variant.reserved) {
+          throw new ApiError(validation([{ path: `items[${index}].onHand`, message: `Hay ${variant.reserved} unidades reservadas: el stock no puede ser menor.` }]));
         }
-        if (parsed.value.onHand === current.onHand) return { sku: current.sku, result: "unchanged" };
-        if (!dryRun) await repos.products.countStock(integrationActor(key), current.id, parsed.value);
-        return { sku: current.sku, result: "updated", changes: ["onHand"], before: current.onHand, after: parsed.value.onHand };
+        if (parsed.value.onHand === variant.onHand) return { sku: variant.sku, result: "unchanged" };
+        if (!dryRun) await repos.products.countStock(integrationActor(key), productId, parsed.value, variant.sku);
+        return { sku: variant.sku, result: "updated", changes: ["onHand"], before: variant.onHand, after: parsed.value.onHand };
       });
     },
   },

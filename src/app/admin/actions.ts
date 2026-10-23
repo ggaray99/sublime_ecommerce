@@ -2,8 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { catalogChanged, dataError, formValues, requireAdmin, type AdminFormState } from "@/server/admin/guard";
-import { parseImageAlt, parseProductCreate, parseProductUpdate, parseStockCount } from "@/server/admin/validation";
-import { getAdminRepository, getImageRepository } from "@/server/admin/session";
+import { parseImageAlt, parsePesos, parseProductCreate, parseProductUpdate, parseStockCount } from "@/server/admin/validation";
+import { getAdminRepository, getImageRepository, getVariantRepository } from "@/server/admin/session";
+import { parseOptionDefinitions } from "@/server/admin/variants";
 import { deleteStoredImage, hasBlobStorage, storeImage } from "@/server/media/blob";
 import { inspectImage } from "@/server/media/image-file";
 import type { ImageMove } from "@/server/admin/images-repository";
@@ -78,7 +79,8 @@ export async function countStockAction(_state: AdminFormState, form: FormData): 
   const parsed = parseStockCount(values);
   if (!parsed.ok) return { fields: parsed.errors, values };
   try {
-    await getAdminRepository().countStock(admin, productId, parsed.value);
+    // `sku` picks the variant of products with options; the default variant otherwise.
+    await getAdminRepository().countStock(admin, productId, parsed.value, values.sku || undefined);
   } catch (error) {
     return dataError(error, values);
   }
@@ -145,4 +147,37 @@ export async function removeImageAction(form: FormData): Promise<void> {
   const url = await getImageRepository().removeImage(admin, productId, imageId);
   await deleteStoredImage(url);
   catalogChanged(`/admin/productos/${productId}`);
+}
+
+/** Defines or changes the options (Talle: S, M, L…): one variant per combination. */
+export async function configureOptionsAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
+  const admin = await requireAdmin();
+  const values = formValues(form);
+  const parsed = parseOptionDefinitions(values);
+  if (!parsed.ok) return { fields: parsed.errors as Record<string, string>, values };
+  try {
+    await getVariantRepository().configureOptions(admin, values.productId ?? "", parsed.value);
+  } catch (error) {
+    return dataError(error, values);
+  }
+  catalogChanged(`/admin/productos/${values.productId}`);
+  return { ok: "Variantes actualizadas.", values };
+}
+
+/** Price and visibility of one variant. */
+export async function updateVariantAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
+  const admin = await requireAdmin();
+  const values = formValues(form);
+  const priceMinor = values.price ? parsePesos(values.price) : null;
+  if (values.price && priceMinor === null) return { fields: { price: "Precio en pesos, ej.: 18500." }, values };
+  try {
+    await getVariantRepository().updateVariant(admin, values.productId ?? "", values.variantId ?? "", {
+      priceMinor,
+      active: values.active === "on",
+    });
+  } catch (error) {
+    return dataError(error, values);
+  }
+  catalogChanged(`/admin/productos/${values.productId}`);
+  return { ok: "Guardado.", values };
 }

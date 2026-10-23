@@ -2579,3 +2579,105 @@ li:nth-child(3n) > .category-card .category-card__body {
   font-size: 14px;
   border: var(--line);
 }
+
+/* Long filter lists: the sidebar scrolls on its own and "Aplicar" stays visible. */
+.admin-sidebar__actions {
+  position: sticky;
+  bottom: 0;
+  padding: 12px 0 4px;
+  background: var(--white);
+  border-top: 1px solid var(--black);
+}
+
+.admin-sidebar .field {
+  gap: 4px;
+}
+
+.admin-table td:nth-child(4) {
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  .admin-sidebar {
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Variant pickers (talle, color…) */
+.variant-purchase {
+  display: grid;
+  gap: 14px;
+}
+
+.variant-options {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.variant-options legend {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.variant-options__values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.variant-option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.variant-option label {
+  display: inline-block;
+  min-width: 48px;
+  padding: 10px 14px;
+  border: var(--line);
+  background: var(--white);
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+}
+
+.variant-option input:checked + label {
+  background: var(--black);
+  color: var(--white);
+}
+
+.variant-option input:focus-visible + label {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.variant-option label.is-unavailable {
+  color: var(--muted-light);
+  text-decoration: line-through;
+}
+
+.cart-item__options,
+.product-card__from {
+  font-weight: 700;
+}
+
+.variant-row-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 14px;
+}
+
+.variant-row-form .field {
+  max-width: 160px;
+}
+
+.admin-table tr.is-inactive th,
+.admin-table tr.is-inactive td {
+  color: var(--muted-light);
+}

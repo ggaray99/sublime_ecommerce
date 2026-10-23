@@ -227,6 +227,12 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
                         <th scope="row">
                           <Link href={`/admin/productos/${product.id}`}>{product.name}</Link>
                           {product.featured && <span className="badge badge--acid">Destacado</span>}
+                          {product.optionNames.length > 0 && (
+                            <span className="muted">
+                              {" "}
+                              · {product.variantCount} variantes ({product.optionNames.join(", ").toLowerCase()})
+                            </span>
+                          )}
                           {product.status === "active" && (
                             <>
                               {" · "}

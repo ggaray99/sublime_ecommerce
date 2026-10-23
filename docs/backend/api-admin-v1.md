@@ -18,7 +18,7 @@ Esta API es un **estándar de Sublime**: el contrato lo definimos nosotros y qui
 | Auditoría | Cada cambio queda en el historial del panel como `integration:<nombre>`, igual que los cambios hechos a mano. |
 | Límite | 120 pedidos por minuto por clave. Al superarlo, `429` con `Retry-After`. Cada respuesta trae `X-RateLimit-Limit` y `X-RateLimit-Remaining`. |
 | Idempotencia | Las escrituras aceptan `Idempotency-Key` (de 8 a 120 caracteres). Si se reenvía con el mismo cuerpo, la API devuelve la respuesta original (`Idempotent-Replayed: true`) sin aplicar nada de nuevo. Si se reenvía con otro cuerpo, responde `409`. Vale 24 horas. |
-| Productos | Se identifican por `sku`. Las bajas **archivan**, no borran. |
+| Productos | Se identifican por `sku`. Las bajas **archivan**, no borran. En productos con variantes (talles, colores), **precio y stock van por el SKU de cada variante**; `priceMinor` a nivel producto se rechaza. |
 | Dinero | `priceMinor` en **centavos enteros**, con `currency: "ARS"`. `null` significa producto a pedido. |
 | Contrato estricto | Un campo o parámetro desconocido es un error `422` (no se ignora en silencio), así un error de tipeo no pasa inadvertido. |
 | Lotes | Hasta 500 ítems y 1 MB por pedido. Cada ítem se aplica por separado: uno inválido no frena a los demás. |
@@ -50,10 +50,11 @@ Errores, siempre con esta forma:
 | Método y ruta | Permiso | Qué hace |
 | --- | --- | --- |
 | `GET /products` | `catalog:read` | Lista paginada (`page`, `pageSize` hasta 200). Filtros: `q`, `status`, `categoryId`, `theme`, `stock` (`in`, `low`, `out`, `made_to_order`), `images` (`with`, `without`), `featured`, `sort` (`store`, `name`, `price_asc`, `price_desc`, `stock_asc`, `updated`). Con `updatedSince` (ISO 8601) se hace sincronización incremental: devuelve los cambios de producto, precio o stock desde esa fecha. |
-| `GET /products/{sku}` | `catalog:read` | Un producto, con sus imágenes. |
+| `GET /products/{sku}` | `catalog:read` | Un producto (también por el SKU de una variante), con sus imágenes y variantes. |
 | `POST /products` | `catalog:write` | Alta. Nace en `draft` salvo que se indique otro estado. `sku` es opcional (si falta, se genera `SUB-<ID>`). `initialStock` opcional. `requiresQuote: true` crea un producto a pedido. Responde `201`. |
 | `PATCH /products/{sku}` | `catalog:write` | Cambia solo los campos enviados. |
 | `POST /products/{sku}/archive` | `catalog:write` | Baja lógica. |
+| `PUT /products/{sku}/options` | `catalog:write` | Define opciones (`{ "options": [{ "name": "Talle", "values": ["S", "M"] }] }`): una variante por combinación, hasta 2 opciones y 30 combinaciones. Ver [fase-3g-variantes.md](fase-3g-variantes.md). |
 | `POST /products/bulk-upsert` | `catalog:write` | `{ items, dryRun }`: si el SKU existe, actualiza los campos enviados; si no, lo crea. Resultado por ítem: `created`, `updated` (con `changes`), `unchanged` o `failed`. |
 | `POST /products/bulk-archive` | `catalog:write` | `{ skus, dryRun }`: baja masiva. |
 | `POST /prices/bulk-update` | `prices:write` | Precio exacto: `{ items: [{ sku, priceMinor }] }`. O ajuste por regla: `{ rule, scope, rounding }`, donde `rule` es `{ type: "percent", value: 12.5 }` o `{ type: "amount", value: -5000 }`, `scope` es `{ categoryId }`, `{ skus }` o `{ all: true }`, y `rounding` es `none`, `nearest_100` (a $1) o `nearest_1000` (a $10). Nunca deja precios en $ 0 o menos, y los productos a pedido quedan `skipped`. Cada ítem incluye `before` y `after`. |
