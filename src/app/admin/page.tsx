@@ -124,7 +124,8 @@ function Filters({ search, facets, categories }: { search: ProductSearch; facets
             { value: "no", label: "No destacados", count: facets.featured.no },
           ]}
         />
-        <Select id="f-orden" name="orden" label="Ordenar por" value={search.sort === "orden" ? undefined : search.sort} all="Orden de la tienda" choices={SORT_CHOICES} />
+        {/* Keep the chosen order when filtering (the order selector is at the top). */}
+        {search.sort !== "orden" && <input type="hidden" name="orden" value={search.sort} />}
         <div className="admin-sidebar__actions">
           <button type="submit" className="btn btn--coal">
             Aplicar
@@ -137,6 +138,32 @@ function Filters({ search, facets, categories }: { search: ProductSearch; facets
         </div>
       </AutoSubmitForm>
     </aside>
+  );
+}
+
+/** Order selector at the top; it keeps the active filters. */
+function SortControl({ search }: { search: ProductSearch }) {
+  const keep = new URLSearchParams(productSearchToQuery({ ...search, sort: "orden", page: 1 }).slice(1));
+  return (
+    <AutoSubmitForm action="/admin" className="admin-sort">
+      {[...keep.entries()].map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
+      <label htmlFor="f-orden">Ordenar por</label>
+      <select id="f-orden" name="orden" defaultValue={search.sort === "orden" ? "" : search.sort}>
+        <option value="">Orden de la tienda</option>
+        {SORT_CHOICES.map((choice) => (
+          <option key={choice.value} value={choice.value}>
+            {choice.label}
+          </option>
+        ))}
+      </select>
+      <noscript>
+        <button type="submit" className="btn btn--coal">
+          Ordenar
+        </button>
+      </noscript>
+    </AutoSubmitForm>
   );
 }
 
@@ -178,9 +205,12 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
     <div className="account account--wide">
       <div className="account__head">
         <AdminNav current="productos" />
-        <p className="muted">
-          Sesión: {admin.email} · rol {admin.role === "owner" ? "dueño" : "editor"}
-        </p>
+        <div className="admin-toolbar">
+          <SortControl search={search} />
+          <p className="muted">
+            Sesión: {admin.email} · rol {admin.role === "owner" ? "dueño" : "editor"}
+          </p>
+        </div>
       </div>
 
       <div className="admin-layout">

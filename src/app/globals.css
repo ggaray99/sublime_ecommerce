@@ -2681,3 +2681,33 @@ li:nth-child(3n) > .category-card .category-card__body {
 .admin-table tr.is-inactive td {
   color: var(--muted-light);
 }
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+}
+
+.admin-sort {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.admin-sort select {
+  min-height: 44px;
+  padding: 8px 36px 8px 12px;
+  border: var(--line);
+  border-radius: 0;
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--black) 50%) calc(100% - 18px) 50% / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--black) 50%, transparent 50%) calc(100% - 12px) 50% / 6px 6px no-repeat,
+    var(--white);
+  color: var(--black);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
