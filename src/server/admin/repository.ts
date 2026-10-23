@@ -26,6 +26,8 @@ export type AdminProduct = {
   reserved: number;
   /** First image, or the category image when the product has none. */
   coverUrl: string;
+  /** Latest change to the product, its price or its stock. */
+  updatedAt: Date;
 };
 
 export type StockMovement = { id: string; deltaOnHand: number; reason: string; actor: string; note: string; createdAt: Date };
@@ -98,6 +100,7 @@ type ProductRow = {
   on_hand: number | null;
   reserved: number | null;
   cover_url: string | null;
+  updated_at: Date;
 };
 
 const toProduct = (row: ProductRow): AdminProduct => ({
@@ -120,6 +123,7 @@ const toProduct = (row: ProductRow): AdminProduct => ({
   onHand: row.on_hand ?? 0,
   reserved: row.reserved ?? 0,
   coverUrl: row.cover_url || "/demo/categories/stickers.webp",
+  updatedAt: new Date(row.updated_at),
 });
 
 const SELECT_PRODUCTS = `
@@ -128,7 +132,8 @@ const SELECT_PRODUCTS = `
          coalesce(
            (SELECT im.url FROM product_images im WHERE im.product_id = p.id ORDER BY im.sort_order LIMIT 1),
            nullif((SELECT c.image_url FROM categories c WHERE c.id = p.category_id), '')
-         ) AS cover_url
+         ) AS cover_url,
+         greatest(p.updated_at, v.updated_at, coalesce(i.updated_at, p.updated_at)) AS updated_at
   FROM products p
   JOIN product_variants v ON v.product_id = p.id AND v.is_default
   LEFT JOIN inventory i ON i.variant_id = v.id`;
@@ -178,7 +183,7 @@ const EDITABLE = [
 ] as const satisfies readonly (keyof ProductUpdateInput & keyof AdminProduct)[];
 
 /** Only the fields that actually change, as { field: { before, after } }. */
-function diff(current: AdminProduct, next: ProductUpdateInput) {
+export function productChanges(current: AdminProduct, next: ProductUpdateInput) {
   const changes: Record<string, { before: unknown; after: unknown }> = {};
   for (const key of EDITABLE) {
     if (JSON.stringify(current[key]) !== JSON.stringify(next[key])) changes[key] = { before: current[key], after: next[key] };
@@ -224,6 +229,14 @@ export function createAdminRepository(sql: QueryFn) {
 
     getProduct,
 
+    /** The API identifies products by SKU (stable and readable). */
+    async getProductBySku(sku: string): Promise<AdminProduct> {
+      if (!/^[A-Z0-9][A-Z0-9-]{1,39}$/.test(sku)) throw new AdminDataError("not_found", "El producto no existe.");
+      const [row] = (await sql.query(`${SELECT_PRODUCTS} WHERE v.sku = $1`, [sku])) as ProductRow[];
+      if (!row) throw new AdminDataError("not_found", "El producto no existe.");
+      return toProduct(row);
+    },
+
     /** Filtered, sorted and paginated list for the admin; the database does the work. */
     async searchProducts(search: ProductSearch): Promise<ProductSearchResult> {
       const params = [
@@ -236,7 +249,9 @@ export function createAdminRepository(sql: QueryFn) {
         search.images ?? null,
         search.featured ?? null,
         LOW_STOCK,
+        search.updatedSince?.toISOString() ?? null,
       ];
+      const pageSize = Math.min(Math.max(search.pageSize ?? PAGE_SIZE, 1), 200);
       const where = `
         WHERE ($1::text IS NULL OR p.name ILIKE $2 OR v.sku ILIKE $2 OR p.catalog_code = $1 OR $1 = ANY (p.tags))
           AND ($3::text IS NULL OR p.status = $3)
@@ -248,7 +263,8 @@ export function createAdminRepository(sql: QueryFn) {
                OR ($6 = 'sin' AND v.track_stock AND ${AVAILABLE} <= 0)
                OR ($6 = 'bajo' AND v.track_stock AND ${AVAILABLE} BETWEEN 1 AND $9::int))
           AND ($7::text IS NULL OR ($7 = 'con') = ${HAS_IMAGES})
-          AND ($8::text IS NULL OR ($8 = 'si') = p.featured)`;
+          AND ($8::text IS NULL OR ($8 = 'si') = p.featured)
+          AND ($10::timestamptz IS NULL OR greatest(p.updated_at, v.updated_at, coalesce(i.updated_at, p.updated_at)) >= $10::timestamptz)`;
       const [countRow] = (await sql.query(
         `SELECT count(*)::int AS total FROM products p
          JOIN product_variants v ON v.product_id = p.id AND v.is_default
@@ -256,13 +272,13 @@ export function createAdminRepository(sql: QueryFn) {
         params,
       )) as { total: number }[];
       const total = countRow?.total ?? 0;
-      const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      const pages = Math.max(1, Math.ceil(total / pageSize));
       const page = Math.min(search.page, pages);
       const rows = (await sql.query(
-        `${SELECT_PRODUCTS} ${where} ORDER BY ${SORTS[search.sort]} LIMIT ${PAGE_SIZE} OFFSET $10`,
-        [...params, (page - 1) * PAGE_SIZE],
+        `${SELECT_PRODUCTS} ${where} ORDER BY ${SORTS[search.sort]} LIMIT $11::int OFFSET $12::int`,
+        [...params, pageSize, (page - 1) * pageSize],
       )) as ProductRow[];
-      return { items: rows.map(toProduct), total, page, pageSize: PAGE_SIZE, pages };
+      return { items: rows.map(toProduct), total, page, pageSize, pages };
     },
 
     async productFacets(): Promise<ProductFacets> {
@@ -306,7 +322,7 @@ export function createAdminRepository(sql: QueryFn) {
     async updateProduct(actor: Admin, productId: string, input: ProductUpdateInput): Promise<AdminProduct> {
       const current = await getProduct(productId);
       const next = { ...input, priceMinor: current.requiresQuote ? null : input.priceMinor };
-      const changes = diff(current, next);
+      const changes = productChanges(current, next);
       if (!Object.keys(changes).length) return current;
       try {
         await sql.query(

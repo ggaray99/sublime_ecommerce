@@ -3,6 +3,7 @@ import Link from "next/link";
 const LINKS = [
   { id: "productos", href: "/admin", label: "Productos" },
   { id: "categorias", href: "/admin/categorias", label: "Categorías" },
+  { id: "integraciones", href: "/admin/integraciones", label: "Integraciones (API)" },
 ] as const;
 
 export function AdminNav({ current }: { current: (typeof LINKS)[number]["id"] }) {

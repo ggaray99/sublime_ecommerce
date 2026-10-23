@@ -13,7 +13,7 @@ Numeración según el roadmap de `docs/auditoria-tecnica-backend-v1.1.md` (secci
 | 3B · La tienda lee precio, visibilidad y stock de la base | [fase-3b-tienda-desde-la-base.md](fase-3b-tienda-desde-la-base.md) | ✅ Staging |
 | 3C · Contenido en la base, alta y edición completa de productos, capa de servicios | [fase-3c-contenido-en-la-base.md](fase-3c-contenido-en-la-base.md) | ✅ Staging |
 | 3D · CRUD de categorías | [fase-3d-3f-categorias-e-imagenes.md](fase-3d-3f-categorias-e-imagenes.md) | ✅ Staging |
-| 3E · API `/api/admin/v1` con API keys y operaciones masivas | [api-admin-v1.md](api-admin-v1.md) (contrato en revisión) | Pendiente |
+| 3E · API `/api/admin/v1` (estándar para integraciones): claves con permisos, operaciones masivas con simulación, OpenAPI | [api-admin-v1.md](api-admin-v1.md) | ✅ Staging (importación CSV, imágenes por API y promociones: próximas versiones) |
 | 3F · Imágenes: subida validada (Vercel Blob) | [fase-3d-3f-categorias-e-imagenes.md](fase-3d-3f-categorias-e-imagenes.md) | ✅ Staging (Blob conectado a Preview/Development) |
 | 3G · Variantes con SKU, precio y stock propios (talles) | — | Pendiente |
 
@@ -22,13 +22,13 @@ Numeración según el roadmap de `docs/auditoria-tecnica-backend-v1.1.md` (secci
 | Pedido | Estado |
 | --- | --- |
 | Persistencia del catálogo | ✅ Productos y categorías completos en la base. |
-| CRUD de productos | ✅ Alta, edición y baja lógica en el panel. Por API: pendiente (3E). |
+| CRUD de productos | ✅ Alta, edición y baja lógica en el panel y por API (incluido masivo). |
 | Categorías | ✅ Alta, edición, ocultar, eliminar vacías e imagen. |
 | Variantes / SKU | ⚠️ SKU por producto. Variantes múltiples en 3G. |
 | Precio y stock | ✅ |
 | Imágenes | ✅ Subida, portada, orden, texto alternativo y quitar . |
 | Auditoría | ✅ |
-| Permisos en el backend | ✅ En cada acción. La API usará claves con permisos acotados (3E). |
+| Permisos en el backend | ✅ En cada acción del panel; en la API, claves con permisos acotados y revocables. |
 | Validación de subidas | ✅ Tipo real por bytes, tamaño y medidas (`tests/image-file.test.mjs`). |
 | Regresión de filtros | ✅ `tests/storefront-db.test.mjs` |
 

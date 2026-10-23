@@ -2563,3 +2563,19 @@ li:nth-child(3n) > .category-card .category-card__body {
     top: 16px;
   }
 }
+
+.api-token {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 2px solid var(--black);
+  background: var(--light);
+}
+
+.api-token__value {
+  width: 100%;
+  padding: 10px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 14px;
+  border: var(--line);
+}

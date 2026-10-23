@@ -2,6 +2,7 @@ import { getSessionUser } from "../auth/neon.ts";
 import { getSql } from "../db/client.ts";
 import { accountsAvailable } from "../customers/session.ts";
 import { createCategoryRepository } from "./categories-repository.ts";
+import { createApiKeyRepository } from "../api/keys.ts";
 import { createImageRepository } from "./images-repository.ts";
 import { createAdminRepository, type Admin, type AdminRepository } from "./repository.ts";
 
@@ -14,6 +15,7 @@ export function getAdminRepository(): AdminRepository {
 
 export const getCategoryRepository = () => createCategoryRepository(getSql());
 export const getImageRepository = () => createImageRepository(getSql());
+export const getApiKeyRepository = () => createApiKeyRepository(getSql());
 
 /**
  * The only authorization check for /admin: a signed-in user is an admin when

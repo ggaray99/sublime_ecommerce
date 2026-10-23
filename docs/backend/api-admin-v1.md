@@ -1,174 +1,111 @@
-# API de administración v1 — borrador para revisión
+# API de administración v1 — estándar para integraciones
 
-Estado: **propuesta, sin implementar.** Este documento define el contrato antes de programarlo, para que lo revise quien arme los flujos de automatización (n8n, scripts, ERP). Las reglas de negocio ya existen y las usa el panel `/admin`: la API va a usar exactamente las mismas, en `src/server/admin/validation.ts` y `src/server/admin/repository.ts`.
+Estado: **implementada y activa en staging (previews)** desde el 23/10/2026. En producción responde `503` hasta que exista la base de producción.
 
-## Principios
+Esta API es un **estándar de Sublime**: el contrato lo definimos nosotros y quien integre (n8n, Make, scripts, un ERP) se adapta a él. No es "la integración con n8n".
 
-- **Base:** `/api/admin/v1`. JSON en UTF-8. Un cambio que rompa el contrato crea una `v2`; `v1` sigue funcionando mientras se migra.
-- **Autenticación:** encabezado `Authorization: Bearer <api-key>`.
-  - Hay una clave por integración, por ejemplo "n8n-precios".
-  - Se muestra una sola vez al crearla.
-  - En la base se guarda solo su hash.
-  - Se puede revocar y queda registro del último uso.
-- **Permisos por clave (scopes):** `catalog:read`, `catalog:write`, `stock:write`, `prices:write`, `images:write`.
-  - Una clave sin el permiso necesario recibe `403`.
-- **Auditoría:** todo cambio queda en `audit_logs` con actor `integration:<nombre-de-la-clave>`, igual que los cambios del panel.
-- **Idempotencia:** toda escritura acepta el encabezado `Idempotency-Key`, de 8 a 120 caracteres.
-  - Reenviar la misma clave con el mismo cuerpo devuelve la respuesta original sin aplicar nada de nuevo.
-  - Reenviarla con otro cuerpo devuelve `409`.
-- **Identificación de productos:** por `sku`, que es estable y legible.
-  - También se acepta `id`, el id público (`p13`, `c088`, `x1a2b3c4d`).
-  - Las altas y modificaciones masivas buscan por `sku`.
-- **Dinero:** siempre `priceMinor`, en centavos enteros, con `currency: "ARS"`. Nunca decimales.
-- **Bajas:** archivar (`status: "archived"`), nunca borrar, porque los pedidos e historiales referencian el producto.
-- **Límites:**
-  - 120 pedidos por minuto por clave; al superarlo, `429` con `Retry-After`.
-  - Lotes de hasta 500 ítems por pedido. Para más, importación en segundo plano.
-- **Errores:** siempre con esta forma:
+- **Contrato formal (OpenAPI 3.1):** `GET /api/admin/v1/openapi.json`. Fuente: `src/server/api/openapi.ts`.
+- **Implementación:** `src/server/api/handler.ts`, sin framework y probada con requests reales en `tests/admin-api.test.mjs`. Usa la misma validación y los mismos repositorios que el panel `/admin`, así que las reglas son idénticas.
+- **Claves:** se crean y revocan en `/admin/integraciones`. Solo el rol dueño (owner) puede hacerlo.
+
+## Reglas generales
+
+| Tema | Regla |
+| --- | --- |
+| Base | `/api/admin/v1`. JSON en UTF-8. Un cambio incompatible crea `/v2`; `v1` sigue funcionando mientras se migra. |
+| Autenticación | `Authorization: Bearer sk_sublime_<prefijo>_<secreto>`. Hay una clave por integración. Se muestra **una sola vez** al crearla y en la base se guarda solo el hash del secreto. Se puede revocar y registra su último uso. |
+| Permisos | `catalog:read`, `catalog:write`, `prices:write`, `stock:write`. Si la clave no tiene el permiso necesario, la respuesta es `403`. |
+| Auditoría | Cada cambio queda en el historial del panel como `integration:<nombre>`, igual que los cambios hechos a mano. |
+| Límite | 120 pedidos por minuto por clave. Al superarlo, `429` con `Retry-After`. Cada respuesta trae `X-RateLimit-Limit` y `X-RateLimit-Remaining`. |
+| Idempotencia | Las escrituras aceptan `Idempotency-Key` (de 8 a 120 caracteres). Si se reenvía con el mismo cuerpo, la API devuelve la respuesta original (`Idempotent-Replayed: true`) sin aplicar nada de nuevo. Si se reenvía con otro cuerpo, responde `409`. Vale 24 horas. |
+| Productos | Se identifican por `sku`. Las bajas **archivan**, no borran. |
+| Dinero | `priceMinor` en **centavos enteros**, con `currency: "ARS"`. `null` significa producto a pedido. |
+| Contrato estricto | Un campo o parámetro desconocido es un error `422` (no se ignora en silencio), así un error de tipeo no pasa inadvertido. |
+| Lotes | Hasta 500 ítems y 1 MB por pedido. Cada ítem se aplica por separado: uno inválido no frena a los demás. |
+| Simulación | Toda operación masiva acepta `"dryRun": true`: valida y devuelve el resultado que tendría, incluido el antes y el después, sin guardar nada. |
+| Tienda | Después de cada cambio real, la tienda deja de mostrar el catálogo viejo en la visita siguiente. |
+
+Errores, siempre con esta forma:
 
 ```json
-{
-  "error": "validation_failed",
-  "message": "Revisá los datos enviados.",
-  "fields": [{ "path": "items[3].priceMinor", "message": "El precio debe ser mayor a $ 0 y hasta $ 10.000.000." }]
-}
+{ "error": "validation_failed", "message": "Revisá los datos enviados.", "fields": [{ "path": "items[3].priceMinor", "message": "…" }] }
 ```
 
 | HTTP | `error` | Cuándo |
 | --- | --- | --- |
 | 400 | `bad_request` | JSON inválido |
-| 401 | `unauthorized` | Falta la clave o es inválida o revocada |
-| 403 | `forbidden` | La clave no tiene el permiso necesario |
-| 404 | `not_found` | El producto o recurso no existe |
-| 409 | `conflict` | Slug, SKU o código duplicado; o `Idempotency-Key` reutilizada con otro cuerpo |
-| 413 | `payload_too_large` | Más de 500 ítems o más de 1 MB |
-| 415 | `unsupported_media_type` | No es `application/json` (salvo imágenes) |
-| 422 | `validation_failed` | Datos con formato correcto pero inválidos |
-| 429 | `rate_limited` | Superó el límite de pedidos |
-
-## Recurso producto
-
-```json
-{
-  "id": "c088",
-  "sku": "STK-088",
-  "slug": "sticker-088",
-  "name": "Sticker 088",
-  "description": "…",
-  "categoryId": "stickers",
-  "theme": "argentina",
-  "tags": ["mendoza"],
-  "details": ["Vinilo laminado"],
-  "featured": false,
-  "catalogCode": "088",
-  "requiresQuote": false,
-  "status": "active",
-  "priceMinor": 150000,
-  "currency": "ARS",
-  "stock": { "tracked": true, "onHand": 20, "reserved": 2, "available": 18 },
-  "images": [{ "id": "…", "url": "https://…", "alt": "…", "position": 0 }],
-  "updatedAt": "2026-10-23T13:03:43Z"
-}
-```
-
-Reglas iguales a las del panel:
-- **Nombre:** de 1 a 120 caracteres.
-- **Slug:** en minúsculas, con números y guiones. Si se omite en el alta, se genera desde el nombre.
-- **Descripción:** hasta 2000 caracteres.
-- **Etiquetas:** hasta 20, de 30 caracteres como máximo.
-- **Detalles:** hasta 12 líneas, de 200 caracteres como máximo.
-- **Código de catálogo:** de 3 a 6 dígitos.
-- **Precio:** entre 1 centavo y $ 10.000.000. Los productos a pedido no llevan precio ni stock.
+| 401 | `unauthorized` | Falta la clave, o es inválida o está revocada |
+| 403 | `forbidden` | Falta el permiso |
+| 404 | `not_found` | El recurso o el SKU no existe |
+| 405 | `method_not_allowed` | El método no está admitido (ver encabezado `Allow`) |
+| 409 | `conflict` | Slug, SKU o código duplicado, o `Idempotency-Key` reutilizada con otro cuerpo |
+| 413 | `payload_too_large` | Más de 1 MB o de 500 ítems |
+| 415 | `unsupported_media_type` | El cuerpo no es `application/json` |
+| 422 | `validation_failed` | Datos inválidos (ver `fields`) |
+| 429 | `rate_limited` | Superó el límite por minuto |
+| 503 | `not_available` | La API no está habilitada en este entorno |
 
 ## Endpoints
 
-### Catálogo
-
 | Método y ruta | Permiso | Qué hace |
 | --- | --- | --- |
-| `GET /products?status=&categoryId=&q=&updatedSince=&cursor=&limit=` | `catalog:read` | Lista paginada por cursor, hasta 200 por página. `updatedSince` permite sincronizaciones incrementales. |
-| `GET /products/{sku}` | `catalog:read` | Un producto. |
-| `POST /products` | `catalog:write` | Alta de un producto. Nace en `draft` salvo que se indique otro estado. `initialStock` opcional. Responde `201`. |
-| `PATCH /products/{sku}` | `catalog:write` | Modifica los campos enviados; los omitidos no se tocan. |
+| `GET /products` | `catalog:read` | Lista paginada (`page`, `pageSize` hasta 200). Filtros: `q`, `status`, `categoryId`, `theme`, `stock` (`in`, `low`, `out`, `made_to_order`), `images` (`with`, `without`), `featured`, `sort` (`store`, `name`, `price_asc`, `price_desc`, `stock_asc`, `updated`). Con `updatedSince` (ISO 8601) se hace sincronización incremental: devuelve los cambios de producto, precio o stock desde esa fecha. |
+| `GET /products/{sku}` | `catalog:read` | Un producto, con sus imágenes. |
+| `POST /products` | `catalog:write` | Alta. Nace en `draft` salvo que se indique otro estado. `sku` es opcional (si falta, se genera `SUB-<ID>`). `initialStock` opcional. `requiresQuote: true` crea un producto a pedido. Responde `201`. |
+| `PATCH /products/{sku}` | `catalog:write` | Cambia solo los campos enviados. |
 | `POST /products/{sku}/archive` | `catalog:write` | Baja lógica. |
-| `GET /categories` | `catalog:read` | Categorías. Su alta y edición llegan con el paso 2. |
+| `POST /products/bulk-upsert` | `catalog:write` | `{ items, dryRun }`: si el SKU existe, actualiza los campos enviados; si no, lo crea. Resultado por ítem: `created`, `updated` (con `changes`), `unchanged` o `failed`. |
+| `POST /products/bulk-archive` | `catalog:write` | `{ skus, dryRun }`: baja masiva. |
+| `POST /prices/bulk-update` | `prices:write` | Precio exacto: `{ items: [{ sku, priceMinor }] }`. O ajuste por regla: `{ rule, scope, rounding }`, donde `rule` es `{ type: "percent", value: 12.5 }` o `{ type: "amount", value: -5000 }`, `scope` es `{ categoryId }`, `{ skus }` o `{ all: true }`, y `rounding` es `none`, `nearest_100` (a $1) o `nearest_1000` (a $10). Nunca deja precios en $ 0 o menos, y los productos a pedido quedan `skipped`. Cada ítem incluye `before` y `after`. |
+| `POST /stock/bulk-count` | `stock:write` | `{ items: [{ sku, onHand, reason, note }] }`: conteo físico. Se registra la diferencia como movimiento. `reason` es `restock` o `adjustment`, y un `adjustment` exige `note`. No puede quedar por debajo de las unidades reservadas. |
+| `GET /categories` | `catalog:read` | Categorías, incluidas las ocultas, con su cantidad de productos. |
 
-### Operaciones masivas
+## Guía rápida para integradores
 
-Todas aceptan `"dryRun": true`. En ese modo validan y devuelven el resultado que tendrían, sin guardar nada. Se aplican **por ítem**: un ítem inválido no frena a los demás. La respuesta trae el resultado de cada uno:
+1. **Clave.** Pedirle al dueño que cree una en `/admin/integraciones` con un nombre descriptivo (ej.: `n8n-precios`) y **solo los permisos necesarios**. Guardarla como credencial secreta en la herramienta, nunca en el flujo ni en un repositorio.
+2. **Contrato.** Importar `/api/admin/v1/openapi.json` en la herramienta si lo admite, o usarlo de referencia.
+3. **Simulación primero.** Correr cada carga masiva con `"dryRun": true`, revisar `summary` e `items`, y recién después correrla sin `dryRun`.
+4. **Reintentos.** Mandar siempre un `Idempotency-Key` estable por carga, por ejemplo `precios-2026-10-23-lista-a`. Si n8n reintenta, la API no aplica dos veces.
+5. **Lotes.** Partir en tandas de 500 como máximo y respetar `429` y `Retry-After`.
+6. **Sincronizar.** Para leer cambios, guardar la fecha de la última corrida y pedir `GET /products?updatedSince=<fecha>&pageSize=200`, recorriendo `page`.
 
-```json
-{
-  "dryRun": false,
-  "summary": { "created": 10, "updated": 85, "unchanged": 4, "failed": 1 },
-  "items": [
-    { "index": 0, "sku": "STK-088", "result": "updated", "changes": ["priceMinor"] },
-    { "index": 7, "sku": "STK-999", "result": "failed", "error": { "error": "validation_failed", "fields": [ … ] } }
-  ]
-}
+Ejemplo, aumento del 10% en stickers redondeado a pesos (primero simulado):
+
+```http
+POST /api/admin/v1/prices/bulk-update
+Authorization: Bearer sk_sublime_…
+Content-Type: application/json
+Idempotency-Key: aumento-stickers-2026-10
+
+{ "rule": { "type": "percent", "value": 10 }, "scope": { "categoryId": "stickers" }, "rounding": "nearest_100", "dryRun": true }
 ```
 
-| Método y ruta | Permiso | Qué hace |
-| --- | --- | --- |
-| `POST /products/bulk-upsert` | `catalog:write` | Hasta 500 productos. Si el `sku` existe, actualiza los campos enviados; si no, lo crea. |
-| `POST /products/bulk-archive` | `catalog:write` | `{ "skus": [ … ] }`: baja masiva. |
-| `POST /prices/bulk-update` | `prices:write` | Precio exacto por SKU (`[{ "sku", "priceMinor" }]`) o ajuste por regla. Las dos formas se detallan abajo. |
-| `POST /stock/bulk-count` | `stock:write` | Conteos por SKU (`[{ "sku", "onHand", "reason", "note" }]`). Mismas reglas que el panel: no puede quedar por debajo de lo reservado y los ajustes requieren nota. |
+## Verificación (23/10/2026)
 
-Ajuste de precios por regla:
+- **Tests:**
+  - `tests/admin-api.test.mjs` (21) cubre: contrato, entorno sin base, claves faltantes, inválidas, con secreto incorrecto y revocadas, permisos, límite por minuto, 404 y 405, filtros y parámetros desconocidos, detalle con imágenes, `updatedSince`, alta auditada como integración, campos desconocidos y duplicados, `PATCH` parcial, baja, formato del cuerpo, upsert masivo con y sin simulación, precios exactos y por regla, productos a pedido omitidos, conteos con reservas y nota obligatoria, e idempotencia.
+  - Total del proyecto: 162 tests.
+- **De punta a punta contra staging, con una clave temporal `e2e-prueba-local` ya revocada:**
+  - contrato `200`;
+  - sin clave `401`;
+  - listado y detalle;
+  - alta sin permiso `403`;
+  - simulación de +10% en packs (5 productos, ej. `SUB-P08` 890000 → 979000);
+  - simulación de conteo de stock;
+  - clave revocada `401`.
+  - No se modificó ningún dato.
 
-```json
-{
-  "rule": { "type": "percent", "value": 12.5 },
-  "scope": { "categoryId": "stickers" },
-  "rounding": "nearest_100",
-  "dryRun": true
-}
-```
+## Próximas versiones del estándar (todavía sin implementar)
 
-- `type`: `percent` (porcentaje) o `amount` (monto en centavos, positivo o negativo).
-- `scope`: categoría, lista de SKUs, o `all` (todo el catálogo).
-- `rounding`: `none`, `nearest_100` (a $1) o `nearest_1000` (a $10).
-- Nunca puede dejar un precio en $0 o menos. Los productos a pedido se ignoran.
-
-### Importaciones grandes (en segundo plano)
-
-Para más de 500 ítems o para archivos CSV:
-
-| Método y ruta | Qué hace |
+| Tema | Plan |
 | --- | --- |
-| `POST /imports` | Recibe un CSV o JSON con `kind`: `products`, `prices` o `stock`, más `dryRun`. Responde `202` con `{ "id", "status": "queued" }`. |
-| `GET /imports/{id}` | Estado (`queued`, `running`, `completed`, `failed`), progreso y resumen. |
-| `GET /imports/{id}/results` | Resultado de cada fila, para descargar los errores y corregirlos. |
+| Importaciones grandes (CSV) | `POST /imports` en segundo plano, con estado, resultado por fila y plantillas CSV oficiales para productos, precios y stock. Antes de aplicar, rama de respaldo en Neon. |
+| Imágenes por API | `POST /products/{sku}/images`, por archivo o por URL. Las URLs se aceptan solo de dominios permitidos y nunca de direcciones internas (protección contra SSRF). La validación es la misma que en el panel. |
+| Promociones | Modelo propio con vigencia y alcance. Se diseña junto con los pedidos (Fase 4). |
+| Webhooks salientes | Avisos firmados (`product.updated`, `stock.low`) si alguna integración los necesita. |
 
-Antes de aplicar una importación grande (no en simulación) se crea una rama de respaldo de la base en Neon.
+### Notas para quien integre (ya no condicionan el diseño)
 
-### Imágenes (requiere aprobar Vercel Blob)
-
-| Método y ruta | Qué hace |
-| --- | --- |
-| `POST /products/{sku}/images` | Sube un archivo (`multipart/form-data`) **o** importa desde una URL (`{ "sourceUrl", "alt" }`). |
-| `PATCH /products/{sku}/images/{imageId}` | Cambia el texto alternativo o la posición. La posición 0 es la portada. |
-| `DELETE /products/{sku}/images/{imageId}` | Quita la imagen del producto. |
-
-Validación:
-- **Formatos:** JPEG, PNG o WebP. Se verifica por el contenido real del archivo, no por la extensión.
-- **Tamaño:** hasta 8 MB y entre 400 y 4000 px por lado.
-- **Texto alternativo:** obligatorio.
-- **URLs externas:** solo de dominios configurados como permitidos. Se rechazan direcciones privadas o internas, con un tiempo máximo y un tamaño máximo de descarga. Esto evita que alguien use el servidor para pedir direcciones de la red interna (SSRF).
-
-### Promociones (después de pedidos)
-
-Son un modelo aparte del precio base: `POST/GET/PATCH /promotions`, con `startsAt`, `endsAt`, alcance (SKUs, categorías o todo) y descuento (porcentaje o monto). El precio base no se modifica y la promoción vence sola. Se diseña junto con los pedidos, porque el descuento se tiene que guardar en cada pedido.
-
-## Webhooks salientes (opcional, a confirmar)
-
-Avisos a n8n cuando algo cambia, por ejemplo `product.updated`, `stock.low` o `import.completed`. Van firmados con HMAC y se reintentan si fallan.
-
-## Preguntas para revisar
-
-1. ¿Qué sistema es la fuente de verdad de precios y stock? Por ejemplo, ¿un Excel o un ERP que n8n lee?
-2. ¿Las integraciones necesitan crear productos, o solo actualizar precio y stock de los existentes?
-3. ¿El formato de importación preferido es CSV (con qué columnas) o JSON?
-4. ¿Qué dominios de imágenes deberían permitirse? Por ejemplo, Google Drive o el sitio del proveedor.
-5. ¿Hacen falta webhooks salientes desde el comienzo?
+- **Origen de precios y stock:** el sistema de origen (planilla, ERP) se mapea a estos endpoints. La API no depende de dónde vengan los datos.
+- **Formato:** hoy JSON. Para CSV conviene esperar `/imports`, o convertirlo en el flujo.
+- **Imágenes:** hasta tener el endpoint, se cargan desde el panel.

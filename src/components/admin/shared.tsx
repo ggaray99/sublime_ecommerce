@@ -79,6 +79,8 @@ function fieldChange(field: string, before: unknown, after: unknown): string {
 function describe(entry: AuditEntry): string {
   const changes = entry.changes;
   if (entry.action === "inventory.count") return `Stock ${changes.before} → ${changes.after}${changes.note ? ` (${changes.note})` : ""}`;
+  if (entry.action === "integration.create") return `Clave de API creada (${(changes.scopes as string[] | undefined)?.join(", ") ?? ""})`;
+  if (entry.action === "integration.revoke") return "Clave de API revocada";
   if (entry.action === "admin.grant") return `Acceso de administración: ${changes.email} como ${changes.role}`;
   if (entry.action.startsWith("image.")) {
     const verb = { add: "Imagen agregada", alt: "Texto de imagen actualizado", move: "Imagen reordenada", remove: "Imagen quitada" };
@@ -113,7 +115,7 @@ export function AuditList({ entries }: { entries: AuditEntry[] }) {
       {entries.map((entry) => (
         <li key={entry.id}>
           <p>
-            <strong>{entry.entity === "admin" ? "Accesos" : entry.entityId}</strong> · {describe(entry)}
+            <strong>{entry.entity === "admin" ? "Accesos" : entry.entity === "integration" ? `Integración ${entry.entityId}` : entry.entityId}</strong> · {describe(entry)}
           </p>
           <p className="muted">
             {entry.actorEmail} · <time dateTime={entry.createdAt.toISOString()}>{dateFormat(entry.createdAt)}</time>

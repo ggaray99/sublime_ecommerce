@@ -24,6 +24,10 @@ export type ProductSearch = {
   featured?: FeaturedFilter;
   sort: ProductSort;
   page: number;
+  /** API only: products changed at or after this instant (incremental sync). */
+  updatedSince?: Date;
+  /** API only: 1–200; the admin list always uses PAGE_SIZE. */
+  pageSize?: number;
 };
 
 /** "Stock bajo" threshold, also used to highlight rows. */

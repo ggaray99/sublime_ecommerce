@@ -23,6 +23,13 @@ export async function requireAdmin() {
   return admin;
 }
 
+/** Owner-only areas (integration keys). Editors get the same 404 as strangers. */
+export async function requireOwner() {
+  const admin = await requireAdmin();
+  if (admin.role !== "owner") notFound();
+  return admin;
+}
+
 /** Form fields as a plain object (the shape the validators share with the API). Files are skipped. */
 export const formValues = (form: FormData): Record<string, string> =>
   Object.fromEntries([...form.entries()].filter(([, value]) => typeof value === "string").map(([key, value]) => [key, String(value)]));
