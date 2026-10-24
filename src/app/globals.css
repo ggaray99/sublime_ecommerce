@@ -371,7 +371,7 @@ textarea {
 
 .panel--result h2 {
   margin-bottom: 14px;
-  font-size: clamp(36px, 5vw, 60px);
+  font-size: clamp(32px, 3.6vw, 48px);
 }
 
 .panel--result .btn--acid {
@@ -397,7 +397,7 @@ textarea {
 
 .empty-state h2 {
   margin-bottom: 12px;
-  font-size: clamp(36px, 5vw, 60px);
+  font-size: clamp(32px, 3.6vw, 48px);
 }
 
 .check-list {
@@ -949,10 +949,10 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .category-row {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: clamp(20px, 4vw, 48px);
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: clamp(20px, 3vw, 40px);
   align-items: center;
-  padding: 20px;
+  padding: 16px;
   border: var(--line);
   background: var(--white);
 }
@@ -964,7 +964,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .category-row h2 {
   margin-bottom: 12px;
-  font-size: clamp(36px, 3.6vw, 56px);
+  font-size: var(--fs-sub);
 }
 
 .category-row p {
@@ -1284,7 +1284,7 @@ li:nth-child(3n) > .category-card .category-card__body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 10px;
-  margin: 0 0 24px;
+  margin: 0 0 16px;
   padding: 0;
   list-style: none;
   font-size: 14px;
@@ -1358,8 +1358,8 @@ li:nth-child(3n) > .category-card .category-card__body {
 .field select,
 .field textarea {
   width: 100%;
-  min-height: 48px;
-  padding: 10px 12px;
+  min-height: 44px;
+  padding: 9px 12px;
   border: var(--line);
   border-radius: 0;
   background: var(--white);
@@ -1379,7 +1379,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .field textarea {
   resize: vertical;
-  min-height: 140px;
+  min-height: 120px;
 }
 
 .field input[type="file"] {
@@ -1412,7 +1412,7 @@ li:nth-child(3n) > .category-card .category-card__body {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 20px 0;
+  margin: 16px 0;
   font-weight: 700;
 }
 
@@ -1422,14 +1422,17 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .product-detail {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-  gap: clamp(28px, 5vw, 72px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 56px);
   align-items: start;
 }
 
+/* Capped so the main photo and its thumbnails fit a 768px-tall notebook screen. */
 .gallery {
   position: sticky;
   top: 88px;
+  width: 100%;
+  max-width: min(560px, calc(100svh - 290px));
 }
 
 .gallery__main {
@@ -1460,7 +1463,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .gallery__thumbs button {
   display: block;
-  width: 84px;
+  width: 72px;
   padding: 0;
   border: var(--line);
   background: var(--white);
@@ -1481,7 +1484,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .product-detail__info h1 {
   font-family: var(--font-text);
-  font-size: clamp(30px, 3.8vw, 52px);
+  font-size: clamp(26px, 2.8vw, 40px);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.05;
@@ -1492,8 +1495,8 @@ li:nth-child(3n) > .category-card .category-card__body {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin: 20px 0;
-  font-size: clamp(28px, 3vw, 38px);
+  margin: 16px 0;
+  font-size: clamp(24px, 2.4vw, 32px);
   font-weight: 900;
 }
 
@@ -1504,15 +1507,15 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .product-detail__description {
   max-width: 560px;
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .purchase {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin: 28px 0;
-  padding: 18px;
+  margin: 20px 0;
+  padding: 16px;
   border: var(--line);
   background: var(--white);
 }
@@ -1596,7 +1599,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .details-box {
-  padding: 18px;
+  padding: 16px;
   border: 2px dashed var(--black);
 }
 
@@ -1605,8 +1608,8 @@ li:nth-child(3n) > .category-card .category-card__body {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
-  font-size: 30px;
+  margin-bottom: 10px;
+  font-size: 26px;
   letter-spacing: -0.02em;
 }
 
@@ -1632,8 +1635,8 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .cart-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: clamp(24px, 4vw, 48px);
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: clamp(24px, 3.5vw, 40px);
   align-items: start;
 }
 
@@ -1646,16 +1649,16 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .cart-item {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) auto auto;
-  gap: 16px 20px;
+  grid-template-columns: 88px minmax(0, 1fr) auto auto;
+  gap: 14px 18px;
   align-items: center;
-  padding: 18px 0;
+  padding: 14px 0;
   border-bottom: 2px solid var(--white);
 }
 
 .cart-item__image img {
   display: block;
-  width: 96px;
+  width: 88px;
   border: 2px solid var(--white);
 }
 
@@ -1665,10 +1668,10 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .cart-item__info h3 {
   font-family: var(--font-text);
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 
 .cart-item__info h3 a:hover {
@@ -1688,7 +1691,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .cart-item__total {
   min-width: 110px;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 900;
   text-align: right;
 }
@@ -1696,7 +1699,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 .summary {
   position: sticky;
   top: 88px;
-  padding: 22px;
+  padding: 20px;
   border: var(--line);
   background: var(--white);
   color: var(--black);
@@ -1704,8 +1707,8 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .summary h2 {
-  margin-bottom: 18px;
-  font-size: 40px;
+  margin-bottom: 14px;
+  font-size: var(--fs-sub);
 }
 
 .summary dl {
@@ -1731,8 +1734,8 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .summary .summary__total {
   border-bottom: 0;
-  padding-top: 14px;
-  font-size: 22px;
+  padding-top: 12px;
+  font-size: 20px;
 }
 
 .summary .summary__total dd {
@@ -1765,23 +1768,23 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .checkout-steps li {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: 18px;
-  padding: 20px;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
   border: 2px dashed rgb(255 255 255 / 0.45);
 }
 
 .checkout-steps__number {
   font-family: var(--font-display);
-  font-size: 60px;
+  font-size: 44px;
   font-weight: 400;
   line-height: 1;
   color: var(--cyan);
 }
 
 .checkout-steps h2 {
-  margin-bottom: 8px;
-  font-size: 34px;
+  margin-bottom: 6px;
+  font-size: 28px;
   letter-spacing: 0.02em;
 }
 
@@ -1796,20 +1799,20 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .quote-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: clamp(28px, 5vw, 64px);
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: clamp(24px, 4vw, 48px);
   align-items: start;
 }
 
 .quote-form {
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: 16px;
 }
 
 .form-alert {
@@ -1856,13 +1859,13 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .quote-aside {
-  padding: 22px;
+  padding: 18px;
   border: 2px solid var(--cyan);
 }
 
 .quote-aside h2 {
-  margin-bottom: 14px;
-  font-size: 36px;
+  margin-bottom: 12px;
+  font-size: 30px;
 }
 
 .quote-aside ol {
@@ -1884,7 +1887,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .info-section {
-  padding: 22px 0;
+  padding: 18px 0;
   border-bottom: var(--line);
 }
 
@@ -1898,7 +1901,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .info-section h2 {
-  font-size: clamp(30px, 3.2vw, 42px);
+  font-size: clamp(26px, 2.6vw, 36px);
   letter-spacing: 0.02em;
 }
 
@@ -1907,7 +1910,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .info-back {
-  margin-top: 40px;
+  margin-top: 32px;
 }
 
 .not-found h1 {
@@ -2112,6 +2115,11 @@ li:nth-child(3n) > .category-card .category-card__body {
     position: static;
   }
 
+  /* Stacked layout: the photo uses the full width again. */
+  .gallery {
+    max-width: 560px;
+  }
+
   .category-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2259,14 +2267,14 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .account {
   display: grid;
-  gap: clamp(32px, 5vw, 56px);
+  gap: clamp(24px, 3.5vw, 40px);
   max-width: 960px;
 }
 
 .account__section {
   display: grid;
-  gap: 18px;
-  padding: clamp(20px, 3vw, 32px);
+  gap: 14px;
+  padding: clamp(18px, 2.4vw, 28px);
   border: var(--line);
   background: var(--white);
 }
@@ -2280,12 +2288,12 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .account__section h2 {
-  font-size: clamp(34px, 4vw, 48px);
+  font-size: clamp(28px, 2.8vw, 38px);
 }
 
 .account__subtitle {
   margin-top: 8px;
-  font-size: 28px;
+  font-size: 24px;
 }
 
 .address-list {
@@ -2547,7 +2555,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .admin-sidebar__title {
-  font-size: 32px;
+  font-size: 28px;
 }
 
 .admin-sidebar__form {
@@ -2579,9 +2587,10 @@ li:nth-child(3n) > .category-card .category-card__body {
     grid-template-columns: 280px minmax(0, 1fr);
   }
 
+  /* Below the sticky site header (64px), not under it. */
   .admin-sidebar {
     position: sticky;
-    top: 16px;
+    top: 80px;
   }
 }
 
@@ -2620,7 +2629,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 @media (min-width: 1024px) {
   .admin-sidebar {
-    max-height: calc(100vh - 32px);
+    max-height: calc(100vh - 96px);
     overflow-y: auto;
     overscroll-behavior: contain;
   }
@@ -2846,7 +2855,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .request-quote__amount {
   margin: 0;
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 800;
 }
 
