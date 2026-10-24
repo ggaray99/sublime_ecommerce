@@ -60,7 +60,7 @@ export default function NewProductPage() {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="NUEVO PRODUCTO." tone="light">
-        <p>Entorno de prueba: el producto se guarda en la base de staging y queda registrado.</p>
+        <p>El producto se crea y queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
         <NewProduct />

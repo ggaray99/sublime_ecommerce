@@ -24,12 +24,12 @@ export const sortOptions: { value: SortOption; label: string }[] = [
   { value: "destacados", label: "Destacados primero" },
   { value: "nombre-asc", label: "Nombre: A → Z" },
   { value: "nombre-desc", label: "Nombre: Z → A" },
-  { value: "precio-asc", label: "Precio demo: menor a mayor" },
-  { value: "precio-desc", label: "Precio demo: mayor a menor" },
+  { value: "precio-asc", label: "Precio: menor a mayor" },
+  { value: "precio-desc", label: "Precio: mayor a menor" },
 ];
 
 export const typeOptions: { value: ProductType; label: string }[] = [
-  { value: "estandar", label: "Estándar (carrito demo)" },
+  { value: "estandar", label: "Estándar (al carrito)" },
   { value: "personalizado", label: "Personalizado (a presupuestar)" },
 ];
 

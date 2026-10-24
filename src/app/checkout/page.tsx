@@ -67,14 +67,14 @@ export default async function CheckoutPage() {
   return (
     <main id="contenido" className="page">
       <PageIntro
-        kicker="Entorno de prueba"
+        kicker="Checkout"
         title={
           <>
             CONFIRMÁ TU <em>PEDIDO.</em>
           </>
         }
       >
-        <p>Los pedidos se guardan en la base de staging. No se cobra nada online: el pago se coordina después.</p>
+        <p>Completá tus datos y elegí la entrega. El pago se coordina después de confirmar el pedido.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando el checkout…</p>}>
         <RealCheckout />

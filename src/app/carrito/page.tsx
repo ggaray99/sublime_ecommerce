@@ -5,7 +5,7 @@ import { ordersAvailable } from "@/server/orders/session";
 import { getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
-  title: "Carrito demo",
+  title: "Carrito",
   description: "Carrito de prueba de Sublime: agregá, quitá y modificá cantidades sin compras reales.",
   alternates: { canonical: "/carrito" },
 };
@@ -18,7 +18,7 @@ export default async function CarritoPage() {
         kicker="Carrito de prueba"
         title={
           <>
-            TU SELECCIÓN <em>DEMO.</em>
+            TU <em>SELECCIÓN.</em>
           </>
         }
       >

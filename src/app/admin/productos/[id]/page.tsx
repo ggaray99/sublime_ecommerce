@@ -162,7 +162,7 @@ export default function AdminProductPage({ params, searchParams }: Props) {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="EDITAR PRODUCTO." tone="light">
-        <p>Entorno de prueba: los cambios se guardan en la base de staging y quedan registrados.</p>
+        <p>Cada cambio queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando el producto…</p>}>
         <ProductAdmin params={params} searchParams={searchParams} />

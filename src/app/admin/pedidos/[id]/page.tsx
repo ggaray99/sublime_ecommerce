@@ -81,7 +81,7 @@ export default function AdminOrderPage({ params }: PageProps<"/admin/pedidos/[id
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="PEDIDO." tone="light">
-        <p>Entorno de prueba: pedido de la base de staging.</p>
+        <p>Detalle, pago, envío e historial del pedido.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
         <OrderAdmin params={params} />

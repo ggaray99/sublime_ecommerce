@@ -15,13 +15,13 @@ export function CartView({ catalog, realCheckout = false }: { catalog: Product[]
   const { items, count, subtotal } = useCartSummary(catalog);
 
   if (!hydrated) {
-    return <p className="panel panel--muted">Cargando tu carrito demo…</p>;
+    return <p className="panel panel--muted">Cargando tu carrito…</p>;
   }
 
   if (!items.length) {
     return (
       <div className="empty-state">
-        <h2>Tu carrito demo está vacío.</h2>
+        <h2>Tu carrito está vacío.</h2>
         <p>Sumá calcos, packs o remeras desde la tienda para probar cómo funciona.</p>
         <div className="actions">
           <Link className="btn btn--acid" href="/tienda">
@@ -53,7 +53,7 @@ export function CartView({ catalog, realCheckout = false }: { catalog: Product[]
                   <Link href={`/producto/${product.slug}`}>{product.name}</Link>
                 </h3>
                 {optionsLabel && <p className="cart-item__options">{optionsLabel}</p>}
-                <p className="muted">{formatPrice(unitPrice)} c/u · precio demo</p>
+                <p className="muted">{formatPrice(unitPrice)} c/u</p>
                 {stock !== undefined && stock !== null && quantity > stock && (
                   <p className="field__error">{stock === 0 ? "Sin stock por ahora." : `Solo quedan ${stock} unidades.`}</p>
                 )}
@@ -81,7 +81,7 @@ export function CartView({ catalog, realCheckout = false }: { catalog: Product[]
       </section>
 
       <aside className="summary" aria-labelledby="cart-summary-title">
-        <h2 id="cart-summary-title">Resumen demo</h2>
+        <h2 id="cart-summary-title">Resumen</h2>
         <dl>
           <div>
             <dt>Artículos</dt>
@@ -96,15 +96,15 @@ export function CartView({ catalog, realCheckout = false }: { catalog: Product[]
             <dd>A definir</dd>
           </div>
           <div className="summary__total">
-            <dt>Total demo</dt>
+            <dt>Total</dt>
             <dd>{formatPrice(subtotal)}</dd>
           </div>
         </dl>
         <Link className="btn btn--acid btn--block btn--lg" href="/checkout">
-          {realCheckout ? "Ir al checkout" : "Ir al checkout demo"}
+          Ir al checkout
         </Link>
         <p className="fine-print">
-          {realCheckout ? "Entorno de prueba: el pedido se guarda y reserva el stock 15 minutos; no se cobra nada online." : "Los precios son ilustrativos. El checkout es una simulación: no se cobra nada ni se genera un pedido."}
+          {realCheckout ? "Al confirmar reservamos el stock por 15 minutos. El pago se coordina después." : "Las compras online todavía no están habilitadas: el checkout es una simulación y no genera un pedido."}
         </p>
         <button type="button" className="link-button" onClick={cartActions.clear}>
           Vaciar carrito

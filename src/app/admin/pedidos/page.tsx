@@ -97,7 +97,7 @@ export default function AdminOrdersPage({ searchParams }: PageProps<"/admin/pedi
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="PEDIDOS." tone="light">
-        <p>Entorno de prueba: pedidos de la base de staging. No hay cobros online: el pago se confirma acá.</p>
+        <p>No hay cobros online: el pago se confirma acá.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
         <Orders searchParams={searchParams} />

@@ -7,7 +7,7 @@ import { hasPrivateStorage } from "@/server/media/private-files";
 
 export const metadata: Metadata = {
   title: "Encargos personalizados",
-  description: "Simulá un pedido de stickers, etiquetas, remeras o vinilos a medida. Formulario demo: no envía datos.",
+  description: "Pedí stickers, etiquetas, remeras o vinilos a medida: contanos tu idea y te pasamos un presupuesto.",
   alternates: { canonical: "/encargos" },
 };
 
@@ -25,7 +25,7 @@ export default function EncargosPage() {
       >
         <p>
           {live
-            ? "Contanos qué querés hacer y te respondemos con un presupuesto. Entorno de prueba: la solicitud se guarda en la base de staging."
+            ? "Contanos qué querés hacer y te respondemos con un presupuesto."
             : "Contanos qué querés hacer. Este formulario valida tus datos y muestra cómo sería la confirmación, pero no envía nada a ningún negocio."}
         </p>
       </PageIntro>

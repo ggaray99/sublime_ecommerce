@@ -7,11 +7,11 @@ import { priceLabel } from "@/lib/format";
 const heroSlugs = ["pack-caos-grafico", "remera-ruido-visual", "sticker-gato-de-la-suerte-137"];
 
 const applications = [
-  { src: "/demo/editorial/laptop.webp", label: "Laptops", alt: "Stickers de demostración pegados en una laptop" },
-  { src: "/demo/editorial/botella.webp", label: "Botellas", alt: "Calcos de demostración en una botella térmica" },
-  { src: "/demo/editorial/casco.webp", label: "Cascos", alt: "Calco de demostración aplicado en un casco" },
-  { src: "/demo/editorial/packaging.webp", label: "Packaging", alt: "Caja de envío con calcos de demostración" },
-  { src: "/demo/editorial/remera.webp", label: "Remeras", alt: "Remera clara con estampa de demostración" },
+  { src: "/demo/editorial/laptop.webp", label: "Laptops", alt: "Stickers pegados en una laptop" },
+  { src: "/demo/editorial/botella.webp", label: "Botellas", alt: "Calcos en una botella térmica" },
+  { src: "/demo/editorial/casco.webp", label: "Cascos", alt: "Calco aplicado en un casco" },
+  { src: "/demo/editorial/packaging.webp", label: "Packaging", alt: "Caja de envío con calcos" },
+  { src: "/demo/editorial/remera.webp", label: "Remeras", alt: "Remera clara con estampa" },
 ];
 
 const ticker = ["Calcos troquelados", "Packs", "Remeras", "Planchas DTF", "Vinilos", "Encargos a medida"];
@@ -20,15 +20,15 @@ const processTracks = [
   {
     title: "Productos estándar",
     note: "Calcos, packs, remeras, DTF y vinilos del catálogo.",
-    steps: ["Elegí tus diseños en la tienda.", "Sumalos al carrito demo y ajustá cantidades.", "Recorré el checkout simulado: no se cobra nada."],
+    steps: ["Elegí tus diseños en la tienda.", "Sumalos al carrito y ajustá cantidades.", "Confirmá el pedido: coordinamos el pago y la entrega."],
   },
   {
     title: "Personalizados",
     note: "Stickers, etiquetas y prendas a partir de tu idea.",
     steps: [
       "Contanos qué querés, en qué formato y cuántos.",
-      "Se arma una propuesta con valores y tiempos (canal pendiente).",
-      "Aprobás la propuesta y se produce (proceso a definir).",
+      "Te respondemos con un presupuesto: valores y tiempos.",
+      "Aprobás el presupuesto y lo producimos.",
     ],
   },
 ];
@@ -55,8 +55,7 @@ export default async function Home() {
             <em>TU IDENTIDAD.</em>
           </h1>
           <p className="hero__lede">
-            Calcos troquelados, packs, remeras y productos a medida con diseños originales. Esta es una tienda demo: probá
-            el recorrido completo sin compras reales.
+            Calcos troquelados, packs, remeras y productos a medida con diseños originales.
           </p>
           <div className="actions">
             <Link className="btn btn--acid btn--lg" href="/tienda?categoria=stickers">
@@ -142,7 +141,7 @@ export default async function Home() {
       <section id="destacados" className="section section--coal" aria-labelledby="destacados-title">
         <div className="section__head">
           <div>
-            <p className="kicker">Destacados demo</p>
+            <p className="kicker">Destacados</p>
             <h2 id="destacados-title">
               LO QUE PODÉS
               <br />
@@ -153,7 +152,7 @@ export default async function Home() {
             Ver catálogo completo
           </Link>
         </div>
-        <p className="price-note">Precios ilustrativos en pesos argentinos. No hay stock ni ventas reales.</p>
+        <p className="price-note">Precios en pesos argentinos.</p>
         <ul className="product-grid">
           {featured.map((product) => (
             <li key={product.id}>
@@ -173,8 +172,7 @@ export default async function Home() {
           </h2>
           <p>
             Cada diseño está pensado para vivir fuera de la pantalla: en la botella de todos los días, la tapa de la
-            notebook, el casco o la caja de un envío. Mockups digitales de demostración; la fotografía real llegará con el
-            catálogo definitivo.
+            notebook, el casco o la caja de un envío.
           </p>
         </div>
         <ul className="editorial__grid">
@@ -209,9 +207,8 @@ export default async function Home() {
             <li>Referencias en texto o archivo</li>
           </ul>
           <Link className="btn btn--acid btn--lg" href="/encargos">
-            Simular un encargo
+            Pedir un encargo
           </Link>
-          <p className="fine-print">El formulario es una demo: no envía la solicitud a ningún negocio.</p>
         </div>
         <div className="custom-cta__art">
           <Image
@@ -243,7 +240,6 @@ export default async function Home() {
             </div>
           ))}
         </div>
-        <p className="fine-print">En esta demo no se procesan pedidos, pagos ni envíos.</p>
       </section>
     </main>
   );

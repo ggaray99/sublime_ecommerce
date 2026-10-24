@@ -188,7 +188,7 @@ export default function AdminShippingPage({ searchParams }: PageProps<"/admin/en
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="ENVÍOS." tone="light">
-        <p>Entorno de prueba: las reglas cargadas de ejemplo dicen “demo”. Reemplazalas por las reales antes de producción.</p>
+        <p>Reglas de costo y plazo por zona, y el punto de retiro.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
         <Shipping searchParams={searchParams} />

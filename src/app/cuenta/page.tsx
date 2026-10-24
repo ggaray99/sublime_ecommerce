@@ -153,7 +153,7 @@ export default function CuentaPage() {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Mi cuenta" title="MI CUENTA." tone="light">
-        <p>Entorno de prueba: las cuentas y direcciones se guardan en la base de staging.</p>
+        <p>Tus datos, direcciones, pedidos y encargos.</p>
       </PageIntro>
       {accountsAvailable() ? (
         <Suspense fallback={<p className="panel panel--muted">Cargando tu cuenta…</p>}>

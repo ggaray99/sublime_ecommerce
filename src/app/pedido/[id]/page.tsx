@@ -48,7 +48,7 @@ async function OrderPage({ params, searchParams }: Pick<Props, "params" | "searc
           <div className="panel panel--muted" role="status">
             <p>
               <strong>Reservamos el stock hasta las {argentinaTime(order.expiresAt).split(" ")[1]} (hora de Argentina).</strong> Te
-              vamos a escribir a {order.contactEmail} para coordinar el pago. Entorno de prueba: no se cobra nada online.
+              vamos a escribir a {order.contactEmail} para coordinar el pago.
             </p>
             <p className="muted">Si la reserva vence sin pago confirmado, el pedido queda vencido y el stock se libera.</p>
           </div>
@@ -81,7 +81,7 @@ export default function PedidoPage({ params, searchParams }: Props) {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Pedido" title="TU PEDIDO." tone="light">
-        <p>Entorno de prueba: el pedido está guardado en la base de staging.</p>
+        <p>El estado de tu pedido y el seguimiento del envío.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando el pedido…</p>}>
         <OrderPage params={params} searchParams={searchParams} />

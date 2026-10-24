@@ -85,7 +85,6 @@ const packDetails = [
 
 const shirtDetails = [
   "Técnica de estampado, tela y talles a confirmar.",
-  "La imagen es una representación digital, no una fotografía del producto.",
   "Cuidados de lavado a definir según el material final.",
 ];
 
@@ -104,7 +103,6 @@ const vinylDetails = [
 const customDetails = [
   "Formato, material y cantidad se definen en cada pedido.",
   "El valor se calcula a partir de tu idea: no hay precio fijo.",
-  "En esta demo, la solicitud es una simulación local.",
 ];
 
 /** Original demo products with generated mockups (packs, apparel, DTF, vinyl, custom). */

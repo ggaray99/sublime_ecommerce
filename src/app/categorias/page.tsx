@@ -6,7 +6,7 @@ import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefr
 
 export const metadata: Metadata = {
   title: "Categorías",
-  description: "Calcos y stickers, packs, indumentaria, DTF, vinilos y personalizados: los formatos de la tienda demo de Sublime.",
+  description: "Calcos y stickers, packs, indumentaria, DTF, vinilos y personalizados: los formatos de Sublime.",
   alternates: { canonical: "/categorias" },
 };
 
@@ -15,7 +15,7 @@ export default async function CategoriasPage() {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Formatos" title="CATEGORÍAS." tone="light">
-        <p>Distintas maneras de llevar un diseño a un objeto. Todo el contenido es de demostración.</p>
+        <p>Distintas maneras de llevar un diseño a un objeto.</p>
       </PageIntro>
       <ul className="category-list">
         {categories.map((category) => {
@@ -27,7 +27,7 @@ export default async function CategoriasPage() {
                 <h2>{category.label}</h2>
                 <p>{category.description}</p>
                 <p className="muted">
-                  {count} {count === 1 ? "producto demo" : "productos demo"}
+                  {count} {count === 1 ? "producto" : "productos"}
                 </p>
                 <Link className="btn btn--coal" href={`/tienda?categoria=${category.id}`}>
                   Ver {category.label.toLowerCase()}

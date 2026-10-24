@@ -77,7 +77,6 @@ export function VariantPurchase({ productId, productName, optionNames, variants 
 
       <p className="product-detail__price" aria-live="polite">
         {variant?.price != null ? formatPrice(variant.price) : "—"}
-        <span className="badge badge--violet">Precio demo</span>
       </p>
       <p className={`stock-note ${variant && inStock(variant) ? "stock-note--in" : "stock-note--out"}`} aria-live="polite">
         {!variant
@@ -104,10 +103,10 @@ export function VariantPurchase({ productId, productName, optionNames, variants 
             onClick={() => {
               const amount = Math.min(quantity, maxQuantity);
               cartActions.add(productId, amount, variant.sku);
-              showToast(`${amount > 1 ? `${amount} × ` : ""}${productName} (${label}) se sumó al carrito demo.`);
+              showToast(`${amount > 1 ? `${amount} × ` : ""}${productName} (${label}) se sumó al carrito.`);
             }}
           >
-            Agregar al carrito demo
+            Agregar al carrito
           </button>
         </div>
       )}

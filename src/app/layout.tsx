@@ -33,8 +33,8 @@ const gontserrat = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
-    default: "Sublime — Calcos, stickers y productos personalizados (demo)",
-    template: "%s | Sublime (demo)",
+    default: "Sublime — Calcos, stickers y productos personalizados",
+    template: "%s | Sublime",
   },
   description: site.description,
   applicationName: "Sublime",
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     description: site.description,
     url: "/",
   },
-  // Demo content with fictitious prices: keep it out of search results until launch.
+  // Kept out of search results until launch (real catalog, prices and policies).
   robots: { index: false, follow: false },
 };
 

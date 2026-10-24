@@ -41,7 +41,7 @@ export const categories: Category[] = [
     label: "DTF",
     tagline: "Planchas listas para transferir.",
     description:
-      "Planchas con varios diseños dispuestos para impresión por transferencia (DTF). En esta demo se muestran como referencia visual.",
+      "Planchas con varios diseños dispuestos para impresión por transferencia (DTF).",
     image: "/demo/categories/dtf.webp",
   },
   {
@@ -57,7 +57,7 @@ export const categories: Category[] = [
     label: "Personalizados",
     tagline: "Tu idea, tu formato, tu cantidad.",
     description:
-      "Stickers, etiquetas y prendas hechas a partir de tu diseño o referencia. Se cotizan a pedido: en esta demo, el formulario es solo una simulación.",
+      "Stickers, etiquetas y prendas hechas a partir de tu diseño o referencia. Se cotizan a pedido.",
     image: "/demo/categories/personalizados.webp",
   },
 ];

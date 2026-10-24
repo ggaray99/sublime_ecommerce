@@ -300,7 +300,7 @@ export default function AdminPage({ searchParams }: PageProps<"/admin">) {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Interno" title="ADMINISTRACIÓN." tone="light">
-        <p>Entorno de prueba: los cambios se guardan en la base de staging y quedan registrados.</p>
+        <p>Cada cambio queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando el panel…</p>}>
         <AdminContent searchParams={searchParams} />

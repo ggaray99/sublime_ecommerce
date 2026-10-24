@@ -131,7 +131,7 @@ export function AdminUnavailable() {
   return (
     <div className="empty-state">
       <h2>Panel no disponible en este entorno.</h2>
-      <p>La administración funciona solo en el entorno de prueba, con cuentas y base de datos de staging.</p>
+      <p>La administración no está habilitada en este entorno.</p>
     </div>
   );
 }

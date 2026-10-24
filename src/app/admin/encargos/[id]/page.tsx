@@ -89,7 +89,7 @@ export default function AdminRequestPage({ params }: PageProps<"/admin/encargos/
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="ENCARGO." tone="light">
-        <p>Entorno de prueba: encargo de la base de staging.</p>
+        <p>Detalle, presupuesto e historial del encargo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
         <RequestAdmin params={params} />

@@ -20,10 +20,10 @@ export async function generateMetadata({ params }: PageProps<"/producto/[slug]">
   if (!product) return { title: "Producto no encontrado" };
   return {
     title: product.name,
-    description: `${product.description} Producto de demostración con precio ilustrativo.`,
+    description: product.description,
     alternates: { canonical: `/producto/${product.slug}` },
     openGraph: {
-      title: `${product.name} — Sublime (demo)`,
+      title: `${product.name} — Sublime`,
       description: product.description,
       url: `/producto/${product.slug}`,
     },
@@ -81,7 +81,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             <>
               <p className="product-detail__price">
                 {priceLabel(product.price)}
-                <span className="badge badge--violet">{product.price === null ? "Se cotiza a pedido" : "Precio demo"}</span>
+                {product.price === null && <span className="badge badge--violet">Se cotiza a pedido</span>}
               </p>
               <StockNote product={product} />
             </>
@@ -103,9 +103,9 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             <AddToCartPanel productId={product.id} productName={product.name} />
           ) : (
             <div className="purchase purchase--quote">
-              <p>Este producto se hace a medida. Contanos tu idea y simulá una solicitud de presupuesto.</p>
+              <p>Este producto se hace a medida. Contanos tu idea y te pasamos un presupuesto.</p>
               <Link className="btn btn--violet btn--lg" href={`/encargos?producto=${product.slug}`}>
-                Solicitar presupuesto demo
+                Solicitar presupuesto
               </Link>
             </div>
           )}
@@ -120,7 +120,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
 
           <section className="details-box" aria-labelledby="details-title">
             <h2 id="details-title">
-              Material y uso <span className="badge badge--pending">Información ilustrativa</span>
+              Material y uso
             </h2>
             <ul>
               {product.details.map((detail) => (
@@ -129,9 +129,6 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             </ul>
           </section>
 
-          <p className="fine-print">
-            Producto de demostración. Los plazos de producción y las características técnicas no son definitivos.
-          </p>
         </div>
       </div>
 

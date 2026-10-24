@@ -40,7 +40,6 @@ export function ProductCard({ product, headingLevel = "h3", preload = false }: P
         <p className="product-card__price">
           {hasPriceRange(product) && <span className="product-card__from">desde </span>}
           {priceLabel(product.price)}
-          <span className="product-card__demo">{product.price === null ? "demo" : "precio demo"}</span>
         </p>
         <div className="product-card__actions">
           {isOutOfStock(product) ? (

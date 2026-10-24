@@ -2,7 +2,7 @@ export const site = {
   name: "Sublime",
   url: "https://sublime-ecommerce.vercel.app",
   description:
-    "Tienda demo de calcos, stickers, remeras estampadas, planchas DTF, vinilos y productos personalizados. Productos y precios ficticios, sin compras reales.",
+    "Calcos, stickers, remeras estampadas, planchas DTF, vinilos y productos personalizados con diseños originales.",
 };
 
 export type NavLink = { href: string; label: string };
@@ -12,6 +12,7 @@ export const mainNav: NavLink[] = [
   { href: "/categorias", label: "Categorías" },
   { href: "/#destacados", label: "Destacados" },
   { href: "/encargos", label: "Personalizados" },
+  { href: "/puntos", label: "Dónde comprar" },
 ];
 
 export const infoNav: NavLink[] = [
@@ -33,7 +34,7 @@ export type InfoSection = {
   title: string;
   body: string;
   /** `pendiente` marks commercial information the business still has to define. */
-  status: "pendiente" | "demo";
+  status?: "pendiente";
 };
 
 export type InfoPageContent = {
@@ -52,14 +53,12 @@ export const infoPages: Record<"nosotros" | "envios" | "preguntas" | "politicas"
   nosotros: {
     slug: "nosotros",
     title: "Sobre Sublime",
-    description: "Qué es Sublime y en qué etapa está este proyecto de ecommerce demo.",
-    intro:
-      "Sublime es un proyecto argentino de calcos, stickers y productos personalizados. Este sitio es un laboratorio: sirve para probar cómo se sentiría comprar en la marca antes de tener un catálogo comercial definitivo.",
+    description: "Qué es Sublime: calcos, stickers y productos personalizados con diseños originales.",
+    intro: "Sublime es un proyecto argentino de calcos, stickers y productos personalizados con diseños originales.",
     sections: [
       {
         title: "Qué vas a encontrar acá",
-        body: "Un catálogo de productos ficticios con diseños originales, un carrito de prueba y un formulario de encargos que funciona solo en tu navegador.",
-        status: "demo",
+        body: "Calcos troquelados, packs de stickers, remeras estampadas, planchas DTF, vinilos y encargos a medida a partir de tu idea.",
       },
       {
         title: "Historia y equipo",
@@ -71,35 +70,28 @@ export const infoPages: Record<"nosotros" | "envios" | "preguntas" | "politicas"
   envios: {
     slug: "envios",
     title: "Envíos",
-    description: "Información de envíos de Sublime: pendiente de definición.",
-    intro: "Todavía no hay envíos habilitados. Esta página reúne la estructura que se va a completar cuando se definan las condiciones reales.",
+    description: "Envíos y retiro de pedidos de Sublime: costos, plazos y seguimiento.",
+    intro: "El costo y el plazo del envío se calculan en el checkout según tu código postal, antes de confirmar el pedido.",
     sections: [
-      { title: "Zonas de cobertura", body: "A definir.", status: "pendiente" },
-      { title: "Costos y plazos", body: "A definir. No se informan plazos estimados hasta contar con datos confirmados.", status: "pendiente" },
-      { title: "Retiro en persona", body: "A definir.", status: "pendiente" },
-      { title: "Seguimiento del pedido", body: "A definir.", status: "pendiente" },
+      { title: "Zonas y costos", body: "Ingresá tu código postal en el checkout para ver si llegamos a tu zona y cuánto cuesta el envío." },
+      { title: "Plazos", body: "El checkout muestra el plazo estimado de entrega para tu zona." },
+      { title: "Retiro en persona", body: "Si preferís retirar, elegilo en el checkout: ahí vas a ver la dirección y el horario." },
+      { title: "Seguimiento del pedido", body: "Cuando despachamos tu pedido cargamos el número de seguimiento, y lo ves en la página de tu pedido." },
     ],
   },
   preguntas: {
     slug: "preguntas",
     title: "Preguntas frecuentes",
-    description: "Respuestas sobre el funcionamiento de la tienda demo de Sublime.",
-    intro: "Algunas respuestas son definitivas para esta demo; otras dependen de decisiones comerciales todavía abiertas.",
+    description: "Preguntas frecuentes sobre compras, encargos y envíos en Sublime.",
+    intro: "Lo que más nos preguntan sobre cómo comprar en Sublime.",
     sections: [
       {
-        title: "¿Puedo comprar en este sitio?",
-        body: "No. Es una demostración: el carrito funciona en tu navegador, pero ningún pedido se envía ni se cobra.",
-        status: "demo",
-      },
-      {
-        title: "¿Los precios son reales?",
-        body: "No. Son valores ilustrativos para probar la experiencia y pueden no tener relación con los precios finales.",
-        status: "demo",
+        title: "¿Cómo compro?",
+        body: "Sumá productos al carrito y confirmá el pedido en el checkout. Reservamos el stock y te escribimos para coordinar el pago.",
       },
       {
         title: "¿Puedo pedir un diseño personalizado?",
-        body: "Podés completar el formulario de encargos para ver cómo funcionaría. La solicitud no se envía a ningún negocio.",
-        status: "demo",
+        body: "Sí. Completá el formulario de encargos con tu idea y te respondemos con un presupuesto.",
       },
       { title: "¿Qué medios de pago van a aceptar?", body: "A definir.", status: "pendiente" },
       { title: "¿Hacen ventas mayoristas?", body: "A definir.", status: "pendiente" },
@@ -108,14 +100,10 @@ export const infoPages: Record<"nosotros" | "envios" | "preguntas" | "politicas"
   politicas: {
     slug: "politicas",
     title: "Políticas",
-    description: "Estructura de políticas comerciales y de privacidad de Sublime, pendientes de confirmación.",
-    intro: "Ninguna política comercial está vigente todavía. Estas secciones quedan listas para completar con textos revisados.",
+    description: "Políticas comerciales y de privacidad de Sublime.",
+    intro: "Estas políticas se están terminando de definir.",
     sections: [
-      {
-        title: "Privacidad en esta demo",
-        body: "Este sitio no envía tus datos a ningún servidor. El carrito demo guarda solo identificadores de producto y cantidades en el almacenamiento local de tu navegador, y el formulario de encargos no guarda ni envía lo que escribas.",
-        status: "demo",
-      },
+      { title: "Privacidad", body: "A definir.", status: "pendiente" },
       { title: "Cambios y devoluciones", body: "A definir.", status: "pendiente" },
       { title: "Medios de pago y cuotas", body: "A definir.", status: "pendiente" },
       { title: "Términos y condiciones", body: "A definir.", status: "pendiente" },

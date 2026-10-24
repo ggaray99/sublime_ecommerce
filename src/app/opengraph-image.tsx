@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "Sublime — Pegá tu identidad. Tienda demo de calcos y stickers.";
+export const alt = "Sublime — Pegá tu identidad. Calcos, stickers y productos personalizados.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -22,7 +22,7 @@ export default function OpengraphImage() {
       >
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 28, fontWeight: 900 }}>
           <span>SUBLIME®</span>
-          <span style={{ color: "#35BDF2" }}>TIENDA DEMO</span>
+          <span style={{ color: "#35BDF2" }}>CALCOS · STICKERS</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", fontSize: 150, fontWeight: 900, lineHeight: 0.85, letterSpacing: -8 }}>
           <span>PEGÁ</span>

@@ -275,7 +275,7 @@ export function QuoteForm({ live = false, uploads = false }: { live?: boolean; u
         </button>
         <p className="fine-print">
           {live
-            ? "* Campos obligatorios. Te respondemos con un presupuesto. Entorno de prueba: la solicitud se guarda en staging."
+            ? "* Campos obligatorios. Te respondemos con un presupuesto por email."
             : "* Campos obligatorios. Este formulario es una simulación local: no envía ni almacena datos."}
         </p>
       </div>

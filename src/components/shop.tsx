@@ -160,7 +160,7 @@ export function Shop({ products, categories }: { products: Product[]; categories
 
       <div className="results-bar">
         <p role="status" aria-live="polite">
-          {results.length === 1 ? "1 producto demo" : `${results.length} productos demo`}
+          {results.length === 1 ? "1 producto" : `${results.length} productos`}
         </p>
         {active && (
           <button type="button" className="link-button" onClick={() => update({ ...defaultFilters, sort: filters.sort })}>
@@ -180,7 +180,7 @@ export function Shop({ products, categories }: { products: Product[]; categories
       ) : (
         <div className="empty-state">
           <h2>No encontramos coincidencias.</h2>
-          <p>Probá con otra palabra o quitá algún filtro. Si no existe lo que buscás, podemos simular un encargo a medida.</p>
+          <p>Probá con otra palabra o quitá algún filtro. Si no existe lo que buscás, pedinos un encargo a medida.</p>
           <div className="actions">
             <button type="button" className="btn btn--acid" onClick={() => update(defaultFilters)}>
               Ver todo el catálogo

@@ -90,7 +90,7 @@ export default function AdminRequestsPage({ searchParams }: PageProps<"/admin/en
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="ENCARGOS." tone="light">
-        <p>Entorno de prueba: solicitudes de la base de staging.</p>
+        <p>Solicitudes de encargos personalizados.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
         <Requests searchParams={searchParams} />

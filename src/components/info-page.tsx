@@ -13,9 +13,7 @@ export function InfoPage({ content }: { content: InfoPageContent }) {
           <section key={section.title} className="info-section">
             <div className="info-section__head">
               <h2>{section.title}</h2>
-              <span className={`badge ${section.status === "pendiente" ? "badge--pending" : "badge--violet"}`}>
-                {section.status === "pendiente" ? "Pendiente" : "Demo"}
-              </span>
+              {section.status === "pendiente" && <span className="badge badge--pending">Pendiente</span>}
             </div>
             <p>{section.body}</p>
           </section>
@@ -23,7 +21,7 @@ export function InfoPage({ content }: { content: InfoPageContent }) {
       </div>
       <p className="info-back">
         <Link className="btn btn--coal" href="/tienda">
-          Ir a la tienda demo
+          Ir a la tienda
         </Link>
       </p>
     </main>

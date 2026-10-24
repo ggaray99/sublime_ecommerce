@@ -230,8 +230,8 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
           {pending ? "Confirmando…" : "Confirmar pedido"}
         </button>
         <p className="fine-print">
-          Entorno de prueba: no se cobra nada online. Reservamos el stock por 15 minutos y después coordinamos el pago. Precios y
-          envío se recalculan en el servidor al confirmar.
+          Al confirmar reservamos el stock por 15 minutos y te escribimos para coordinar el pago. Precios y envío se
+          recalculan al confirmar.
         </p>
         {state.issues && (
           <Link className="link-button" href="/carrito">

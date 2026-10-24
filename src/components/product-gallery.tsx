@@ -21,7 +21,6 @@ export function ProductGallery({ images, name }: { images: ProductImage[]; name:
           sizes="(max-width: 899px) 100vw, 45vw"
           preload={active === 0}
         />
-        <span className="badge badge--coal gallery__tag">Imagen ilustrativa</span>
       </div>
       {!single && (
         <ul className="gallery__thumbs" aria-label={`Imágenes de ${name}`}>

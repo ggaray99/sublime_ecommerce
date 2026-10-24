@@ -60,7 +60,7 @@ export function RequestSummary({ request, fileHref }: { request: CustomRequestDe
           <h3 className="account__subtitle">Presupuesto</h3>
           <p className="request-quote__amount">{formatPrice(request.quoteMinor / 100)}</p>
           <ul className="muted">
-            {request.depositMinor !== null && <li>Seña sugerida: {formatPrice(request.depositMinor / 100)} (a coordinar; no se cobra online)</li>}
+            {request.depositMinor !== null && <li>Seña sugerida: {formatPrice(request.depositMinor / 100)} (se coordina al aceptar)</li>}
             {request.quoteEtaDays !== null && <li>Producción: {request.quoteEtaDays} días hábiles desde la aprobación</li>}
             {request.quoteValidUntil && <li>Válido hasta el {dateAr(request.quoteValidUntil)}</li>}
           </ul>

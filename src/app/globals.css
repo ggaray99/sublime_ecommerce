@@ -1076,13 +1076,6 @@ li:nth-child(3n) > .category-card .category-card__body {
   font-weight: 900;
 }
 
-.product-card__demo {
-  color: var(--muted-light);
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
 .product-card__actions {
   display: grid;
   gap: 6px;
@@ -1456,12 +1449,6 @@ li:nth-child(3n) > .category-card .category-card__body {
   display: block;
   width: 100%;
   aspect-ratio: 1;
-}
-
-.gallery__tag {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
 }
 
 /* height 0 + min-height 100%: the column never makes the row taller than the
@@ -1900,6 +1887,124 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 /* ==========================================================================
+   Points of sale (/puntos)
+   ========================================================================== */
+
+.points {
+  display: grid;
+  gap: 16px;
+}
+
+/* List and map side by side; the map stays in view while the list scrolls. */
+.points__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(20px, 3vw, 32px);
+  align-items: start;
+}
+
+.points__list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.point-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 2px solid var(--line-dark);
+  background: var(--panel);
+  transition: border-color 0.15s ease;
+}
+
+.point-card.is-selected {
+  border-color: var(--cyan);
+  box-shadow: 6px 6px 0 var(--cyan);
+}
+
+.point-card .muted {
+  color: var(--muted-dark);
+}
+
+.point-card__kind {
+  color: var(--cyan);
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.point-card__name {
+  font-family: var(--font-text);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.point-card__notes {
+  font-size: 15px;
+}
+
+.point-card__contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 14px;
+}
+
+.point-card__contact a {
+  color: var(--cyan);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.point-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.point-card__actions .btn {
+  min-height: 40px;
+  padding-block: 8px;
+}
+
+.points__map {
+  position: sticky;
+  top: 80px;
+  display: grid;
+  gap: 8px;
+}
+
+.points__map iframe {
+  display: block;
+  width: 100%;
+  height: min(560px, calc(100svh - 140px));
+  border: 2px solid var(--cyan);
+  background: var(--panel);
+}
+
+.points__map-caption {
+  font-size: 14px;
+  color: var(--muted-dark);
+}
+
+.points__map-caption strong {
+  color: var(--white);
+}
+
+.points__map-caption a {
+  color: var(--cyan);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ==========================================================================
    Info pages and 404
    ========================================================================== */
 
@@ -2135,8 +2240,22 @@ li:nth-child(3n) > .category-card .category-card__body {
   }
 
   .gallery,
-  .summary {
+  .summary,
+  .points__map {
     position: static;
+  }
+
+  /* Phones and tablets: map first, then the list. */
+  .points__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .points__map {
+    order: -1;
+  }
+
+  .points__map iframe {
+    height: 340px;
   }
 
   /* Stacked layout: full-width photo, thumbnails in a row underneath. */

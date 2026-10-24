@@ -74,7 +74,7 @@ export default function EncargoPage({ params, searchParams }: Props) {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Encargo" title="TU ENCARGO." tone="light">
-        <p>Entorno de prueba: el encargo está guardado en la base de staging.</p>
+        <p>Seguí tu encargo y respondé el presupuesto desde acá.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando el encargo…</p>}>
         <RequestPage params={params} searchParams={searchParams} />

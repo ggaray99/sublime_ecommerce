@@ -40,6 +40,13 @@ Lista viva de lo que quedó para revisar después. Cada ítem dice de qué fase 
 | 7.2 | **Prueba en la preview** del flujo de encargos | Recorrerlo ([fase-7-encargos.md](fase-7-encargos.md), "Pendiente de probar") | Negocio |
 | 7.3 | **Aviso por email** al cliente cuando llega el presupuesto | Proveedor de email (4.3) | Negocio aprueba |
 
+## Puntos de venta
+
+| # | Pendiente | Qué hace falta | Quién |
+| --- | --- | --- | --- |
+| P.1 | **Cargar los puntos reales** | Panel → Puntos de venta ([puntos-de-venta.md](puntos-de-venta.md)) | Negocio |
+| P.2 | **Todos los marcadores en un mismo mapa** | Clave de la API de Google Maps (proyecto de Google Cloud con facturación; uso gratuito con este tráfico) | Negocio decide |
+
 ## Fase 5 — Pagos (no iniciada)
 
 | # | Pendiente | Qué hace falta |

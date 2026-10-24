@@ -8,7 +8,7 @@ import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefr
 
 export const metadata: Metadata = {
   title: "Tienda",
-  description: "Catálogo demo de Sublime: calcos, packs de stickers, remeras, planchas DTF, vinilos y productos a medida.",
+  description: "Catálogo de Sublime: calcos, packs de stickers, remeras, planchas DTF, vinilos y productos a medida.",
   alternates: { canonical: "/tienda" },
 };
 
@@ -30,7 +30,7 @@ export default async function TiendaPage() {
   return (
     <main id="contenido" className="page">
       <PageIntro
-        kicker="Catálogo demo"
+        kicker="Catálogo"
         title={
           <>
             TIENDA <em>SUBLIME.</em>
@@ -38,8 +38,8 @@ export default async function TiendaPage() {
         }
       >
         <p>
-          {products.length} productos para probar la experiencia: diseños demo y una selección del catálogo de stickers
-          (buscalos por código). Los precios son ilustrativos y no hay ventas reales.
+          {products.length} productos: calcos, packs, remeras, DTF, vinilos y encargos a medida. Los stickers del catálogo
+          también se buscan por código.
         </p>
       </PageIntro>
       <Suspense fallback={<CatalogFallback products={products} />}>

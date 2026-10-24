@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # Builds and starts staging from the code in /srv/sublime/src.
 #
-#   bash deploy/deploy-staging.sh [--seed]
+#   bash deploy/deploy-staging.sh
 #
-# Order matters: migrations first (the build reads the database), then the
-# image built with staging.env as a build secret, then the container.
+# Order matters: migrations and staging seeds first (the build reads the
+# database), then the image built with staging.env as a build secret, then the
+# container. Seeds are recorded like migrations, so each one runs only once.
 set -euo pipefail
 umask 077
 
 ROOT=/srv/sublime
 cd "$ROOT"
-SEED=${1:-}
 
 install -m 644 src/deploy/compose.yaml compose.yaml
 
 docker build -q --target migrate -t sublime:migrate src >/dev/null
 docker run --rm --network sublime_internal --env-file staging.env sublime:migrate \
-  node scripts/db-migrate.mjs --target=staging --apply ${SEED:+--seed}
+  node scripts/db-migrate.mjs --target=staging --apply --seed
 
 # During the build the database is reached through the host port (127.0.0.1:5433).
 BUILD_ENV=$(mktemp "$ROOT/.build-env.XXXXXX")

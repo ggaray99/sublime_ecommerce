@@ -90,7 +90,7 @@ export default function IntegrationsPage() {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="INTEGRACIONES." tone="light">
-        <p>Entorno de prueba: las claves funcionan contra la base de staging.</p>
+        <p>Claves para conectar sistemas externos a la API de administración.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
         <Integrations />
