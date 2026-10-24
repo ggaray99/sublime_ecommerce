@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { PageIntro } from "@/components/page-intro";
 import { QuoteForm } from "@/components/quote-form";
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 
 export default function EncargosPage() {
   const live = customRequestsAvailable();
+  const lab = live && hasPrivateStorage();
   return (
     <main id="contenido" className="page page--plum">
       <PageIntro
@@ -25,11 +27,39 @@ export default function EncargosPage() {
       >
         <p>
           {live
-            ? "Contanos qué querés hacer y te respondemos con un presupuesto."
+            ? "Diseñá tus stickers o tu remera en el Custom Lab, o contanos cualquier otra idea. Te respondemos con un presupuesto."
             : "Contanos qué querés hacer. Este formulario valida tus datos y muestra cómo sería la confirmación, pero no envía nada a ningún negocio."}
         </p>
       </PageIntro>
-      <div className="quote-layout">
+      {lab && (
+        <ul className="lab-paths" aria-label="Elegí qué querés hacer">
+          <li>
+            <Link href="/encargos/stickers" className="lab-path">
+              <span className="lab-path__kicker">Custom Lab</span>
+              <strong>Stickers troquelados</strong>
+              <span>Subí tu diseño, elegí tamaño y cantidad, y mirá el borde blanco y tus planchas al instante.</span>
+              <span className="lab-path__cta">Diseñar stickers →</span>
+            </Link>
+          </li>
+          <li>
+            <Link href="/encargos/remeras" className="lab-path">
+              <span className="lab-path__kicker">Custom Lab</span>
+              <strong>Remeras</strong>
+              <span>Elegí un diseño nuestro o subí el tuyo, ubicalo en la remera y elegí color y talle.</span>
+              <span className="lab-path__cta">Diseñar remera →</span>
+            </Link>
+          </li>
+          <li>
+            <a href="#otro" className="lab-path lab-path--plain">
+              <span className="lab-path__kicker">Encargo libre</span>
+              <strong>Otra idea</strong>
+              <span>Etiquetas, vinilos, packs o lo que imagines: contanos y lo cotizamos.</span>
+              <span className="lab-path__cta">Ir al formulario ↓</span>
+            </a>
+          </li>
+        </ul>
+      )}
+      <div className="quote-layout" id="otro">
         <Suspense fallback={<p className="panel panel--muted">Cargando formulario…</p>}>
           <QuoteForm live={live} uploads={live && hasPrivateStorage()} />
         </Suspense>

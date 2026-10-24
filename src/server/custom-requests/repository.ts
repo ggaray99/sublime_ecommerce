@@ -7,10 +7,14 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 /** Requests per email per hour (anti-spam for the public form). */
 export const MAX_REQUESTS_PER_HOUR = 5;
 
-export type RequestFile = { id: string; originalName: string; contentType: string; sizeBytes: number; pathname: string };
+export type FileRole = "reference" | "original" | "preview" | "production";
+export type RequestFile = { id: string; originalName: string; contentType: string; sizeBytes: number; pathname: string; role: FileRole };
 export type RequestEvent = { fromStatus: string | null; toStatus: string; actor: string; note: string; createdAt: Date };
 
 export type CustomRequest = {
+  kind: RequestKind;
+  /** Custom Lab settings (validated on the server when the request was made). */
+  config: Record<string, unknown>;
   id: string;
   number: number;
   accessToken: string;
@@ -75,6 +79,8 @@ export class CustomRequestError extends Error {
 }
 
 type RequestRow = {
+  kind: RequestKind;
+  config: Record<string, unknown> | null;
   id: string;
   number: string | number;
   access_token: string;
@@ -99,6 +105,8 @@ const isoDate = (value: string | Date | null) =>
   value === null ? null : typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10);
 
 const toRequest = (row: RequestRow): CustomRequest => ({
+  kind: row.kind ?? "free",
+  config: row.config ?? {},
   id: row.id,
   number: Number(row.number),
   accessToken: row.access_token,
@@ -137,8 +145,8 @@ export function createCustomRequestRepository(sql: QueryFn) {
     const [row] = (await sql.query("SELECT * FROM custom_requests WHERE id = $1", [id])) as RequestRow[];
     if (!row) throw new CustomRequestError("not_found", "El encargo no existe.");
     const [files, events] = await Promise.all([
-      sql.query("SELECT id, original_name, content_type, size_bytes, pathname FROM custom_request_files WHERE request_id = $1 ORDER BY created_at", [id]) as Promise<
-        { id: string; original_name: string; content_type: string; size_bytes: number; pathname: string }[]
+      sql.query("SELECT id, original_name, content_type, size_bytes, pathname, role FROM custom_request_files WHERE request_id = $1 ORDER BY created_at", [id]) as Promise<
+        { id: string; original_name: string; content_type: string; size_bytes: number; pathname: string; role: FileRole }[]
       >,
       sql.query("SELECT from_status, to_status, actor, note, created_at FROM custom_request_events WHERE request_id = $1 ORDER BY created_at, id", [id]) as Promise<
         { from_status: string | null; to_status: string; actor: string; note: string; created_at: Date }[]
@@ -146,7 +154,7 @@ export function createCustomRequestRepository(sql: QueryFn) {
     ]);
     return {
       ...toRequest(row),
-      files: files.map((file) => ({ id: file.id, originalName: file.original_name, contentType: file.content_type, sizeBytes: file.size_bytes, pathname: file.pathname })),
+      files: files.map((file) => ({ id: file.id, originalName: file.original_name, contentType: file.content_type, sizeBytes: file.size_bytes, pathname: file.pathname, role: file.role })),
       events: events.map((event) => ({
         fromStatus: event.from_status,
         toStatus: event.to_status,

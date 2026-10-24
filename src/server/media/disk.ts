@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
 import { isProductionEnv } from "../env.ts";
 
@@ -70,5 +70,29 @@ export async function deleteMediaFile(area: MediaArea, pathname: string): Promis
     await rm(full, { force: true });
   } catch (error) {
     console.warn("[media] could not delete file", { area, error: (error as Error).message });
+  }
+}
+
+/** Bytes of a stored file, or null when it does not exist. */
+export async function readMediaFile(area: MediaArea, pathname: string): Promise<Buffer | null> {
+  const file = await statMediaFile(area, pathname);
+  if (!file) return null;
+  return readFile(/* turbopackIgnore: true */ file.path);
+}
+
+/** Deletes files in `folder` older than `maxAgeMs` (temporary uploads). Best effort. */
+export async function pruneMediaFolder(area: MediaArea, folder: string, maxAgeMs: number): Promise<void> {
+  const root = mediaRoot();
+  if (!root || !/^[a-z0-9][a-z0-9_-]{0,79}$/i.test(folder)) return;
+  const dir = resolve(/* turbopackIgnore: true */ root, area, folder);
+  try {
+    const now = Date.now();
+    for (const name of await readdir(/* turbopackIgnore: true */ dir)) {
+      const full = resolve(/* turbopackIgnore: true */ dir, name);
+      const info = await stat(/* turbopackIgnore: true */ full);
+      if (info.isFile() && now - info.mtimeMs > maxAgeMs) await rm(/* turbopackIgnore: true */ full, { force: true });
+    }
+  } catch {
+    // The folder may not exist yet.
   }
 }

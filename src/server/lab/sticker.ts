@@ -28,6 +28,9 @@ export type PreparedSticker = {
   cutMask: Buffer;
   widthPx: number;
   heightPx: number;
+  /** The trimmed artwork in the original's pixels: lets the editor recompute size and dpi locally. */
+  sourceWidthPx: number;
+  sourceHeightPx: number;
   /** Resolution the original actually gives at the chosen size. */
   dpi: number;
   hadTransparency: boolean;
@@ -244,7 +247,18 @@ export async function prepareSticker(
     .toBuffer();
   const cutMask = await sharp(Buffer.from(mask), { raw: { width: w, height: h, channels: 1 } }).extract(cut).png().toBuffer();
 
-  return { design: design.data, withContour, cutMask, widthPx: cut.width, heightPx: cut.height, dpi, hadTransparency, backgroundRemoved };
+  return {
+    design: design.data,
+    withContour,
+    cutMask,
+    widthPx: cut.width,
+    heightPx: cut.height,
+    sourceWidthPx: trimmed.info.width,
+    sourceHeightPx: trimmed.info.height,
+    dpi,
+    hadTransparency,
+    backgroundRemoved,
+  };
 }
 
 /** A sheet at 300 dpi: stickers with their contour placed as the layout says, plus the corner marks. */

@@ -52,7 +52,7 @@ async function RequestAdmin({ params }: { params: PageProps<"/admin/encargos/[id
             </>
           )}
         </p>
-        <RequestSummary request={request} fileHref={(fileId) => `/api/encargos/${request.id}/archivos/${fileId}`} />
+        <RequestSummary request={request} production fileHref={(fileId) => `/api/encargos/${request.id}/archivos/${fileId}`} />
       </section>
 
       {canQuote && (
