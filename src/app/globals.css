@@ -2799,6 +2799,34 @@ body:has(.admin-bar) .site-footer {
   }
 }
 
+/* Portada: the three collage products the home shows right now. */
+.hero-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hero-slots li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 2px solid var(--black);
+  background: var(--white);
+  font-size: 14px;
+}
+
+.hero-slots img {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: 1px solid var(--black);
+}
+
 /* Admin list: filters on the side, table using the full width. */
 .account--wide {
   max-width: none;

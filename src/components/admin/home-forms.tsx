@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useActionState } from "react";
 import { saveHomeHeroAction } from "@/app/admin/portada/actions";
 import type { AdminFormState } from "@/server/admin/guard";
@@ -21,10 +22,16 @@ export type HeroFormValues = Record<
   string
 >;
 
-export function HomeHeroForm({ initial, products }: { initial: HeroFormValues; products: Option[] }) {
+export type HeroSlot = { name: string; image: string; chosen: boolean };
+
+export function HomeHeroForm({ initial, products, current }: { initial: HeroFormValues; products: Option[]; current: HeroSlot[] }) {
   const [state, action, pending] = useActionState<AdminFormState, FormData>(saveHomeHeroAction, {});
   const value = (key: keyof HeroFormValues) => state.values?.[key] ?? initial[key];
-  const productOptions = [{ value: "", label: "Automático (producto de siempre)" }, ...products];
+  // "Automático" says which product fills that slot today.
+  const optionsFor = (slot: number) => [
+    { value: "", label: current[slot] && !current[slot].chosen ? `Automático (hoy: ${current[slot].name})` : "Automático" },
+    ...products,
+  ];
 
   return (
     <form action={action} className="quote-form" noValidate>
@@ -54,10 +61,23 @@ export function HomeHeroForm({ initial, products }: { initial: HeroFormValues; p
       <fieldset className="admin-fieldset">
         <legend>Fotos del collage</legend>
         <p className="muted">Se muestra la foto principal de cada producto, con su nombre y precio. Solo aparecen productos visibles en la tienda.</p>
+        {current.length > 0 && (
+          <ol className="hero-slots" aria-label="Ahora en la portada">
+            {current.map((slot, index) => (
+              <li key={`${slot.name}-${index}`}>
+                {slot.image && <Image src={slot.image} alt="" width={96} height={96} />}
+                <span>
+                  <strong>Foto {index + 1}:</strong> {slot.name}
+                  <span className="muted">{slot.chosen ? " · elegido" : " · automático"}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
         <div className="form-grid">
-          <Field name="product1" label="Foto 1 (la más grande)" state={state} defaultValue={value("product1")} options={productOptions} />
-          <Field name="product2" label="Foto 2 (arriba a la derecha)" state={state} defaultValue={value("product2")} options={productOptions} />
-          <Field name="product3" label="Foto 3 (abajo a la derecha)" state={state} defaultValue={value("product3")} options={productOptions} />
+          <Field name="product1" label="Foto 1 (la más grande)" state={state} defaultValue={value("product1")} options={optionsFor(0)} />
+          <Field name="product2" label="Foto 2 (arriba a la derecha)" state={state} defaultValue={value("product2")} options={optionsFor(1)} />
+          <Field name="product3" label="Foto 3 (abajo a la derecha)" state={state} defaultValue={value("product3")} options={optionsFor(2)} />
         </div>
       </fieldset>
 

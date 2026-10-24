@@ -9,6 +9,7 @@ import { AdminUnavailable } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
 import { getHomeRepository } from "@/server/home/session";
+import { pickHeroProducts } from "@/server/home/settings";
 import { getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
@@ -26,6 +27,12 @@ async function HomeSettings() {
     .map((product) => ({ value: product.id, label: product.code ? `${product.name} · cód. ${product.code}` : product.name }))
     .sort((a, b) => a.label.localeCompare(b.label, "es"));
   const [product1 = "", product2 = "", product3 = ""] = hero.productIds;
+  // What the home shows right now, slot by slot (chosen products first, then the usual ones).
+  const current = pickHeroProducts(hero, products).map((product) => ({
+    name: product.name,
+    image: product.images[0]?.src ?? "",
+    chosen: hero.productIds.includes(product.id),
+  }));
 
   return (
     <div className="account account--wide">
@@ -52,6 +59,7 @@ async function HomeSettings() {
             product3,
           }}
           products={options}
+          current={current}
         />
       </section>
     </div>

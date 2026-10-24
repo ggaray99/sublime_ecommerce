@@ -37,7 +37,9 @@ export function Field({ name, label, state, defaultValue, hint, options, multili
         </p>
       )}
       {options ? (
-        <select {...common}>
+        // React resets forms after an action, and a select returns to the option it was first rendered with.
+        // Keying it by the default remounts it with the saved value, so the reset lands on what was saved.
+        <select key={defaultValue} {...common}>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
