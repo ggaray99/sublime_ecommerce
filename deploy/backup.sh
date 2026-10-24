@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Daily backup of every Sublime database and the media folders, kept 14 days in
-# /srv/sublime/backups. Run by cron (deploy/cron). An off-site copy is still
-# pending: until then a disk failure of the VPS loses the backups too.
+# Daily backup of every Sublime database and the media folders: 14 days in
+# /srv/sublime/backups and an encrypted off-site copy in Google Drive
+# (rclone remote gcrypt: → Drive folder sublime-backups), kept 60 days.
+# Run by cron (/etc/cron.d/sublime-backup). Restoring from Drive needs the
+# passwords in backup-crypt-password.txt and backup-crypt-salt.txt.
 #
 #   sudo bash /srv/sublime/src/deploy/backup.sh
 set -euo pipefail
@@ -23,3 +25,14 @@ tar czf "$DEST/media.tgz" -C "$ROOT" media
 
 find "$ROOT/backups" -mindepth 1 -maxdepth 1 -type d -mtime +14 -exec rm -rf {} +
 echo "✔ respaldo $STAMP: $(du -sh "$DEST" | cut -f1)"
+
+RCLONE=(rclone --config "$ROOT/rclone.conf")
+if [ -f "$ROOT/rclone.conf" ]; then
+  "${RCLONE[@]}" copy "$DEST" "gcrypt:$STAMP"
+  "${RCLONE[@]}" delete --min-age 60d gcrypt:
+  "${RCLONE[@]}" rmdirs --leave-root gcrypt:
+  echo "✔ copia cifrada en Google Drive: $STAMP"
+else
+  echo "✖ sin copia externa: falta $ROOT/rclone.conf"
+  exit 1
+fi

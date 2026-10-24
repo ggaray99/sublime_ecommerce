@@ -9,7 +9,8 @@ VPS de Hostinger (KVM 2, Ubuntu 24.04, `72.60.149.168`). Comparte el servidor co
 | Archivos de Sublime | `/srv/sublime` (dueño: usuario `deploy`) |
 | Proxy con HTTPS | Traefik de `/root/docker-compose.yml` (el mismo de n8n). Sublime solo le agrega etiquetas |
 | Base | Contenedor `sublime-postgres-1`, una base por entorno, puerto `127.0.0.1:5433` (no sale a internet) |
-| Respaldos | `/srv/sublime/backups`, todos los días a las 03:30 UTC, 14 días |
+| Respaldos | `/srv/sublime/backups` (14 días) + copia cifrada en Google Drive, carpeta `sublime-backups` (60 días). Todos los días a las 03:30 UTC |
+| Despliegue | Automático: el VPS revisa GitHub cada minuto y despliega la rama de `deploy.conf`. Log: `/srv/sublime/auto-deploy.log` |
 
 ## Estructura de `/srv/sublime`
 
@@ -22,6 +23,8 @@ staging.env           entorno de staging: base, secreto de cuentas…   (600)
 staging-access.txt    usuario y contraseña para entrar a staging      (600)
 media/staging/        fotos y adjuntos (uid 10001 = usuario de la app)
 backups/AAAAMMDD-HHMM/ copias de las bases y de media
+rclone.conf, backup-crypt-*.txt  acceso a Drive y claves de cifrado (root, 600)
+deploy.conf           rama que se despliega sola
 ```
 
 Los secretos se generan en el servidor con `setup-staging.sh` y no salen de ahí. Para ver la contraseña de staging, en la Consola web: `cat /srv/sublime/staging-access.txt`.
@@ -30,7 +33,7 @@ Los secretos se generan en el servidor con `setup-staging.sh` y no salen de ahí
 
 | Tarea | Comando (como `deploy`) |
 | --- | --- |
-| Desplegar staging | Copiar el código a `/srv/sublime/src` y correr `bash /srv/sublime/src/deploy/deploy-staging.sh` |
+| Desplegar staging | Push a la rama de `/srv/sublime/deploy.conf`: se despliega solo en 1–2 minutos. Reintentar uno fallido: `rm /srv/sublime/.last-attempt` |
 | Ver logs | `docker logs -f sublime-staging-1` |
 | Estado | `docker compose -f /srv/sublime/compose.yaml ps` |
 | Respaldo manual | `sudo bash /srv/sublime/src/deploy/backup.sh` |
@@ -55,8 +58,11 @@ cd /srv/sublime && docker run --rm --network sublime_internal --env-file staging
 
 ## Pendiente
 
-- **Copia externa de los respaldos.** Hoy quedan en el mismo disco: si se pierde el VPS, se pierden también.
-- **Despliegue automático desde GitHub.** Hoy el código se copia desde una computadora.
-- **Cerrar el acceso por contraseña en SSH** y el ingreso como `root`.
 - **Quitarle a `deploy` el sudo sin clave** cuando termine el armado.
 - **Tienda (producción):** base `sublime_prod`, servicio `production` en `compose.yaml` y modo producción del script de migraciones. Se hace en el corte, con aprobación.
+
+## Seguridad del servidor
+
+- SSH solo con llave (`/etc/ssh/sshd_config.d/00-sublime-hardening.conf`); `root` no entra por contraseña. La Consola web de Hostinger sigue funcionando.
+- El VPS lee GitHub con una llave de solo lectura (Deploy key del repo). GitHub no tiene acceso al servidor.
+- Google Drive: rclone con permiso `drive.file`, que solo ve los archivos que él crea. Los respaldos suben cifrados.
