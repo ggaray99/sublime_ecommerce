@@ -4,6 +4,18 @@ Lista viva de lo que quedó para revisar después. Cada ítem dice de qué fase 
 
 Última actualización: 23/10/2026.
 
+## Fases del roadmap técnico sin cerrar (revisión del 24/10/2026)
+
+| Fase | Qué falta | Qué hace falta |
+| --- | --- | --- |
+| 0 · Preparación | **Probar una restauración de la base** (el criterio era "restauración probada"; hoy solo está documentada) | Restaurar staging en una rama de Neon y medir el tiempo. Lo puede hacer desarrollo |
+| 2 · Identidad | **Recuperación de contraseña** y verificación de email | Proveedor de email (4.3) |
+| 5 · Pagos | Fase completa | Aprobación explícita (5.1) |
+| 7 · Encargos y lanzamiento | **Encargos** (pedidos personalizados): hoy el formulario es una simulación, no se guarda nada | Desarrollo: guardar las solicitudes, gestionarlas en el panel (estados, presupuesto, respuesta) y que el cliente las vea en Mi cuenta |
+| 7 · Encargos y lanzamiento | **Adjuntos privados** en los encargos (logo, boceto) | Desarrollo: almacenamiento privado, validación y acceso solo para el cliente y el admin |
+| 7 · Encargos y lanzamiento | Dejar preparada la **seña y el saldo** sin activarlos | Desarrollo, junto con pagos |
+| 7 · Encargos y lanzamiento | **Endurecimiento y lista de lanzamiento**: revisión de seguridad, pruebas de integración, respaldos y restauración, checklist aprobado | Desarrollo (etapas 1 y 5 de [plan-produccion.md](plan-produccion.md)) |
+
 ## Fase 4 — Pedidos y reservas
 
 | # | Pendiente | Qué hace falta | Quién |
