@@ -29,7 +29,15 @@
   --font-display: var(--font-bebas), "Arial Narrow", Impact, sans-serif;
   --font-text: var(--font-gontserrat), "Montserrat", Arial, sans-serif;
   --error: #ffa3b5;
-  --gutter: clamp(16px, 5vw, 88px);
+  /* Side gutter; on very wide screens content stops at 1520px while the section
+     backgrounds keep running edge to edge. */
+  --gutter: max(clamp(16px, 5vw, 88px), calc((100vw - 1520px) / 2));
+  /* Density scale: sized for 1366–1440px notebooks first, growing modestly on desktop. */
+  --section-pad: clamp(48px, 5.2vw, 72px);
+  --fs-hero: clamp(64px, 7vw, 104px);
+  --fs-page: clamp(48px, 6.4vw, 96px);
+  --fs-section: clamp(44px, 5vw, 72px);
+  --fs-sub: clamp(30px, 2.8vw, 42px);
   --line: 2px solid var(--black);
   --shadow: 8px 8px 0 var(--black);
   --focus: var(--cyan);
@@ -42,7 +50,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 88px;
+  scroll-padding-top: 80px;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -143,10 +151,10 @@ textarea {
    ========================================================================== */
 
 .kicker {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: var(--cyan);
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 400;
   line-height: 1;
   letter-spacing: 0.06em;
@@ -176,7 +184,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 28px;
+  margin-top: 24px;
 }
 
 .btn {
@@ -283,10 +291,10 @@ textarea {
 
 /* Promotional buttons use the display face, as the brand guide specifies. */
 .btn--lg {
-  min-height: 54px;
-  padding: 12px 28px;
+  min-height: 50px;
+  padding: 12px 24px;
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 21px;
   font-weight: 400;
   line-height: 1;
   letter-spacing: 0.05em;
@@ -313,7 +321,7 @@ textarea {
   align-items: center;
   padding: 4px 8px;
   border: 2px solid var(--black);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.06em;
   line-height: 1.1;
@@ -395,7 +403,7 @@ textarea {
 .check-list {
   display: grid;
   gap: 8px;
-  margin: 24px 0 28px;
+  margin: 18px 0 22px;
   padding: 0;
   list-style: none;
   font-weight: 700;
@@ -427,8 +435,8 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 72px;
-  padding: 10px var(--gutter);
+  min-height: 64px;
+  padding: 8px var(--gutter);
   border-bottom: 2px solid var(--line-dark);
   background: var(--black);
   color: var(--white);
@@ -608,11 +616,11 @@ textarea {
    ========================================================================== */
 
 .section {
-  padding: clamp(64px, 9vw, 120px) var(--gutter);
+  padding: var(--section-pad) var(--gutter);
 }
 
 .section h2 {
-  font-size: clamp(56px, 8vw, 128px);
+  font-size: var(--fs-section);
 }
 
 .section--cement {
@@ -655,11 +663,11 @@ textarea {
   justify-content: space-between;
   gap: 24px;
   flex-wrap: wrap;
-  margin-bottom: 40px;
+  margin-bottom: clamp(24px, 2.6vw, 32px);
 }
 
 .price-note {
-  margin: -16px 0 28px;
+  margin: -8px 0 20px;
   color: var(--muted-dark);
   font-size: 14px;
 }
@@ -672,21 +680,22 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
   align-items: center;
-  gap: clamp(32px, 5vw, 72px);
-  padding: clamp(48px, 7vw, 96px) var(--gutter) clamp(56px, 8vw, 110px);
+  gap: clamp(32px, 4vw, 56px);
+  padding: clamp(32px, 4vw, 56px) var(--gutter) clamp(40px, 4.5vw, 64px);
   background: var(--black);
   overflow: hidden;
 }
 
 .hero h1 {
-  /* Sized so "IDENTIDAD." fits its column at every two-column width. */
-  font-size: clamp(72px, 9.6vw, 176px);
+  /* Fits "IDENTIDAD." in its column at every two-column width; on notebooks it
+     leaves room for the next section to start in the first screen. */
+  font-size: var(--fs-hero);
   line-height: 0.86;
 }
 
 .hero__lede {
   max-width: 480px;
-  margin-top: 28px;
+  margin-top: 20px;
   color: var(--muted-dark);
   font-size: clamp(16px, 1.4vw, 19px);
 }
@@ -694,7 +703,7 @@ textarea {
 .hero__stage {
   position: relative;
   aspect-ratio: 1 / 0.95;
-  max-width: 640px;
+  max-width: clamp(360px, 34vw, 560px);
   width: 100%;
   justify-self: end;
 }
@@ -811,9 +820,9 @@ textarea {
 .ticker__track {
   display: flex;
   width: max-content;
-  padding: 14px 0;
+  padding: 10px 0;
   font-family: var(--font-display);
-  font-size: clamp(24px, 2.8vw, 34px);
+  font-size: clamp(20px, 2.2vw, 28px);
   font-weight: 400;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -865,7 +874,7 @@ textarea {
 
 .category-card__media {
   display: block;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
   border-bottom: var(--line);
 }
@@ -883,8 +892,8 @@ textarea {
 
 .category-card__body {
   display: grid;
-  gap: 6px;
-  padding: 16px 18px 20px;
+  gap: 4px;
+  padding: 12px 16px 16px;
 }
 
 li:nth-child(3n + 2) > .category-card .category-card__body {
@@ -904,7 +913,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .category-card__body strong {
   font-family: var(--font-display);
-  font-size: clamp(32px, 3vw, 42px);
+  font-size: clamp(28px, 2.4vw, 36px);
   font-weight: 400;
   letter-spacing: 0.02em;
   line-height: 0.95;
@@ -955,7 +964,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .category-row h2 {
   margin-bottom: 12px;
-  font-size: clamp(44px, 5vw, 72px);
+  font-size: clamp(36px, 3.6vw, 56px);
 }
 
 .category-row p {
@@ -1031,13 +1040,13 @@ li:nth-child(3n) > .category-card .category-card__body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px;
+  gap: 4px;
+  padding: 12px;
 }
 
 .product-card__category {
   color: var(--black);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1045,10 +1054,10 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .product-card__title {
   font-family: var(--font-text);
-  font-size: clamp(16px, 1.4vw, 19px);
+  font-size: clamp(15px, 1.15vw, 17px);
   font-weight: 800;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 
 .product-card__title a:hover {
@@ -1062,25 +1071,27 @@ li:nth-child(3n) > .category-card .category-card__body {
   align-items: baseline;
   gap: 6px;
   margin-top: auto;
-  padding-top: 6px;
-  font-size: 20px;
+  padding-top: 4px;
+  font-size: 18px;
   font-weight: 900;
 }
 
 .product-card__demo {
   color: var(--muted-light);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
 .product-card__actions {
   display: grid;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .product-card__actions .btn {
+  min-height: 40px;
+  padding-block: 8px;
   font-size: 12px;
   padding-inline: 10px;
 }
@@ -1092,13 +1103,13 @@ li:nth-child(3n) > .category-card .category-card__body {
 .editorial {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  gap: clamp(32px, 5vw, 72px);
+  gap: clamp(32px, 4vw, 56px);
   align-items: center;
 }
 
 .editorial__intro p:not(.kicker) {
   max-width: 440px;
-  margin-top: 24px;
+  margin-top: 16px;
   color: var(--muted-light);
 }
 
@@ -1150,12 +1161,12 @@ li:nth-child(3n) > .category-card .category-card__body {
 .custom-cta {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
-  gap: clamp(40px, 6vw, 96px);
+  gap: clamp(32px, 5vw, 72px);
   align-items: center;
 }
 
 .custom-cta h2 {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .custom-cta p:not(.kicker, .fine-print) {
@@ -1163,11 +1174,18 @@ li:nth-child(3n) > .category-card .category-card__body {
   color: var(--muted-dark);
 }
 
+/* The example image supports the copy; capped so it does not set the section height. */
+.custom-cta__art {
+  justify-self: center;
+  width: 100%;
+  max-width: 440px;
+}
+
 .custom-cta__art img {
   display: block;
   width: 100%;
   border: 3px solid var(--cyan);
-  box-shadow: 14px 14px 0 var(--cyan);
+  box-shadow: 12px 12px 0 var(--cyan);
   transform: rotate(3deg);
 }
 
@@ -1175,11 +1193,11 @@ li:nth-child(3n) > .category-card .category-card__body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: clamp(20px, 3vw, 40px);
-  margin-top: 40px;
+  margin-top: 28px;
 }
 
 .process__track {
-  padding: clamp(20px, 3vw, 32px);
+  padding: clamp(18px, 2.2vw, 28px);
   border: var(--line);
   background: var(--white);
 }
@@ -1190,11 +1208,11 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .process__track h3 {
-  font-size: clamp(38px, 4vw, 56px);
+  font-size: var(--fs-sub);
 }
 
 .process__track > p {
-  margin: 10px 0 20px;
+  margin: 8px 0 14px;
   opacity: 0.85;
 }
 
@@ -1208,17 +1226,17 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .process__track li {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
-  padding: 14px 0;
+  padding: 10px 0;
   border-top: 2px solid currentColor;
   font-weight: 700;
 }
 
 .process__track li span {
   font-family: var(--font-display);
-  font-size: 42px;
+  font-size: 32px;
   font-weight: 400;
   letter-spacing: 0.02em;
 }
@@ -1229,7 +1247,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .page {
   min-height: 70vh;
-  padding: clamp(40px, 6vw, 80px) var(--gutter) clamp(64px, 8vw, 110px);
+  padding: clamp(32px, 4vw, 56px) var(--gutter) clamp(56px, 6vw, 88px);
   background: var(--black);
 }
 
@@ -1243,18 +1261,18 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .page-intro {
-  margin-bottom: clamp(28px, 4vw, 48px);
+  margin-bottom: clamp(24px, 3vw, 40px);
 }
 
 .page-intro h1 {
-  font-size: clamp(60px, 10.5vw, 168px);
+  font-size: var(--fs-page);
   overflow-wrap: break-word;
   line-height: 0.86;
 }
 
 .page-intro__body {
   max-width: 640px;
-  margin-top: 20px;
+  margin-top: 16px;
   font-size: 17px;
 }
 
@@ -1411,7 +1429,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .gallery {
   position: sticky;
-  top: 96px;
+  top: 88px;
 }
 
 .gallery__main {
@@ -1600,12 +1618,12 @@ li:nth-child(3n) > .category-card .category-card__body {
 }
 
 .related {
-  margin-top: clamp(56px, 8vw, 96px);
+  margin-top: clamp(48px, 6vw, 72px);
 }
 
 .related h2 {
-  margin-bottom: 28px;
-  font-size: clamp(48px, 6vw, 88px);
+  margin-bottom: 20px;
+  font-size: var(--fs-section);
 }
 
 /* ==========================================================================
@@ -1677,7 +1695,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .summary {
   position: sticky;
-  top: 96px;
+  top: 88px;
   padding: 22px;
   border: var(--line);
   background: var(--white);
@@ -1894,7 +1912,7 @@ li:nth-child(3n) > .category-card .category-card__body {
 
 .not-found h1 {
   margin-bottom: 24px;
-  font-size: clamp(88px, 16vw, 240px);
+  font-size: clamp(80px, 11vw, 160px);
   line-height: 0.85;
 }
 
@@ -1906,7 +1924,7 @@ li:nth-child(3n) > .category-card .category-card__body {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr));
   gap: 32px;
-  padding: 64px var(--gutter) 32px;
+  padding: 48px var(--gutter) 28px;
   border-top: 4px solid var(--cyan);
   background: var(--black);
 }
@@ -2073,12 +2091,12 @@ li:nth-child(3n) > .category-card .category-card__body {
   }
 
   .hero h1 {
-    font-size: clamp(72px, 21vw, 170px);
+    font-size: clamp(60px, 17vw, 120px);
   }
 
   .hero__stage {
     justify-self: center;
-    max-width: 560px;
+    max-width: 460px;
   }
 
   .editorial,
@@ -2094,9 +2112,13 @@ li:nth-child(3n) > .category-card .category-card__body {
     position: static;
   }
 
-  .category-grid,
-  .product-grid {
+  .category-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Tablets still fit three readable product cards. */
+  .product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .filters {
@@ -2149,13 +2171,14 @@ li:nth-child(3n) > .category-card .category-card__body {
   }
 }
 
-@media (max-width: 559px) {
-  .demo-bar {
-    font-size: 11px;
+@media (max-width: 639px) {
+  .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
+@media (max-width: 559px) {
   .site-header {
-    min-height: 64px;
     gap: 8px;
   }
 
@@ -2173,16 +2196,14 @@ li:nth-child(3n) > .category-card .category-card__body {
   }
 
   .product-card__price {
-    font-size: 17px;
+    font-size: 16px;
   }
 
   .product-card__badges .badge {
-    font-size: 9px;
-    padding: 3px 5px;
+    padding: 3px 6px;
   }
 
   .hero__label {
-    font-size: 10px;
     padding: 4px 6px;
   }
 
