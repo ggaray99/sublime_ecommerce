@@ -13,6 +13,13 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Migration runner: applies db/migrations before the app is built, because the
+# build already reads the database. `docker build --target migrate …`
+FROM deps AS migrate
+COPY db ./db
+COPY scripts/db-migrate.mjs ./scripts/db-migrate.mjs
+CMD ["node", "scripts/db-migrate.mjs", "--target=staging", "--apply"]
+
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -33,10 +40,6 @@ RUN groupadd --system --gid 1001 sublime && useradd --system --uid 1001 --gid su
 COPY --from=build --chown=sublime:sublime /app/.next/standalone ./
 COPY --from=build --chown=sublime:sublime /app/.next/static ./.next/static
 COPY --from=build --chown=sublime:sublime /app/public ./public
-# Migrations travel with the image so each deploy can apply them before starting
-# (the standalone output already includes the pg driver they need).
-COPY --from=build --chown=sublime:sublime /app/db ./db
-COPY --from=build --chown=sublime:sublime /app/scripts/db-migrate.mjs ./scripts/db-migrate.mjs
 USER sublime
 EXPOSE 3000
 VOLUME ["/data/media"]
