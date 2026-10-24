@@ -17,6 +17,7 @@
     "admin:grant": "node --env-file-if-exists=.env.local scripts/admin-grant.mjs --target=staging"
   },
   "dependencies": {
+    "ag-psd": "^33.0.0",
     "better-auth": "^1.7.12",
     "next": "16.4.2",
     "pg": "^8.23.1",

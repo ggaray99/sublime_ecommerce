@@ -35,50 +35,62 @@ export type PreparedSticker = {
 };
 
 /**
- * Removes a plain background: flood fill from every border pixel through pixels
- * close in colour to the border colour (`tolerance` 0–255 per channel distance).
- * Works on raw RGBA in place.
+ * Removes a plain or gradient background: region growing from the border pixels.
+ * Each background pixel carries a running average of the colours on its path;
+ * a neighbour joins when it is close to that average. Slow changes (a gradient)
+ * move the average along; quick ones (an anti-aliased outline ramping into the
+ * artwork) outrun it and stop the growth. Works on raw RGBA in place.
  */
 export function floodRemoveBackground(data: Uint8Array, width: number, height: number, tolerance = 32): number {
   const total = width * height;
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);
+  const base = new Float32Array(total * 3);
   let head = 0;
   let tail = 0;
+  const FOLLOW = 0.1; // how fast the average follows the path
+  const near = (i: number, b: number) =>
+    Math.abs(data[i * 4] - base[b * 3]) + Math.abs(data[i * 4 + 1] - base[b * 3 + 1]) + Math.abs(data[i * 4 + 2] - base[b * 3 + 2]);
 
-  // Reference colour: the most common of the four corners (robust to one dirty corner).
-  const corners = [0, width - 1, (height - 1) * width, total - 1].map((i) => [data[i * 4], data[i * 4 + 1], data[i * 4 + 2]]);
-  const ref = corners
-    .map((c) => ({ c, n: corners.filter((o) => Math.abs(o[0] - c[0]) + Math.abs(o[1] - c[1]) + Math.abs(o[2] - c[2]) <= tolerance).length }))
-    .sort((a, b) => b.n - a.n)[0].c;
-  const close = (i: number) => {
-    const p = i * 4;
-    return data[p + 3] > 0 && Math.abs(data[p] - ref[0]) + Math.abs(data[p + 1] - ref[1]) + Math.abs(data[p + 2] - ref[2]) <= tolerance * 3;
+  const seed = (i: number) => {
+    if (visited[i] || data[i * 4 + 3] === 0) return;
+    visited[i] = 1;
+    base.set([data[i * 4], data[i * 4 + 1], data[i * 4 + 2]], i * 3);
+    queue[tail++] = i;
   };
-  const push = (i: number) => {
-    if (!visited[i] && close(i)) {
-      visited[i] = 1;
-      queue[tail++] = i;
-    }
+  // Only border pixels that look like the corners seed the fill: artwork touching an edge stays.
+  const corners = [0, width - 1, (height - 1) * width, total - 1];
+  const cornerLike = (i: number) =>
+    corners.some((c) => Math.abs(data[i * 4] - data[c * 4]) + Math.abs(data[i * 4 + 1] - data[c * 4 + 1]) + Math.abs(data[i * 4 + 2] - data[c * 4 + 2]) <= tolerance * 2);
+  for (const c of corners) seed(c);
+  const grow = (from: number, to: number) => {
+    if (visited[to] || data[to * 4 + 3] === 0 || near(to, from) > tolerance * 1.5) return;
+    visited[to] = 1;
+    for (let k = 0; k < 3; k++) base[to * 3 + k] = base[from * 3 + k] + FOLLOW * (data[to * 4 + k] - base[from * 3 + k]);
+    queue[tail++] = to;
   };
   for (let x = 0; x < width; x++) {
-    push(x);
-    push((height - 1) * width + x);
+    if (cornerLike(x)) seed(x);
+    if (cornerLike((height - 1) * width + x)) seed((height - 1) * width + x);
   }
   for (let y = 0; y < height; y++) {
-    push(y * width);
-    push(y * width + width - 1);
+    if (cornerLike(y * width)) seed(y * width);
+    if (cornerLike(y * width + width - 1)) seed(y * width + width - 1);
   }
-  let removed = 0;
   while (head < tail) {
     const i = queue[head++];
-    data[i * 4 + 3] = 0;
-    removed++;
     const x = i % width;
-    if (x > 0) push(i - 1);
-    if (x < width - 1) push(i + 1);
-    if (i >= width) push(i - width);
-    if (i < total - width) push(i + width);
+    if (x > 0) grow(i, i - 1);
+    if (x < width - 1) grow(i, i + 1);
+    if (i >= width) grow(i, i - width);
+    if (i < total - width) grow(i, i + width);
+  }
+  let removed = 0;
+  for (let i = 0; i < total; i++) {
+    if (visited[i]) {
+      data[i * 4 + 3] = 0;
+      removed++;
+    }
   }
   return removed;
 }

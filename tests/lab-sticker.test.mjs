@@ -82,3 +82,40 @@ describe("renderSheetPng", () => {
     assert.ok(data[p + 1] > 100 && data[p] < 80, "green artwork at the sticker centre");
   });
 });
+
+describe("renderSheetPsd", () => {
+  it("writes a layered 300 dpi PSD the plotter can open", async () => {
+    const { readPsd } = await import("ag-psd");
+    const { renderSheetPsd } = await import("../src/server/lab/psd.ts");
+    const png = await sharp(svg('<circle cx="500" cy="500" r="480" fill="#7c3aed"/>')).png().toBuffer();
+    const sticker = await prepareSticker(png, { sizeCm: 5, removeBackground: false });
+    const layout = packSheets([{ id: "logo", ...stickerFootprintMm(1000, 1000, 5), quantity: 4 }]);
+    const stickers = new Map([["logo", sticker]]);
+    const composite = await renderSheetPng(layout.sheets[0], stickers);
+    const psdBytes = await renderSheetPsd(layout.sheets[0], stickers, composite);
+    const psd = readPsd(psdBytes, { skipLayerImageData: true, skipCompositeImageData: true, skipThumbnail: true });
+    assert.equal(psd.width, 2480);
+    assert.equal(psd.height, 3425);
+    assert.deepEqual(psd.children.map((group) => group.name), ["Stickers", "Línea de corte", "Guías"]);
+    assert.equal(psd.children[0].children.length, 4);
+    assert.equal(psd.children[1].children.length, 4);
+    assert.equal(psd.children[2].children.length, 4);
+    assert.equal(psd.imageResources.resolutionInfo.horizontalResolution, 300);
+  });
+});
+
+describe("gradient backgrounds", () => {
+  it("follows a background gradient without eating the artwork", async () => {
+    const art = svg(
+      '<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#5ed3e6"/><stop offset="1" stop-color="#1557b8"/></linearGradient></defs>' +
+        '<rect width="100%" height="100%" fill="url(#g)"/><circle cx="500" cy="500" r="300" fill="#ffffff"/><circle cx="500" cy="500" r="260" fill="#f59e0b"/>',
+    );
+    const { data, info } = await sharp(art).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    floodRemoveBackground(data, info.width, info.height);
+    const alpha = (x, y) => data[(y * info.width + x) * 4 + 3];
+    assert.equal(alpha(20, 20), 0, "light end of the gradient removed");
+    assert.equal(alpha(980, 980), 0, "dark end of the gradient removed");
+    assert.equal(alpha(500, 500), 255, "artwork kept");
+    assert.equal(alpha(500, 220), 255, "white sticker border kept");
+  });
+});
