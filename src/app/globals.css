@@ -1427,16 +1427,27 @@ li:nth-child(3n) > .category-card .category-card__body {
   align-items: start;
 }
 
-/* Capped so the main photo and its thumbnails fit a 768px-tall notebook screen. */
+/* Desktop: thumbnails in a column beside the main photo (marketplace style). The
+   photo is capped by the screen height so it fits a 768px-tall notebook. */
 .gallery {
   position: sticky;
   top: 88px;
-  width: 100%;
-  max-width: min(560px, calc(100svh - 290px));
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.gallery--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .gallery__main {
   position: relative;
+  grid-column: -2;
+  grid-row: 1;
+  width: 100%;
+  max-width: min(600px, calc(100svh - 200px));
   border: var(--line);
   background: var(--white);
 }
@@ -1453,17 +1464,30 @@ li:nth-child(3n) > .category-card .category-card__body {
   bottom: 12px;
 }
 
+/* height 0 + min-height 100%: the column never makes the row taller than the
+   photo; with many images it scrolls on its own. */
 .gallery__thumbs {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
-  gap: 10px;
-  margin: 12px 0 0;
-  padding: 0;
+  flex-direction: column;
+  gap: 8px;
+  height: 0;
+  min-height: 100%;
+  margin: 0;
+  padding: 3px;
+  overflow-y: auto;
   list-style: none;
+  scrollbar-width: thin;
+}
+
+.gallery__thumbs li {
+  flex: none;
 }
 
 .gallery__thumbs button {
   display: block;
-  width: 72px;
+  width: 100%;
   padding: 0;
   border: var(--line);
   background: var(--white);
@@ -2115,9 +2139,28 @@ li:nth-child(3n) > .category-card .category-card__body {
     position: static;
   }
 
-  /* Stacked layout: the photo uses the full width again. */
+  /* Stacked layout: full-width photo, thumbnails in a row underneath. */
   .gallery {
+    grid-template-columns: minmax(0, 1fr);
     max-width: 560px;
+  }
+
+  .gallery__main {
+    grid-column: 1;
+    max-width: none;
+  }
+
+  .gallery__thumbs {
+    grid-row: 2;
+    flex-direction: row;
+    height: auto;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .gallery__thumbs button {
+    width: 72px;
   }
 
   .category-grid {
