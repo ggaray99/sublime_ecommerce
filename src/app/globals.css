@@ -2692,6 +2692,101 @@ li:nth-child(3n) > .category-card .category-card__body {
   font-size: 14px;
 }
 
+/* Admin shell: its own bar replaces the store header, cart and footer, and the
+   section heading is compact. Store chrome hides only when the admin bar is
+   rendered (signed-in admins); strangers keep the normal store 404. */
+body:has(.admin-bar) .demo-bar,
+body:has(.admin-bar) .site-header,
+body:has(.admin-bar) .site-footer {
+  display: none;
+}
+
+.admin-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  min-height: 56px;
+  padding: 8px var(--gutter);
+  border-bottom: 3px solid var(--cyan);
+  background: var(--black);
+  color: var(--white);
+  --focus: var(--cyan);
+}
+
+.brand-logo--admin img {
+  height: 30px;
+}
+
+.admin-bar__title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-left: auto;
+}
+
+.admin-bar__user {
+  color: var(--muted-dark);
+  font-size: 14px;
+}
+
+.admin-bar .btn {
+  min-height: 40px;
+  padding-block: 8px;
+}
+
+.admin-shell .page {
+  min-height: auto;
+  padding-top: 20px;
+}
+
+/* The bar already says "Administración": the heading keeps only the section name. */
+.admin-shell .page-intro {
+  margin-bottom: 16px;
+}
+
+.admin-shell .page-intro .kicker {
+  display: none;
+}
+
+.admin-shell .page-intro h1 {
+  font-size: clamp(30px, 2.6vw, 40px);
+  line-height: 1;
+}
+
+.admin-shell .page-intro__body {
+  margin-top: 6px;
+  color: var(--muted-light);
+  font-size: 15px;
+}
+
+.admin-shell .account {
+  gap: 20px;
+}
+
+.admin-shell .admin-nav a {
+  padding: 6px 12px;
+  border-width: 2px;
+  font-size: 14px;
+}
+
+@media (max-width: 559px) {
+  .admin-bar__user {
+    display: none;
+  }
+}
+
 /* Admin list: filters on the side, table using the full width. */
 .account--wide {
   max-width: none;
