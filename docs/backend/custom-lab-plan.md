@@ -13,7 +13,8 @@ Estado: plan para revisar. Todavía no hay nada implementado. La base es la rama
 | WhatsApp | El número se configura **desde el panel** (`store_settings`, clave `contact`), no en el código |
 | Email | **Fuera de V1.** El outbox se crea igual, para sumarlo después sin tocar el flujo |
 | Formato para la imprenta | **PSD** (lo usa el plotter): una plancha por archivo, con capas separadas (diseños, contorno blanco, línea de corte y guías de las esquinas). Además, un **PDF o PNG** de cada plancha para verla fácil en el panel. El PSD se genera en el servidor con `ag-psd` (MIT, JavaScript puro, escribe PSD con capas). Hay que confirmar la versión y que el plotter abra el archivo con una plancha de prueba |
-| Contorno blanco | **32 px**. Se asume que es **a 300 dpi ≈ 2,7 mm**, la resolución de trabajo de las planchas. Hay que confirmar a qué resolución arma el plotter. El grosor deja de ser ajustable por el cliente: es fijo y lo define el negocio |
+| Contorno blanco | **32 px a 300 dpi ≈ 2,7 mm** (300 dpi confirmado por el negocio). Es fijo y no lo ajusta el cliente. Se calcula con distancia euclídea exacta, así que sale redondeado como un troquel |
+| Separación | **2 mm** entre stickers (decisión técnica: el contorno blanco ya da margen) y 3 mm al borde de la plancha. Capacidad con stickers cuadrados: 4 cm → 21, 5 cm → 12, 6 cm → 10 por plancha |
 
 ### Armado de planchas (algoritmo V1)
 

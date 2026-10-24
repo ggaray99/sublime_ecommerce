@@ -3,7 +3,7 @@
  * and the server (the layout that is saved and turned into the plotter PSD).
  *
  * Sheet: 21 × 29 cm. The four corners keep a 1.5 × 1.5 cm area for the cutter's
- * registration marks. Pieces keep a 3 mm gap between them (and from the corner
+ * registration marks. Pieces keep a 2 mm gap between them (and from the corner
  * areas) and a 3 mm margin from the sheet edge. Packing: MaxRects, best short
  * side fit, each piece tried at 0° and 90°. Deterministic for the same input.
  * All measures in tenths of a millimetre internally, to avoid float drift.
@@ -11,7 +11,7 @@
 
 export type SheetSpec = { widthMm: number; heightMm: number; cornerMm: number; edgeMarginMm: number; gapMm: number };
 
-export const SHEET: SheetSpec = { widthMm: 210, heightMm: 290, cornerMm: 15, edgeMarginMm: 3, gapMm: 3 };
+export const SHEET: SheetSpec = { widthMm: 210, heightMm: 290, cornerMm: 15, edgeMarginMm: 3, gapMm: 2 };
 
 /** White contour around every sticker: 32 px at 300 dpi. */
 export const CONTOUR_PX = 32;
