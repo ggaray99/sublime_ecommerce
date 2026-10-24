@@ -9,7 +9,8 @@ export const quoteProductTypes = [
 ] as const;
 
 export const ACCEPTED_FILE_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf"] as const;
-export const MAX_FILE_BYTES = 5 * 1024 * 1024;
+/** Vercel Functions accept request bodies up to 4.5 MB: 4 MB leaves room for the rest of the form. */
+export const MAX_FILE_BYTES = 4 * 1024 * 1024;
 export const MAX_QUOTE_QUANTITY = 100000;
 
 export type QuoteFile = { name: string; size: number; type: string };
@@ -56,7 +57,7 @@ export function validateQuote(input: QuoteInput): QuoteErrors {
     if (!(ACCEPTED_FILE_TYPES as readonly string[]).includes(input.file.type)) {
       errors.file = "Formato no admitido. Usá PNG, JPG, WEBP o PDF.";
     } else if (input.file.size > MAX_FILE_BYTES) {
-      errors.file = "El archivo supera los 5 MB.";
+      errors.file = "El archivo supera los 4 MB.";
     }
   }
 

@@ -2,7 +2,7 @@
 
 Lista viva de lo que quedó para revisar después. Cada ítem dice de qué fase viene y qué hace falta para cerrarlo. Al resolverlo, se borra de acá y se anota en el documento de su fase.
 
-Última actualización: 23/10/2026.
+Última actualización: 24/10/2026.
 
 ## Fases del roadmap técnico sin cerrar (revisión del 24/10/2026)
 
@@ -11,9 +11,7 @@ Lista viva de lo que quedó para revisar después. Cada ítem dice de qué fase 
 | 0 · Preparación | **Probar una restauración de la base** (el criterio era "restauración probada"; hoy solo está documentada) | Restaurar staging en una rama de Neon y medir el tiempo. Lo puede hacer desarrollo |
 | 2 · Identidad | **Recuperación de contraseña** y verificación de email | Proveedor de email (4.3) |
 | 5 · Pagos | Fase completa | Aprobación explícita (5.1) |
-| 7 · Encargos y lanzamiento | **Encargos** (pedidos personalizados): hoy el formulario es una simulación, no se guarda nada | Desarrollo: guardar las solicitudes, gestionarlas en el panel (estados, presupuesto, respuesta) y que el cliente las vea en Mi cuenta |
-| 7 · Encargos y lanzamiento | **Adjuntos privados** en los encargos (logo, boceto) | Desarrollo: almacenamiento privado, validación y acceso solo para el cliente y el admin |
-| 7 · Encargos y lanzamiento | Dejar preparada la **seña y el saldo** sin activarlos | Desarrollo, junto con pagos |
+| 7 · Encargos y lanzamiento | Cobro de la **seña y el saldo** de los encargos (hoy la seña es informativa) | Junto con pagos (5.1) |
 | 7 · Encargos y lanzamiento | **Endurecimiento y lista de lanzamiento**: revisión de seguridad, pruebas de integración, respaldos y restauración, checklist aprobado | Desarrollo (etapas 1 y 5 de [plan-produccion.md](plan-produccion.md)) |
 
 ## Fase 4 — Pedidos y reservas
@@ -33,6 +31,14 @@ Lista viva de lo que quedó para revisar después. Cada ítem dice de qué fase 
 | 6.1 | **Prueba en la preview** de envíos: CP 5500, envío gratis por monto, zona sin cobertura, seguimiento | Recorrerlo ([fase-6-envios.md](fase-6-envios.md)) | Negocio |
 | 6.2 | **Reglas y retiro reales**: costos, zonas, plazos, envío gratis y dirección del taller | Cargarlos en `/admin/envios` (hoy son demo) | Negocio |
 | 6.3 | Integración con empresas de envío (cotización automática, etiquetas) | Solo si se decide trabajar con una (Correo Argentino, Andreani…); hoy el costo es por reglas y el seguimiento se carga a mano | Negocio decide |
+
+## Fase 7 — Encargos
+
+| # | Pendiente | Qué hace falta | Quién |
+| --- | --- | --- | --- |
+| 7.1 | **Conectar el almacenamiento privado** `sublime-staging-private` (Preview y Development, prefijo `PRIVATE_BLOB`) para habilitar los adjuntos | Conectarlo en Vercel → Storage y redesplegar | Negocio / dueño de la cuenta |
+| 7.2 | **Prueba en la preview** del flujo de encargos | Recorrerlo ([fase-7-encargos.md](fase-7-encargos.md), "Pendiente de probar") | Negocio |
+| 7.3 | **Aviso por email** al cliente cuando llega el presupuesto | Proveedor de email (4.3) | Negocio aprueba |
 
 ## Fase 5 — Pagos (no iniciada)
 

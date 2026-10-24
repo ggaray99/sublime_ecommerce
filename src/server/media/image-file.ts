@@ -63,6 +63,12 @@ function detect(b: Uint8Array): { type: ImageType; extension: ImageInfo["extensi
   return null;
 }
 
+/** Real image type from the bytes (JPEG, PNG, WebP), ignoring dimensions; null otherwise. */
+export function sniffImage(bytes: Uint8Array): { type: ImageType; extension: ImageInfo["extension"] } | null {
+  const found = detect(bytes);
+  return found ? { type: found.type, extension: found.extension } : null;
+}
+
 /** Validates an uploaded image; throws ImageFileError with a message for people. */
 export function inspectImage(bytes: Uint8Array): ImageInfo {
   if (!bytes.length) throw new ImageFileError("Elegí una imagen.");

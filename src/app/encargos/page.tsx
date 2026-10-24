@@ -1,7 +1,9 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageIntro } from "@/components/page-intro";
 import { QuoteForm } from "@/components/quote-form";
+import { customRequestsAvailable } from "@/server/custom-requests/session";
+import { hasPrivateStorage } from "@/server/media/private-files";
 
 export const metadata: Metadata = {
   title: "Encargos personalizados",
@@ -10,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default function EncargosPage() {
+  const live = customRequestsAvailable();
   return (
     <main id="contenido" className="page page--plum">
       <PageIntro
@@ -21,13 +24,14 @@ export default function EncargosPage() {
         }
       >
         <p>
-          Contanos qué querés hacer. Este formulario valida tus datos y muestra cómo sería la confirmación, pero no envía
-          nada a ningún negocio.
+          {live
+            ? "Contanos qué querés hacer y te respondemos con un presupuesto. Entorno de prueba: la solicitud se guarda en la base de staging."
+            : "Contanos qué querés hacer. Este formulario valida tus datos y muestra cómo sería la confirmación, pero no envía nada a ningún negocio."}
         </p>
       </PageIntro>
       <div className="quote-layout">
         <Suspense fallback={<p className="panel panel--muted">Cargando formulario…</p>}>
-          <QuoteForm />
+          <QuoteForm live={live} uploads={live && hasPrivateStorage()} />
         </Suspense>
         <aside className="quote-aside" aria-labelledby="quote-aside-title">
           <h2 id="quote-aside-title">Qué pasaría después</h2>
@@ -36,10 +40,15 @@ export default function EncargosPage() {
             <li>Propuesta con valores y tiempos estimados.</li>
             <li>Aprobación del diseño antes de producir.</li>
           </ol>
-          <p>
-            <span className="badge badge--pending">Canal de presupuestos pendiente</span>
-          </p>
-          <p className="fine-print">Los pasos son una referencia: el proceso comercial real todavía no está definido.</p>
+          {!live && (
+            <>
+              <p>
+                <span className="badge badge--pending">Canal de presupuestos pendiente</span>
+              </p>
+              <p className="fine-print">Los pasos son una referencia: el proceso comercial real todavía no está definido.</p>
+            </>
+          )}
+          {live && <p className="fine-print">Seguís el estado del encargo con el enlace que te damos al enviarlo, o desde Mi cuenta.</p>}
         </aside>
       </div>
     </main>

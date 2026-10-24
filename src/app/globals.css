@@ -2809,3 +2809,30 @@ li:nth-child(3n) > .category-card .category-card__body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Custom requests */
+.request-idea {
+  white-space: pre-line;
+}
+
+.request-quote {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 2px solid var(--black);
+  background: var(--light);
+}
+
+.request-quote__amount {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.request-status--received { background: #ffe58a; }
+.request-status--quoted { background: #bfe3ff; }
+.request-status--accepted,
+.request-status--in_production,
+.request-status--delivered { background: #a7f3c4; }
+.request-status--declined,
+.request-status--cancelled { background: var(--light); }
