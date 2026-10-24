@@ -9,6 +9,8 @@ import { RequestHistory, RequestSummary } from "@/components/requests/request-vi
 import { quoteIsOpen, requestNumber, type CustomRequestDetail } from "@/server/custom-requests/repository";
 import { customRequestsAvailable, getCustomRequestRepository } from "@/server/custom-requests/session";
 import { getCurrentCustomer } from "@/server/customers/session";
+import { whatsappLink } from "@/server/settings/contact";
+import { getContactSettings } from "@/server/settings/session";
 
 export const metadata: Metadata = {
   title: "Tu encargo",
@@ -35,6 +37,8 @@ async function RequestPage({ params, searchParams }: Pick<Props, "params" | "sea
   }
   if (!request) notFound();
   const access = token ? `?t=${encodeURIComponent(token)}` : "";
+  // WhatsApp with the request number already written (number set in Panel → Ajustes).
+  const whatsapp = whatsappLink(await getContactSettings(), `Hola, consulto por el encargo ${requestNumber(request)}.`);
 
   return (
     <div className="account">
@@ -57,6 +61,11 @@ async function RequestPage({ params, searchParams }: Pick<Props, "params" | "sea
         )}
         <p className="muted">Guardá este enlace para volver a ver tu encargo. {request.customerId ? "También lo ves en Mi cuenta." : ""}</p>
         <div className="actions">
+          {whatsapp && (
+            <a className="btn btn--acid" href={whatsapp} target="_blank" rel="noopener noreferrer">
+              Consultar por WhatsApp
+            </a>
+          )}
           <Link className="btn btn--ghost" href="/tienda">
             Ir a la tienda
           </Link>

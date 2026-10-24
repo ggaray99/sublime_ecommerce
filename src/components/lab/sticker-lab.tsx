@@ -44,7 +44,14 @@ export function StickerLab() {
   const [designs, setDesigns] = useState<Design[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [idempotencyKey] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `lab-${Date.now()}`));
+  // Created on the first submit (never while prerendering: it would be shared by every visitor)
+  // and reused on retries, so a double click or a resend never creates two requests.
+  const idempotencyKey = useRef("");
+  const submit = (formData: FormData) => {
+    idempotencyKey.current ||= crypto.randomUUID();
+    formData.set("idempotencyKey", idempotencyKey.current);
+    action(formData);
+  };
   const [state, action, pending] = useActionState<LabFormState, FormData>(submitStickerOrderAction, {});
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
@@ -114,7 +121,8 @@ export function StickerLab() {
   // Same layout code the server uses, so the count shown is the count made.
   const layout = packSheets(ready.map((d) => ({ id: d.key, ...stickerFootprintMm(d.sourceWidthPx!, d.sourceHeightPx!, d.sizeCm), quantity: d.quantity })));
   const images = new Map(ready.map((d) => [d.key, d.image]));
-  const total = designs.reduce((sum, d) => sum + d.quantity, 0);
+  // Only designs that passed the server checks count (the rest show their error).
+  const total = ready.reduce((sum, d) => sum + d.quantity, 0);
   const blocked = designs.some((d) => d.loading || d.error || (dpiOf(d) ?? 0) < 150);
   const payload = JSON.stringify(
     designs.map(({ uploadId, name, sizeCm, quantity, removeBackground, tolerance }) => ({ uploadId, name, sizeCm, quantity, removeBackground, tolerance })),
@@ -138,8 +146,13 @@ export function StickerLab() {
             return (
               <li key={design.key} className="lab-design" aria-busy={design.loading}>
                 <div className="lab-design__preview">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {design.image ? <img src={design.image} alt={`Vista previa de ${design.name} con contorno blanco`} /> : <span className="muted">Procesando…</span>}
+                  {design.image ? (
+                    // Server-made data URL: next/image adds nothing here.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={design.image} alt={`Vista previa de ${design.name} con contorno blanco`} />
+                  ) : (
+                    <span className="muted">{design.error ? "Sin vista previa" : "Procesando…"}</span>
+                  )}
                 </div>
                 <div className="lab-design__controls">
                   <p className="lab-design__name">{design.name}</p>
@@ -259,14 +272,13 @@ export function StickerLab() {
 
       <section className="lab__step" aria-labelledby="lab-contact">
         <h2 id="lab-contact">3. Tus datos</h2>
-        <form action={action} className="quote-form" noValidate>
+        <form action={submit} className="quote-form" noValidate>
           {state.error && (
             <p className="form-alert" role="alert">
               {state.error}
             </p>
           )}
           <input type="hidden" name="designs" value={payload} />
-          <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
           <div className="visually-hidden" aria-hidden="true">
             <label htmlFor="lab-website">No completar</label>
             <input id="lab-website" name="website" tabIndex={-1} autoComplete="off" />

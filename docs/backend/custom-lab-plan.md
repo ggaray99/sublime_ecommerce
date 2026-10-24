@@ -1,6 +1,22 @@
 # Sublime Custom Lab: auditoría y plan V1
 
-Estado: plan para revisar. Todavía no hay nada implementado. La base es la rama `feat/vps-self-hosting`, que corre en staging en el VPS.
+Estado (24/10/2026): **implementado en staging** (rama `feat/vps-self-hosting`), dentro de **Personalizados** (`/encargos`).
+
+| Fase | Estado |
+| --- | --- |
+| L1 · Datos y circuito | ✅ Migración 0014, roles de archivo, outbox, WhatsApp en Panel → Ajustes |
+| L2 · Stickers | ✅ `/encargos/stickers`: subida, quitado de fondo (liso o degradado) con sensibilidad, contorno de 32 px exacto, tamaño de 4 a 6 cm, cantidades, aviso de dpi, planchas automáticas; el servidor genera el PNG de cada plancha y el **PSD para el plotter** |
+| L3 · Remeras | ✅ `/encargos/remeras`: negra o blanca, frente o espalda, 4 diseños del catálogo (vectoriales, 2400 px) o uno propio, ubicación y tamaño dentro de 28 × 35 cm, talles XS–XXL; el servidor genera el mockup y la estampa a 300 dpi |
+| L4 · Panel | ✅ El detalle del encargo muestra las vistas previas y los archivos originales y de producción (PSD/PNG), con descarga privada |
+| L5 · Avisos | ✅ Botón de WhatsApp en la página del encargo; procesador del outbox cada minuto (`deploy/outbox.sh`). Canal: webhook opcional (`NOTIFY_WEBHOOK_URL`, por ejemplo un flujo de n8n). Sin canal, los avisos quedan pendientes. Email: fuera de V1 |
+| L6 · Pruebas | ✅ Pruebas automáticas de procesamiento, planchas, PSD, pedidos y outbox; recorrido completo en el navegador (sticker y remera) |
+| L7 · Quitado de fondo con IA | Pendiente de decisión |
+
+**Pendientes del negocio:**
+- Probar un PSD en el programa del plotter.
+- Cargar el WhatsApp en Panel → Ajustes.
+- Si se quieren avisos inmediatos, armar un webhook en n8n.
+- Conseguir en alta resolución las estampas de remeras propias (las 4 del catálogo son vectoriales y ya están bien).
 
 ## 0. Decisiones L0 (24/10/2026)
 

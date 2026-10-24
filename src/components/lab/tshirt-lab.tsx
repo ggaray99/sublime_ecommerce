@@ -33,7 +33,14 @@ export function TshirtLab() {
   const [sizes, setSizes] = useState<Record<string, number>>({ M: 1 });
   const [uploadError, setUploadError] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [idempotencyKey] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `lab-${Date.now()}`));
+  // Created on the first submit (never while prerendering: it would be shared by every visitor)
+  // and reused on retries, so a double click or a resend never creates two requests.
+  const idempotencyKey = useRef("");
+  const submit = (formData: FormData) => {
+    idempotencyKey.current ||= crypto.randomUUID();
+    formData.set("idempotencyKey", idempotencyKey.current);
+    action(formData);
+  };
   const [state, action, pending] = useActionState<LabFormState, FormData>(submitTshirtOrderAction, {});
   const areaRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
@@ -201,7 +208,11 @@ export function TshirtLab() {
                 min={0}
                 max={200}
                 value={sizes[size] ?? 0}
-                onChange={(e) => setSizes((s) => ({ ...s, [size]: Math.max(0, Math.min(200, Math.round(Number(e.currentTarget.value) || 0))) }))}
+                onChange={(e) => {
+                  // Read the value now: the event is gone by the time the updater runs.
+                  const quantity = Math.max(0, Math.min(200, Math.round(Number(e.currentTarget.value) || 0)));
+                  setSizes((s) => ({ ...s, [size]: quantity }));
+                }}
               />
             </div>
           ))}
@@ -215,14 +226,13 @@ export function TshirtLab() {
 
       <section className="lab__step" aria-labelledby="shirt-contact">
         <h2 id="shirt-contact">Tus datos</h2>
-        <form action={action} className="quote-form" noValidate>
+        <form action={submit} className="quote-form" noValidate>
           {state.error && (
             <p className="form-alert" role="alert">
               {state.error}
             </p>
           )}
           <input type="hidden" name="order" value={order} />
-          <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
           <div className="visually-hidden" aria-hidden="true">
             <label htmlFor="shirt-website">No completar</label>
             <input id="shirt-website" name="website" tabIndex={-1} autoComplete="off" />
