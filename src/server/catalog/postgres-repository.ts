@@ -1,4 +1,4 @@
-import type { NeonQueryFunction } from "@neondatabase/serverless";
+import type { QueryFn } from "../db/client.ts";
 import type { Currency } from "../money.ts";
 import type { CatalogRepository, CatalogVariant } from "./repository.ts";
 
@@ -55,7 +55,7 @@ function toVariant(row: VariantRow): CatalogVariant {
  * Catalog backed by the 0001 schema. Public product ids are the legacy ids
  * (p13, c088…) that carts and URLs already use.
  */
-export function createPostgresCatalogRepository(sql: NeonQueryFunction<false, false>): CatalogRepository {
+export function createPostgresCatalogRepository(sql: QueryFn): CatalogRepository {
   return {
     async findVariantsByProductIds(productIds) {
       if (!productIds.length) return new Map();

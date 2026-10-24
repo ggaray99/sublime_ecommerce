@@ -12,7 +12,7 @@ import { PageIntro } from "@/components/page-intro";
 import { FALLBACK_CATEGORY_IMAGE } from "@/server/catalog/postgres-storefront";
 import { AdminDataError } from "@/server/admin/repository";
 import { adminAvailable, getAdminRepository, getCategoryRepository, getCurrentAdmin } from "@/server/admin/session";
-import { hasBlobStorage } from "@/server/media/blob";
+import { hasMediaStorage } from "@/server/media/public-files";
 
 export const metadata: Metadata = {
   title: "Editar categoría",
@@ -65,7 +65,7 @@ async function CategoryAdmin({ params, searchParams }: Pick<Props, "params" | "s
       <section className="account__section" aria-labelledby="imagen-title">
         <h2 id="imagen-title">Imagen</h2>
         <Image src={category.imageUrl || FALLBACK_CATEGORY_IMAGE} alt="" width={320} height={320} className="image-admin__thumb" />
-        {hasBlobStorage() ? (
+        {hasMediaStorage() ? (
           <CategoryImageUpload categoryId={category.id} />
         ) : (
           <p className="panel panel--muted">La carga de imágenes no está configurada en este entorno (falta conectar Vercel Blob).</p>

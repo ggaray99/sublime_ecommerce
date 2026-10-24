@@ -1,17 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Self-contained server for the Docker image (see Dockerfile).
+  output: "standalone",
   cacheComponents: true,
   partialPrefetching: true,
   images: {
-    // Product and category photos uploaded from /admin live in Vercel Blob (public store).
+    // Uploaded photos are served from /media/* (local). Photos uploaded while the
+    // staging site ran on Vercel stay in Vercel Blob until they are re-uploaded.
     remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com", pathname: "/**" }],
   },
   experimental: {
     serverActions: {
-      // Image uploads go through Server Actions: 4 MB per image plus form overhead.
-      // Vercel Functions accept request bodies up to 4.5 MB.
+      // Image uploads go through Server Actions: 4 MB per file plus form overhead.
       bodySizeLimit: "4.4mb",
     },
   },

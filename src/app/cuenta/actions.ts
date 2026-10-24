@@ -1,9 +1,11 @@
 "use server";
 
+import { APIError } from "better-auth/api";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { authErrorMessage } from "@/server/auth/errors";
-import { getAuth } from "@/server/auth/neon";
+import { getAuth } from "@/server/auth/server";
 import { CustomerDataError } from "@/server/customers/repository";
 import { accountsAvailable, getCurrentCustomer, getCustomerRepository } from "@/server/customers/session";
 import { parseAddress, parseProfile, parseSignIn, parseSignUp } from "@/server/customers/validation";
@@ -23,8 +25,11 @@ export async function signUpAction(_state: FormState, form: FormData): Promise<F
   const values = { name: String(form.get("name") ?? ""), email: String(form.get("email") ?? "") };
   const parsed = parseSignUp(form);
   if (!parsed.ok) return { fields: parsed.errors, values };
-  const { error } = await getAuth().signUp.email(parsed.value);
-  if (error) return { error: authErrorMessage(error, "sign-up"), values };
+  try {
+    await getAuth().api.signUpEmail({ body: parsed.value, headers: await headers() });
+  } catch (error) {
+    return { error: authErrorMessage(authError(error), "sign-up"), values };
+  }
   redirect("/cuenta");
 }
 
@@ -33,14 +38,23 @@ export async function signInAction(_state: FormState, form: FormData): Promise<F
   const values = { email: String(form.get("email") ?? "") };
   const parsed = parseSignIn(form);
   if (!parsed.ok) return { fields: parsed.errors, values };
-  const { error } = await getAuth().signIn.email(parsed.value);
-  if (error) return { error: authErrorMessage(error), values };
+  try {
+    await getAuth().api.signInEmail({ body: parsed.value, headers: await headers() });
+  } catch (error) {
+    return { error: authErrorMessage(authError(error)), values };
+  }
   redirect("/cuenta");
 }
 
 export async function signOutAction(): Promise<void> {
-  if (accountsAvailable()) await getAuth().signOut();
+  if (accountsAvailable()) await getAuth().api.signOut({ headers: await headers() });
   redirect("/");
+}
+
+/** Better Auth throws APIError with a code (USER_ALREADY_EXISTS…) and an HTTP status. */
+function authError(error: unknown) {
+  if (error instanceof APIError) return { code: error.body?.code, status: error.statusCode };
+  throw error;
 }
 
 /** Every mutation re-resolves the customer from the session; ids from the form are only hints. */

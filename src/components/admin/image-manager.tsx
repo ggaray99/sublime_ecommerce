@@ -67,7 +67,7 @@ export function ImageManager({ product, images, uploadsEnabled }: { product: Adm
 
       <h3 className="account__subtitle">Agregar imagen</h3>
       {!uploadsEnabled ? (
-        <p className="panel panel--muted">La carga de imágenes no está configurada en este entorno (falta conectar Vercel Blob).</p>
+        <p className="panel panel--muted">La carga de imágenes no está configurada en este entorno (falta configurar el almacenamiento de archivos).</p>
       ) : images.length >= MAX_IMAGES_PER_PRODUCT ? (
         <p className="muted">Llegaste al máximo de {MAX_IMAGES_PER_PRODUCT} imágenes. Quitá alguna para subir otra.</p>
       ) : (

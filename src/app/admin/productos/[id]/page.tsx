@@ -19,7 +19,7 @@ import { PageIntro } from "@/components/page-intro";
 import { AdminDataError } from "@/server/admin/repository";
 import { adminAvailable, getAdminRepository, getCurrentAdmin, getImageRepository, getVariantRepository } from "@/server/admin/session";
 import { optionsLabel } from "@/server/admin/variants";
-import { hasBlobStorage } from "@/server/media/blob";
+import { hasMediaStorage } from "@/server/media/public-files";
 
 export const metadata: Metadata = {
   title: "Editar producto",
@@ -110,7 +110,7 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
 
       <section className="account__section" aria-labelledby="imagenes-title">
         <h2 id="imagenes-title">Imágenes</h2>
-        <ImageManager product={product} images={images} uploadsEnabled={hasBlobStorage()} />
+        <ImageManager product={product} images={images} uploadsEnabled={hasMediaStorage()} />
       </section>
 
       <section className="account__section" aria-labelledby="stock-title">

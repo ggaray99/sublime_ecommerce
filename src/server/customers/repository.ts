@@ -1,6 +1,6 @@
 import { MAX_ADDRESSES, type AddressInput, type ProfileInput } from "./validation.ts";
 
-/** Minimal query interface shared by the Neon HTTP client and test adapters. */
+/** Minimal query interface shared by the PostgreSQL pool and test adapters. */
 export type QueryFn = { query(text: string, params?: unknown[]): Promise<unknown[]> };
 
 export type Customer = { id: string; authUserId: string; email: string; fullName: string; phone: string | null };

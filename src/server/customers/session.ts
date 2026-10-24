@@ -1,9 +1,9 @@
 import { isAuthEnabled } from "../auth/config.ts";
-import { getSessionUser } from "../auth/neon.ts";
+import { getSessionUser } from "../auth/server.ts";
 import { getSql, hasDatabase } from "../db/client.ts";
 import { createCustomerRepository, type Customer, type CustomerRepository } from "./repository.ts";
 
-/** Customer accounts need both Neon Auth and the database (staging/previews today). */
+/** Customer accounts need both Better Auth and the database (staging today). */
 export function accountsAvailable(): boolean {
   return isAuthEnabled() && hasDatabase();
 }

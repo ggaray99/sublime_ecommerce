@@ -1,7 +1,7 @@
 /**
- * Neon Auth may surface Better Auth codes (INVALID_EMAIL_OR_PASSWORD), its own
- * normalized codes (invalid_credentials) or only an HTTP status. This maps all
- * of them to Spanish messages without leaking internal details.
+ * Maps Better Auth error codes (INVALID_EMAIL_OR_PASSWORD, USER_ALREADY_EXISTS…)
+ * or a bare HTTP status to Spanish messages without leaking internal details.
+ * A few aliases from the previous provider (Neon Auth) are kept: harmless.
  */
 type AuthErrorLike = { code?: string; status?: number; message?: string } | null | undefined;
 
@@ -39,17 +39,16 @@ const BY_CODE: Record<string, keyof typeof MESSAGES> = {
 };
 
 /**
- * `context` disambiguates generic answers: Neon Auth reports an already registered
- * email on sign-up as `validation_failed` / 422. Our own validation already checked
- * the email format and password length, so on sign-up that answer means the email
- * cannot be used — most likely because it already has an account.
+ * `context` disambiguates generic answers: a 422 on sign-up, after our own
+ * validation already checked the email format and password length, means the
+ * email cannot be used — most likely because it already has an account.
  */
 export function authErrorMessage(error: AuthErrorLike, context: "sign-in" | "sign-up" = "sign-in"): string {
   const kind = error?.code ? BY_CODE[error.code.toLowerCase()] : undefined;
   if (kind) return MESSAGES[kind];
-  // Neon Auth answers requests from domains missing in its trusted list with 403.
-  if (error?.status === 403 || error?.code === "feature_not_supported") {
-    console.warn("[auth] rejected origin: add this deployment's domain in Neon Console → Auth → Domains");
+  // Better Auth rejects requests whose origin differs from BETTER_AUTH_URL with 403.
+  if (error?.status === 403 || error?.code === "invalid_origin") {
+    console.warn("[auth] rejected origin: BETTER_AUTH_URL must match this deployment's public URL");
     return MESSAGES.originNotAllowed;
   }
   if (context === "sign-up" && (error?.code === "validation_failed" || error?.status === 422)) {

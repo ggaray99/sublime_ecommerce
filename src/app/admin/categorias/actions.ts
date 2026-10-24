@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { catalogChanged, dataError, formValues, requireAdmin, type AdminFormState } from "@/server/admin/guard";
 import { getCategoryRepository } from "@/server/admin/session";
 import { parseCategoryCreate, parseCategoryUpdate } from "@/server/admin/validation";
-import { deleteStoredImage, hasBlobStorage, storeImage } from "@/server/media/blob";
+import { deleteStoredImage, hasMediaStorage, storeImage } from "@/server/media/public-files";
 import { inspectImage } from "@/server/media/image-file";
 
 /** Forms send the checkbox only when it is checked; the validator expects "on"/"off". */
@@ -40,7 +40,7 @@ export async function updateCategoryAction(_state: AdminFormState, form: FormDat
 
 export async function uploadCategoryImageAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
   const admin = await requireAdmin();
-  if (!hasBlobStorage()) return { error: "La carga de imágenes no está configurada en este entorno." };
+  if (!hasMediaStorage()) return { error: "La carga de imágenes no está configurada en este entorno." };
   const categoryId = String(form.get("categoryId") ?? "");
   const file = form.get("file");
   if (!(file instanceof File) || !file.size) return { fields: { file: "Elegí una imagen." } };

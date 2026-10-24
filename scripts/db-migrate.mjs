@@ -7,7 +7,7 @@
 // Each file runs in its own transaction together with its row in schema_migrations,
 // so a failure leaves nothing half-applied. Applied files are checksummed: editing
 // one after it ran aborts the run. The connection string is never printed.
-import { Pool } from "@neondatabase/serverless";
+import pg from "pg";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -22,7 +22,7 @@ function fail(message) {
 }
 
 if (!args.has("--target=staging")) fail("Indicá --target=staging. Este script no está habilitado para producción.");
-if (process.env.VERCEL_ENV === "production") fail("VERCEL_ENV=production: ejecución bloqueada.");
+if (process.env.SUBLIME_ENV === "production" || process.env.VERCEL_ENV === "production") fail("Entorno de producción: ejecución bloqueada.");
 if (!process.env.DATABASE_URL) fail("Falta DATABASE_URL (por ejemplo: node --env-file=.env.local …).");
 
 const files = [
@@ -46,7 +46,7 @@ const files = [
   return { ...file, sql, checksum, accepted: new Set([checksum, crlfChecksum]) };
 });
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const client = await pool.connect();
 
 try {

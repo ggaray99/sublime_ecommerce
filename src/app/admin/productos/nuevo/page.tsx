@@ -7,7 +7,7 @@ import { ProductForm } from "@/components/admin/forms";
 import { AdminUnavailable, loadCategoryOptions, themeOptions } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
-import { hasBlobStorage } from "@/server/media/blob";
+import { hasMediaStorage } from "@/server/media/public-files";
 
 export const metadata: Metadata = {
   title: "Nuevo producto",
@@ -49,7 +49,7 @@ async function NewProduct() {
           }}
           categories={categoryOptions}
           themes={themeOptions}
-          uploadsEnabled={hasBlobStorage()}
+          uploadsEnabled={hasMediaStorage()}
         />
       </section>
     </div>

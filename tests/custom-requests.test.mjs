@@ -13,7 +13,7 @@ import {
   requestNumber,
 } from "../src/server/custom-requests/repository.ts";
 import { parseQuoteResponse, parseRequestForm } from "../src/server/custom-requests/validation.ts";
-import { inspectAttachment, privateStorage } from "../src/server/media/private-files.ts";
+import { hasPrivateStorage, inspectAttachment } from "../src/server/media/private-files.ts";
 
 const dbDir = join(import.meta.dirname, "..", "db");
 const sqlFiles = (folder) =>
@@ -70,11 +70,10 @@ describe("custom request attachments", () => {
     assert.throws(() => inspectAttachment(new Uint8Array(4 * 1024 * 1024 + 1).fill(37)), /4 MB/);
   });
 
-  it("uses a separate private store, off in production unless enabled", () => {
-    assert.equal(privateStorage({}), null);
-    assert.deepEqual(privateStorage({ PRIVATE_BLOB_STORE_ID: "store_p", VERCEL_ENV: "preview" }), { storeId: "store_p" });
-    assert.equal(privateStorage({ PRIVATE_BLOB_STORE_ID: "store_p", VERCEL_ENV: "production" }), null);
-    assert.equal(privateStorage({ BLOB_STORE_ID: "store_public" }), null, "the public photo store is never used for references");
+  it("needs the media disk, off in production unless enabled", () => {
+    assert.equal(hasPrivateStorage({}), false);
+    assert.equal(hasPrivateStorage({ MEDIA_ROOT: "/data/media" }), true);
+    assert.equal(hasPrivateStorage({ MEDIA_ROOT: "/data/media", SUBLIME_ENV: "production" }), false);
   });
 });
 

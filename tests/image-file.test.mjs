@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import sharp from "sharp";
-import { hasBlobStorage, isBlobUrl } from "../src/server/media/blob.ts";
+import { hasMediaStorage, isStoredImageUrl } from "../src/server/media/public-files.ts";
 import { ImageFileError, inspectImage, MAX_IMAGE_BYTES } from "../src/server/media/image-file.ts";
 
 const image = async (format, width, height, options = {}) =>
@@ -64,19 +64,18 @@ describe("image upload validation (type from bytes, size, dimensions)", () => {
   });
 });
 
-describe("Blob storage guard", () => {
-  it("needs the token and stays off in production unless enabled", () => {
-    assert.equal(hasBlobStorage({}), false);
-    assert.equal(hasBlobStorage({ BLOB_READ_WRITE_TOKEN: "x", VERCEL_ENV: "preview" }), true);
-    assert.equal(hasBlobStorage({ BLOB_STORE_ID: "store_x", VERCEL_ENV: "preview" }), true, "OIDC-connected store");
-    assert.equal(hasBlobStorage({ BLOB_STORE_ID: "store_x", VERCEL_ENV: "production" }), false);
-    assert.equal(hasBlobStorage({ BLOB_READ_WRITE_TOKEN: "x", VERCEL_ENV: "production" }), false);
-    assert.equal(hasBlobStorage({ BLOB_READ_WRITE_TOKEN: "x", VERCEL_ENV: "production", SUBLIME_BLOB_IN_PRODUCTION: "enabled" }), true);
+describe("media storage guard", () => {
+  it("needs MEDIA_ROOT and stays off in production unless enabled", () => {
+    assert.equal(hasMediaStorage({}), false);
+    assert.equal(hasMediaStorage({ MEDIA_ROOT: "/data/media", SUBLIME_ENV: "staging" }), true);
+    assert.equal(hasMediaStorage({ MEDIA_ROOT: "/data/media", SUBLIME_ENV: "production" }), false);
+    assert.equal(hasMediaStorage({ MEDIA_ROOT: "/data/media", SUBLIME_ENV: "production", SUBLIME_MEDIA_IN_PRODUCTION: "enabled" }), true);
   });
 
-  it("only treats public Blob URLs as deletable files", () => {
-    assert.equal(isBlobUrl("https://abc123.public.blob.vercel-storage.com/productos/p1/imagen-x.webp"), true);
-    assert.equal(isBlobUrl("/demo/products/remera-1.webp"), false);
-    assert.equal(isBlobUrl("https://evil.example/public.blob.vercel-storage.com/x.png"), false);
+  it("only treats uploaded /media/ photos as deletable files", () => {
+    assert.equal(isStoredImageUrl("/media/productos/p1/imagen-ab12.webp"), true);
+    assert.equal(isStoredImageUrl("/demo/products/remera-1.webp"), false);
+    assert.equal(isStoredImageUrl("https://abc123.public.blob.vercel-storage.com/productos/p1/imagen-x.webp"), false);
+    assert.equal(isStoredImageUrl("/media/../etc/passwd"), false);
   });
 });

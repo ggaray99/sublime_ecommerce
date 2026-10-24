@@ -5,7 +5,7 @@ import { catalogChanged, dataError, formValues, requireAdmin, type AdminFormStat
 import { parseImageAlt, parsePesos, parseProductCreate, parseProductUpdate, parseStockCount } from "@/server/admin/validation";
 import { getAdminRepository, getImageRepository, getVariantRepository } from "@/server/admin/session";
 import { parseOptionDefinitions } from "@/server/admin/variants";
-import { deleteStoredImage, hasBlobStorage, storeImage } from "@/server/media/blob";
+import { deleteStoredImage, hasMediaStorage, storeImage } from "@/server/media/public-files";
 import { inspectImage } from "@/server/media/image-file";
 import type { ImageMove } from "@/server/admin/images-repository";
 
@@ -21,7 +21,7 @@ export async function createProductAction(_state: AdminFormState, form: FormData
   if (!parsed.ok) return { fields: parsed.errors, values };
 
   const file = form.get("file");
-  const photo = file instanceof File && file.size && hasBlobStorage() ? new Uint8Array(await file.arrayBuffer()) : null;
+  const photo = file instanceof File && file.size && hasMediaStorage() ? new Uint8Array(await file.arrayBuffer()) : null;
   let photoInfo: ReturnType<typeof inspectImage> | null = null;
   if (photo) {
     try {
@@ -90,11 +90,11 @@ export async function countStockAction(_state: AdminFormState, form: FormData): 
 
 /**
  * Validates the file on the server (real type from its bytes, size, dimensions),
- * stores it in Blob and records it. If recording fails, the stored file is removed.
+ * stores it on the media disk and records it. If recording fails, the stored file is removed.
  */
 export async function uploadProductImageAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
   const admin = await requireAdmin();
-  if (!hasBlobStorage()) return { error: "La carga de imágenes no está configurada en este entorno." };
+  if (!hasMediaStorage()) return { error: "La carga de imágenes no está configurada en este entorno." };
   const values = formValues(form);
   const productId = values.productId ?? "";
   const alt = parseImageAlt(values);
