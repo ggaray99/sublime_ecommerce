@@ -2,6 +2,34 @@
 
 Estado: plan para revisar. Todavía no hay nada implementado. La base es la rama `feat/vps-self-hosting`, que corre en staging en el VPS.
 
+## 0. Decisiones L0 (24/10/2026)
+
+| Tema | Decisión |
+| --- | --- |
+| Plancha | **21 × 29 cm**. En las **4 esquinas** hay una zona de **1,5 × 1,5 cm** reservada para las guías de registro del troquel: ahí no puede ir ningún sticker. Referencia: la foto de plancha que mandó el negocio |
+| Tamaño de sticker | El cliente lo elige entre **4 y 6 cm** (el lado mayor del diseño, sin contar el borde blanco) |
+| Planchas | Se calculan **solas** a partir del tamaño y la cantidad. El sistema acomoda los diseños para aprovechar al máximo la plancha |
+| Diseños de remera | 4 PNG en `drive-download-20261024T224333Z-1-001.zip` (raíz del repo, sin versionar). Antes de usarlos: verificar transparencia y resolución, pasarlos a `public/lab/designs/` y no versionar el zip |
+| WhatsApp | El número se configura **desde el panel** (`store_settings`, clave `contact`), no en el código |
+| Email | **Fuera de V1.** El outbox se crea igual, para sumarlo después sin tocar el flujo |
+| Formato para la imprenta | Pendiente (PNG 300 dpi con capa de corte, PDF o SVG). La plancha armada se genera en el servidor |
+
+### Armado de planchas (algoritmo V1)
+
+- **Área útil:** 21 × 29 cm menos un margen de seguridad de 3 mm en los bordes. Además, cada esquina de 1,5 × 1,5 cm cuenta como obstáculo, así que el centro de los bordes sí se aprovecha, como en la foto de referencia.
+- **Medida de cada pieza:** el rectángulo que ocupa el diseño ya con su contorno blanco (tamaño elegido + 2 × borde), más 3 mm de separación para la cuchilla.
+- **Acomodo:** algoritmo **MaxRects** (empaquetado de rectángulos con obstáculos), probando cada pieza a 0° y 90°. El resultado es una lista de planchas con la posición de cada pieza.
+  - Con diseños de proporciones distintas, se acomodan de mayor a menor.
+  - Con el mismo tamaño, sale una grilla y el resultado es determinístico.
+- **Cantidad de planchas:** sale de empaquetar todas las copias pedidas. El navegador lo muestra al instante ("tu pedido entra en 2 planchas, 34 stickers por plancha") y el servidor lo recalcula al guardar.
+- **Mejora posterior (fuera de V1):** encastrar por la silueta real, no por el rectángulo, para ganar espacio con formas irregulares.
+- **Vista previa:** una imagen de cada plancha con las piezas ubicadas, para el cliente y para el panel. El archivo de producción de cada plancha se genera en el servidor (`sharp`), con las guías de las esquinas.
+- **Pruebas:**
+  - ninguna pieza toca las esquinas reservadas ni se sale del área;
+  - nunca hay dos piezas superpuestas;
+  - un mismo pedido da siempre el mismo resultado;
+  - la cantidad de planchas coincide con la que se espera para casos conocidos (por ejemplo, 4 cm o 6 cm cuadrados).
+
 ## 1. Arquitectura actual (verificada)
 
 | Área | Estado real |
