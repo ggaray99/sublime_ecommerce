@@ -22,7 +22,7 @@ export function CategoryForm({ mode, initial }: { mode: "create" | "edit"; initi
             label="Identificador"
             state={state}
             defaultValue={value("id")}
-            hint="Va en la URL (/tienda?categoria=…). Vacío = desde el nombre. No se puede cambiar después."
+            hint="Vacío = desde el nombre. No se cambia después."
           />
         )}
         <Field name="tagline" label="Bajada" state={state} defaultValue={value("tagline")} hint="Frase corta para las tarjetas." />

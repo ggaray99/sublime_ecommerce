@@ -18,7 +18,7 @@ export function ProductImageUpload({ productId, productName }: { productId: stri
           label="Texto alternativo"
           state={state}
           defaultValue={state.values?.alt ?? productName}
-          hint="Qué muestra la foto, para quien usa lector de pantalla."
+          hint="Qué muestra la foto (para lectores de pantalla)"
           required
         />
       </div>

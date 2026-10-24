@@ -29,8 +29,10 @@ export function Field({ name, label, state, defaultValue, hint, options, multili
         {label}
         {required && " *"}
       </label>
-      {hint && (
-        <p className="field__hint" id={`${id}-hint`}>
+      {/* Inputs show the hint inside, as a placeholder, so labels and inputs stay aligned across columns;
+          screen readers still get it as the field description. Selects have no placeholder: theirs goes below. */}
+      {hint && !options && (
+        <p className="visually-hidden" id={`${id}-hint`}>
           {hint}
         </p>
       )}
@@ -43,9 +45,14 @@ export function Field({ name, label, state, defaultValue, hint, options, multili
           ))}
         </select>
       ) : multiline ? (
-        <textarea {...common} rows={4} />
+        <textarea {...common} rows={4} placeholder={hint} />
       ) : (
-        <input {...common} type="text" inputMode={inputMode} autoComplete="off" />
+        <input {...common} type="text" inputMode={inputMode} autoComplete="off" placeholder={hint} />
+      )}
+      {hint && options && (
+        <p className="field__hint" id={`${id}-hint`}>
+          {hint}
+        </p>
       )}
       {error && (
         <p className="field__error" id={`${id}-error`}>
@@ -80,9 +87,6 @@ export function FileField({ state }: { state: AdminFormState }) {
   return (
     <div className="field">
       <label htmlFor={id}>Archivo</label>
-      <p className="field__hint" id={`${id}-hint`}>
-        {HINT}
-      </p>
       <input
         id={id}
         name="file"
@@ -91,6 +95,9 @@ export function FileField({ state }: { state: AdminFormState }) {
         aria-invalid={Boolean(error)}
         aria-describedby={[`${id}-hint`, error ? `${id}-error` : ""].filter(Boolean).join(" ")}
       />
+      <p className="field__hint" id={`${id}-hint`}>
+        {HINT}
+      </p>
       {error && (
         <p className="field__error" id={`${id}-error`}>
           {error}
@@ -230,7 +237,7 @@ export function ProductForm({
                 label="Stock inicial"
                 state={state}
                 defaultValue={state.values?.initialStock ?? "0"}
-                hint="Unidades contadas. Queda registrado como conteo inicial."
+                hint="Unidades contadas (conteo inicial)"
                 inputMode="numeric"
               />
             </div>
@@ -245,7 +252,7 @@ export function ProductForm({
                   label="Texto alternativo"
                   state={state}
                   defaultValue={state.values?.alt ?? ""}
-                  hint="Qué muestra la foto. Vacío = el nombre del producto."
+                  hint="Qué muestra la foto. Vacío = el nombre"
                 />
               </div>
             ) : (

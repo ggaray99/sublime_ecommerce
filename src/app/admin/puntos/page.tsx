@@ -45,6 +45,8 @@ async function Points({ searchParams }: { searchParams: PageProps<"/admin/puntos
   const query = await searchParams;
   const points = await getPointRepository().list();
   const editing = points.find((point) => point.id === query.editar);
+  // The form opens on demand: "Nuevo punto de venta" or "Editar" on a row.
+  const creating = !editing && query.nuevo === "1";
 
   return (
     <div className="account account--wide">
@@ -53,7 +55,12 @@ async function Points({ searchParams }: { searchParams: PageProps<"/admin/puntos
       <section className="account__section" aria-labelledby="puntos-title">
         <div className="account__head">
           <h2 id="puntos-title">Puntos de venta</h2>
-          <Link href="/puntos">Ver el mapa público →</Link>
+          <div className="admin-toolbar">
+            <Link href="/puntos">Ver el mapa público →</Link>
+            <Link className="btn btn--acid" href="/admin/puntos?nuevo=1#editar">
+              + Nuevo punto de venta
+            </Link>
+          </div>
         </div>
         <p className="muted">Los lugares donde se consiguen productos Sublime. Los activos aparecen en el mapa de la tienda.</p>
         {points.length ? (
@@ -105,15 +112,19 @@ async function Points({ searchParams }: { searchParams: PageProps<"/admin/puntos
             </table>
           </div>
         ) : (
-          <p className="panel panel--muted">Todavía no cargaste puntos de venta. Agregá el primero con el formulario de abajo.</p>
+          <p className="panel panel--muted">Todavía no cargaste puntos de venta. Tocá “Nuevo punto de venta” para agregar el primero.</p>
         )}
       </section>
 
-      <section className="account__section" aria-labelledby="editar-title" id="editar">
-        <h2 id="editar-title">{editing ? `Editar: ${editing.name}` : "Nuevo punto de venta"}</h2>
-        {editing && <Link href="/admin/puntos">Cancelar edición</Link>}
-        <PointForm key={editing?.id ?? "new"} initial={toForm(editing)} kinds={KIND_OPTIONS} provinces={PROVINCES} />
-      </section>
+      {(editing || creating) && (
+        <section className="account__section" aria-labelledby="editar-title" id="editar">
+          <div className="account__head">
+            <h2 id="editar-title">{editing ? `Editar: ${editing.name}` : "Nuevo punto de venta"}</h2>
+            <Link href="/admin/puntos">Cancelar</Link>
+          </div>
+          <PointForm key={editing?.id ?? "new"} initial={toForm(editing)} kinds={KIND_OPTIONS} provinces={PROVINCES} />
+        </section>
+      )}
     </div>
   );
 }

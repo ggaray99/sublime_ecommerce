@@ -31,6 +31,10 @@ export function PointForm({ initial, kinds, provinces }: { initial: PointFormVal
   return (
     <form action={action} className="quote-form" noValidate>
       <Status state={state} />
+      <p className="muted">
+        Para la ubicación exacta, buscá el lugar en Google Maps, tocá “Compartir” y pegá el link. Si la dejás vacía, el mapa
+        busca la dirección.
+      </p>
       {initial.pointId && <input type="hidden" name="pointId" value={initial.pointId} />}
       <div className="form-grid">
         <Field name="name" label="Nombre del lugar" state={state} defaultValue={value("name")} required />
@@ -43,7 +47,7 @@ export function PointForm({ initial, kinds, provinces }: { initial: PointFormVal
           label="Ubicación exacta en el mapa"
           state={state}
           defaultValue={value("location")}
-          hint="Opcional. En Google Maps buscá el lugar, tocá “Compartir” y pegá el link; o escribí “latitud, longitud”. Sin esto, el mapa busca la dirección."
+          hint="Link de Google Maps o “latitud, longitud” (opcional)"
         />
         <Field name="hours" label="Horarios" state={state} defaultValue={value("hours")} hint="Ej.: lunes a sábado de 10 a 20 h." />
         <Field name="phone" label="Teléfono" state={state} defaultValue={value("phone")} inputMode="numeric" />

@@ -1361,6 +1361,13 @@ li:nth-child(3n) > .category-card .category-card__body {
   font-size: 16px;
 }
 
+/* Hints live inside the inputs as placeholders: dark enough to read (4.5:1 on white). */
+.field input::placeholder,
+.field textarea::placeholder {
+  color: #6b6b6b;
+  opacity: 1;
+}
+
 .field select {
   appearance: none;
   padding-right: 36px;

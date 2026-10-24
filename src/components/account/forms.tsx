@@ -32,8 +32,10 @@ function Field({ name, label, state, type = "text", autoComplete, defaultValue, 
         {label}
         {required && " *"}
       </label>
+      {/* The hint is shown inside the input as a placeholder, so labels and inputs stay aligned in two-column
+          forms; screen readers still get it as the field description. */}
       {hint && (
-        <p className="field__hint" id={`${id}-hint`}>
+        <p className="visually-hidden" id={`${id}-hint`}>
           {hint}
         </p>
       )}
@@ -43,6 +45,7 @@ function Field({ name, label, state, type = "text", autoComplete, defaultValue, 
         type={type}
         autoComplete={autoComplete}
         defaultValue={defaultValue}
+        placeholder={hint}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
       />

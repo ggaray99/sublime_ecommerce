@@ -22,7 +22,7 @@ export function QuoteResponseForm({ requestId, initial, resend }: { requestId: s
           label="Seña sugerida (ARS)"
           state={state}
           defaultValue={value("deposit")}
-          hint="Opcional. Informativa: no se cobra online todavía."
+          hint="Opcional e informativa (no se cobra online)"
           inputMode="decimal"
         />
         <div className="field">

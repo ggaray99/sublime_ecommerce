@@ -31,7 +31,7 @@ export function ApiKeyForm({ scopes }: { scopes: { value: string; label: string 
           label="Nombre de la integración"
           state={state}
           defaultValue={state.values?.name ?? ""}
-          hint="Quién la usa y para qué, ej.: n8n-precios. Aparece en el historial de cambios."
+          hint="Ej.: n8n-precios (queda en el historial)"
           required
         />
         <fieldset className="admin-fieldset" aria-describedby={scopesError ? `${scopesId}-error` : undefined}>

@@ -40,7 +40,7 @@ export function OrderActions({ orderId, status, shipping }: { orderId: string; s
           <Field name="trackingUrl" label="Enlace de seguimiento" state={state} defaultValue="" hint="Opcional (https://…)." />
         </div>
       )}
-      <Field name="note" label="Nota" state={state} defaultValue="" hint="Ej.: transferencia recibida, motivo de cancelación. Obligatoria al cancelar." />
+      <Field name="note" label="Nota" state={state} defaultValue="" hint="Ej.: transferencia recibida. Obligatoria al cancelar." />
       <div className="actions">
         {buttons.map((button) => (
           <button key={button.intent} type="submit" name="intent" value={button.intent} className={`btn ${button.tone}`} disabled={pending}>
