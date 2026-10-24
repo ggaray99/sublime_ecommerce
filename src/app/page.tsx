@@ -1,10 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
+import { getHomeHero } from "@/server/home/session";
+import { pickHeroProducts } from "@/server/home/settings";
 import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefront";
 import { priceLabel } from "@/lib/format";
-
-const heroSlugs = ["pack-caos-grafico", "remera-ruido-visual", "sticker-gato-de-la-suerte-137"];
 
 const applications = [
   { src: "/demo/editorial/laptop.webp", label: "Laptops", alt: "Stickers pegados en una laptop" },
@@ -34,10 +34,9 @@ const processTracks = [
 ];
 
 export default async function Home() {
-  const [products, categories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
-  const heroProducts = heroSlugs
-    .map((slug) => products.find((product) => product.slug === slug))
-    .filter((product) => product !== undefined);
+  const [products, categories, hero] = await Promise.all([getStorefrontProducts(), getStorefrontCategories(), getHomeHero()]);
+  // Edited from /admin/portada; hidden or missing products fall back to the usual ones.
+  const heroProducts = pickHeroProducts(hero, products);
   // Featured mix: catalog stickers first, then the rest of the product lines.
   const featured = [
     ...products.filter((product) => product.featured && product.code).slice(0, 4),
@@ -48,22 +47,22 @@ export default async function Home() {
     <main id="contenido">
       <section className="hero" aria-labelledby="hero-title">
         <div className="hero__copy">
-          <p className="kicker">Stickers / DTF / Vinilos / Remeras</p>
+          {hero.kicker && <p className="kicker">{hero.kicker}</p>}
           <h1 id="hero-title">
-            PEGÁ
-            <br />
-            <em>TU IDENTIDAD.</em>
+            {hero.titleLine1}
+            {hero.titleLine1 && hero.titleLine2 && <br />}
+            {hero.titleLine2 && <em>{hero.titleLine2}</em>}
           </h1>
-          <p className="hero__lede">
-            Calcos troquelados, packs, remeras y productos a medida con diseños originales.
-          </p>
+          {hero.lede && <p className="hero__lede">{hero.lede}</p>}
           <div className="actions">
-            <Link className="btn btn--acid btn--lg" href="/tienda?categoria=stickers">
-              Explorar calcos
+            <Link className="btn btn--acid btn--lg" href={hero.primaryHref}>
+              {hero.primaryLabel}
             </Link>
-            <Link className="btn btn--ghost-light btn--lg" href="/encargos">
-              Ver personalizados →
-            </Link>
+            {hero.secondaryLabel && (
+              <Link className="btn btn--ghost-light btn--lg" href={hero.secondaryHref}>
+                {hero.secondaryLabel}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -83,11 +82,11 @@ export default async function Home() {
               </span>
             </Link>
           ))}
-          <span className="hero__stamp" aria-hidden="true">
-            DISEÑOS
-            <br />
-            ORIGINALES
-          </span>
+          {hero.stamp && (
+            <span className="hero__stamp" aria-hidden="true">
+              {hero.stamp}
+            </span>
+          )}
         </div>
       </section>
 

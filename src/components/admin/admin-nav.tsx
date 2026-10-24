@@ -5,6 +5,7 @@ const LINKS = [
   { id: "encargos", href: "/admin/encargos", label: "Encargos" },
   { id: "envios", href: "/admin/envios", label: "Envíos" },
   { id: "puntos", href: "/admin/puntos", label: "Puntos de venta" },
+  { id: "portada", href: "/admin/portada", label: "Portada" },
   { id: "productos", href: "/admin", label: "Productos" },
   { id: "categorias", href: "/admin/categorias", label: "Categorías" },
   { id: "integraciones", href: "/admin/integraciones", label: "Integraciones (API)" },

@@ -691,6 +691,8 @@ textarea {
      leaves room for the next section to start in the first screen. */
   font-size: var(--fs-hero);
   line-height: 0.86;
+  /* Editable title: a long word wraps instead of overflowing its column. */
+  overflow-wrap: break-word;
 }
 
 .hero__lede {
@@ -803,6 +805,9 @@ textarea {
   line-height: 1;
   letter-spacing: 0.04em;
   text-align: center;
+  /* Editable text: wraps inside the circle. */
+  padding: 10px;
+  overflow-wrap: break-word;
   transform: rotate(-12deg);
 }
 
