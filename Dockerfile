@@ -34,8 +34,8 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
     MEDIA_ROOT=/data/media
-# Unprivileged user; the media volume must be writable by it (uid 1001).
-RUN groupadd --system --gid 1001 sublime && useradd --system --uid 1001 --gid sublime sublime \
+# Unprivileged user; the media volume must be writable by it (uid 10001).
+RUN groupadd --system --gid 10001 sublime && useradd --system --uid 10001 --gid sublime sublime \
     && mkdir -p /data/media && chown -R sublime:sublime /data
 COPY --from=build --chown=sublime:sublime /app/.next/standalone ./
 COPY --from=build --chown=sublime:sublime /app/.next/static ./.next/static

@@ -15,8 +15,8 @@ install -m 644 src/deploy/compose.yaml compose.yaml
 rand() { openssl rand -hex "$1"; }
 
 mkdir -p media/staging backups
-# The app runs as uid 1001 inside the container.
-chown -R 1001:1001 media
+# The app runs as uid 10001 inside the container.
+chown -R 10001:10001 media
 chown "$OWNER:$OWNER" "$ROOT" backups
 
 if [ ! -f postgres.env ]; then
