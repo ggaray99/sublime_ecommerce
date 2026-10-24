@@ -5,11 +5,12 @@ import { redirect } from "next/navigation";
 import sharp from "sharp";
 import { MAX_REQUESTS_PER_HOUR, type NewRequestFile } from "@/server/custom-requests/repository";
 import { customRequestsAvailable, getCustomRequestRepository } from "@/server/custom-requests/session";
-import { parseRequestForm } from "@/server/custom-requests/validation";
+import { parseRequestForm, type RequestForm } from "@/server/custom-requests/validation";
 import { getCurrentCustomer } from "@/server/customers/session";
 import { deleteMediaFile, saveMediaFile } from "@/server/media/disk";
 import { hasPrivateStorage } from "@/server/media/private-files";
-import { buildStickerOrder, parseStickerDesigns, TOLERANCE } from "@/server/lab/sticker-order";
+import { buildStickerOrder, parseStickerDesigns, TOLERANCE, type BuiltFile } from "@/server/lab/sticker-order";
+import { buildTshirtOrder, parseTshirtOrder } from "@/server/lab/tshirt-order";
 import { prepareSticker, StickerError } from "@/server/lab/sticker";
 import { isUploadId, readLabUpload, storeLabUpload } from "@/server/lab/uploads";
 
@@ -76,21 +77,8 @@ export async function submitStickerOrderAction(_state: LabFormState, form: FormD
 
   const total = designs.value.reduce((sum, d) => sum + d.quantity, 0);
   const notes = (values.notes ?? "").trim().slice(0, 900);
-  const parsed = parseRequestForm({
-    ...values,
-    productType: "Stickers troquelados",
-    quantity: String(total),
-    idea: `Pedido armado en el Custom Lab.${notes ? ` ${notes}` : " Sin comentarios adicionales."}`,
-  });
-  if (!parsed.ok) {
-    return parsed.bot ? { error: parsed.errors.form } : { fields: parsed.errors as Record<string, string>, error: parsed.errors.form, values };
-  }
-  const repo = getCustomRequestRepository();
-  const previous = await repo.findByIdempotencyKey(parsed.value.idempotencyKey);
-  if (previous) redirect(`/encargo/${previous.id}?t=${previous.accessToken}`);
-  if ((await repo.recentCountByEmail(parsed.value.contactEmail)) >= MAX_REQUESTS_PER_HOUR) {
-    return { error: "Recibimos varias solicitudes de este email en la última hora. Probá más tarde o escribinos.", values };
-  }
+  const checked = await checkLabForm(values, "Stickers troquelados", total, notes);
+  if (checked.error) return checked.error;
 
   let order;
   try {
@@ -100,7 +88,17 @@ export async function submitStickerOrderAction(_state: LabFormState, form: FormD
     throw error;
   }
 
-  // Every file goes to the request's own private folder.
+  await saveLabRequest(checked.value!, "sticker", order, notes);
+  return {};
+}
+
+/** Stores every built file in the request's own private folder and creates the request; cleans up on failure. */
+async function saveLabRequest(
+  value: RequestForm,
+  kind: "sticker" | "tshirt",
+  order: { files: BuiltFile[]; config: Record<string, unknown>; summary: string },
+  notes: string,
+): Promise<never> {
   const folder = `lab/${randomBytes(12).toString("hex")}`;
   const stored: NewRequestFile[] = [];
   let created;
@@ -111,12 +109,12 @@ export async function submitStickerOrderAction(_state: LabFormState, form: FormD
       stored.push({ pathname, originalName: file.name, contentType: file.contentType, sizeBytes: file.bytes.length, role: file.role, width: file.width ?? null, height: file.height ?? null });
     }
     const customer = await getCurrentCustomer().catch(() => null);
-    created = await repo.create({
-      ...parsed.value,
+    created = await getCustomRequestRepository().create({
+      ...value,
       idea: `${order.summary}${notes ? `\n\n${notes}` : ""}`.slice(0, 1500),
       customerId: customer?.id ?? null,
       file: null,
-      kind: "sticker",
+      kind,
       config: order.config,
       files: stored,
     });
@@ -125,4 +123,40 @@ export async function submitStickerOrderAction(_state: LabFormState, form: FormD
     throw error;
   }
   redirect(`/encargo/${created.id}?t=${created.accessToken}&nuevo=1`);
+}
+
+/** Same checks for both editors: honeypot, contact data, idempotency and the hourly limit. */
+async function checkLabForm(values: Record<string, string>, productType: string, quantity: number, notes: string) {
+  const parsed = parseRequestForm({ ...values, productType, quantity: String(quantity), idea: `Pedido armado en el Custom Lab.${notes ? ` ${notes}` : " Sin comentarios adicionales."}` });
+  if (!parsed.ok) {
+    return { error: (parsed.bot ? { error: parsed.errors.form } : { fields: parsed.errors as Record<string, string>, error: parsed.errors.form, values }) as LabFormState };
+  }
+  const repo = getCustomRequestRepository();
+  const previous = await repo.findByIdempotencyKey(parsed.value.idempotencyKey);
+  if (previous) redirect(`/encargo/${previous.id}?t=${previous.accessToken}`);
+  if ((await repo.recentCountByEmail(parsed.value.contactEmail)) >= MAX_REQUESTS_PER_HOUR) {
+    return { error: { error: "Recibimos varias solicitudes de este email en la última hora. Probá más tarde o escribinos.", values } as LabFormState };
+  }
+  return { value: parsed.value };
+}
+
+/** Places a T-shirt order: the server rebuilds the mockup and the 300 dpi print from the original. */
+export async function submitTshirtOrderAction(_state: LabFormState, form: FormData): Promise<LabFormState> {
+  if (!labAvailable()) return { error: UNAVAILABLE };
+  const values = Object.fromEntries([...form.entries()].filter(([, v]) => typeof v === "string").map(([k, v]) => [k, String(v)]));
+  const order = parseTshirtOrder(values.order ?? "");
+  if (!order.ok) return { error: order.error, values };
+  const notes = (values.notes ?? "").trim().slice(0, 900);
+  const total = order.value.sizes.reduce((sum, s) => sum + s.quantity, 0);
+  const checked = await checkLabForm(values, "Remeras e indumentaria", total, notes);
+  if (checked.error) return checked.error;
+  let built;
+  try {
+    built = await buildTshirtOrder(order.value);
+  } catch (error) {
+    if (error instanceof StickerError) return { error: error.message, values };
+    throw error;
+  }
+  await saveLabRequest(checked.value!, "tshirt", built, notes);
+  return {};
 }

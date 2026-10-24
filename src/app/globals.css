@@ -3345,6 +3345,171 @@ body:has(.admin-bar) .site-footer {
   border: 2px solid var(--cyan);
 }
 
+.shirt-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(20px, 3vw, 40px);
+  align-items: start;
+}
+
+.shirt-stage {
+  position: relative;
+  max-width: min(100%, calc(100svh - 160px));
+  aspect-ratio: 1;
+  background: #d9d9d9;
+  border: 2px solid var(--cyan);
+  touch-action: none;
+}
+
+.shirt-stage__photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Dashed print area: the design can only live inside it. */
+.shirt-stage__area {
+  position: absolute;
+  outline: 2px dashed rgb(53 189 242 / 0.9);
+  outline-offset: 0;
+}
+
+.shirt-stage__design {
+  position: absolute;
+  height: auto;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.shirt-stage__design:active {
+  cursor: grabbing;
+}
+
+.shirt-stage__design.is-multiply {
+  mix-blend-mode: multiply;
+}
+
+.shirt-controls {
+  display: grid;
+  gap: 16px;
+}
+
+.lab-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.lab-options legend {
+  margin-bottom: 8px;
+  font-weight: 800;
+}
+
+.lab-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 6px 14px;
+  border: 2px solid var(--white);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.lab-option:has(input:checked) {
+  border-color: var(--cyan);
+  background: var(--cyan);
+  color: var(--black);
+}
+
+.lab-option input {
+  accent-color: var(--black);
+}
+
+.lab-options--designs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+}
+
+.lab-design-pick {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px;
+  border: 2px solid var(--line-dark);
+  background: var(--panel);
+  color: var(--white);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+}
+
+.lab-design-pick img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: #d9d9d9;
+}
+
+.lab-design-pick[aria-pressed="true"] {
+  border-color: var(--cyan);
+  box-shadow: 4px 4px 0 var(--cyan);
+}
+
+.lab-design-pick--upload {
+  place-items: center;
+  border-style: dashed;
+  border-color: var(--cyan);
+}
+
+.lab-design-pick--upload:focus-within {
+  outline: 3px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+.lab-design-pick--upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.lab-position {
+  display: grid;
+  gap: 10px;
+}
+
+.lab-position input[type="range"] {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  accent-color: var(--cyan);
+}
+
+.lab-sizes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 899px) {
+  .shirt-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 559px) {
   .lab-design {
     grid-template-columns: minmax(0, 1fr);
