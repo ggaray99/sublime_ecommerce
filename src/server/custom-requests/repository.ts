@@ -44,6 +44,23 @@ export type NewCustomRequest = {
   reference: string;
   productSlug: string | null;
   file: { pathname: string; originalName: string; contentType: string; sizeBytes: number } | null;
+  /** Custom Lab: what was designed and its server-validated settings. Default: the classic form. */
+  kind?: RequestKind;
+  config?: Record<string, unknown>;
+  /** Custom Lab: every stored file with its role (original, preview, production). */
+  files?: NewRequestFile[];
+};
+
+export type RequestKind = "free" | "sticker" | "tshirt";
+
+export type NewRequestFile = {
+  pathname: string;
+  originalName: string;
+  contentType: string;
+  sizeBytes: number;
+  role: "reference" | "original" | "preview" | "production";
+  width?: number | null;
+  height?: number | null;
 };
 
 export type QuoteResponse = { quoteMinor: number; depositMinor: number | null; message: string; validUntil: string; etaDays: number | null };
@@ -199,18 +216,25 @@ export function createCustomRequestRepository(sql: QueryFn) {
       const [row] = (await sql.query(
         `WITH created AS (
            INSERT INTO custom_requests (access_token, customer_id, contact_name, contact_email, product_type, quantity, idea,
-                                        reference, product_slug, idempotency_key)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                                        reference, product_slug, idempotency_key, kind, config)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $12, $13::jsonb)
            ON CONFLICT (idempotency_key) DO NOTHING
            RETURNING *
          ),
          attached AS (
-           INSERT INTO custom_request_files (request_id, pathname, original_name, content_type, size_bytes)
-           SELECT id, $11, $12, $13, $14 FROM created WHERE $11::text IS NOT NULL
+           INSERT INTO custom_request_files (request_id, pathname, original_name, content_type, size_bytes, role, width, height)
+           SELECT created.id, f.pathname, f."originalName", f."contentType", f."sizeBytes", f.role, f.width, f.height
+           FROM created, jsonb_to_recordset($11::jsonb) AS f(pathname text, "originalName" text, "contentType" text,
+                                                             "sizeBytes" integer, role text, width integer, height integer)
          ),
          history AS (
            INSERT INTO custom_request_events (request_id, from_status, to_status, actor, note)
            SELECT id, NULL, 'received', 'cliente', 'Solicitud recibida.' FROM created
+         ),
+         -- Same statement as the request: a notice never announces something that was not saved.
+         notice AS (
+           INSERT INTO notification_outbox (kind, payload)
+           SELECT 'request.created', jsonb_build_object('requestId', id, 'number', number, 'kind', kind) FROM created
          )
          SELECT * FROM created`,
         [
@@ -224,10 +248,9 @@ export function createCustomRequestRepository(sql: QueryFn) {
           input.reference,
           input.productSlug,
           input.idempotencyKey,
-          input.file?.pathname ?? null,
-          input.file?.originalName ?? null,
-          input.file?.contentType ?? null,
-          input.file?.sizeBytes ?? null,
+          JSON.stringify(input.files ?? (input.file ? [{ ...input.file, role: "reference" }] : [])),
+          input.kind ?? "free",
+          JSON.stringify(input.config ?? {}),
         ],
       )) as RequestRow[];
       if (row) return toRequest(row);

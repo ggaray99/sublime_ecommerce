@@ -12,8 +12,9 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      // Image uploads go through Server Actions: 4 MB per file plus form overhead.
-      bodySizeLimit: "4.4mb",
+      // Uploads go through Server Actions. On the VPS there is no 4.5 MB platform cap:
+      // Custom Lab originals can reach 15 MB (each upload validator keeps its own limit).
+      bodySizeLimit: "16mb",
     },
   },
   turbopack: {
