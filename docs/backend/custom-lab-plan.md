@@ -12,12 +12,13 @@ Estado: plan para revisar. Todavía no hay nada implementado. La base es la rama
 | Diseños de remera | 4 PNG en `drive-download-20261024T224333Z-1-001.zip` (raíz del repo, sin versionar). Antes de usarlos: verificar transparencia y resolución, pasarlos a `public/lab/designs/` y no versionar el zip |
 | WhatsApp | El número se configura **desde el panel** (`store_settings`, clave `contact`), no en el código |
 | Email | **Fuera de V1.** El outbox se crea igual, para sumarlo después sin tocar el flujo |
-| Formato para la imprenta | Pendiente (PNG 300 dpi con capa de corte, PDF o SVG). La plancha armada se genera en el servidor |
+| Formato para la imprenta | **PSD** (lo usa el plotter): una plancha por archivo, con capas separadas (diseños, contorno blanco, línea de corte y guías de las esquinas). Además, un **PDF o PNG** de cada plancha para verla fácil en el panel. El PSD se genera en el servidor con `ag-psd` (MIT, JavaScript puro, escribe PSD con capas). Hay que confirmar la versión y que el plotter abra el archivo con una plancha de prueba |
+| Contorno blanco | **32 px**. Se asume que es **a 300 dpi ≈ 2,7 mm**, la resolución de trabajo de las planchas. Hay que confirmar a qué resolución arma el plotter. El grosor deja de ser ajustable por el cliente: es fijo y lo define el negocio |
 
 ### Armado de planchas (algoritmo V1)
 
 - **Área útil:** 21 × 29 cm menos un margen de seguridad de 3 mm en los bordes. Además, cada esquina de 1,5 × 1,5 cm cuenta como obstáculo, así que el centro de los bordes sí se aprovecha, como en la foto de referencia.
-- **Medida de cada pieza:** el rectángulo que ocupa el diseño ya con su contorno blanco (tamaño elegido + 2 × borde), más 3 mm de separación para la cuchilla.
+- **Medida de cada pieza:** el rectángulo que ocupa el diseño ya con su contorno blanco (tamaño elegido + 2 × 32 px, unos 2,7 mm por lado a 300 dpi), más 3 mm de separación para la cuchilla.
 - **Acomodo:** algoritmo **MaxRects** (empaquetado de rectángulos con obstáculos), probando cada pieza a 0° y 90°. El resultado es una lista de planchas con la posición de cada pieza.
   - Con diseños de proporciones distintas, se acomodan de mayor a menor.
   - Con el mismo tamaño, sale una grilla y el resultado es determinístico.
