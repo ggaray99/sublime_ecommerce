@@ -187,3 +187,19 @@ describe("checkout with promotions (PGlite)", async () => {
     assert.ok(pay.errors.couponCode);
   });
 });
+
+describe("Custom Lab sheet estimate", async () => {
+  const { DEFAULT_LAB_PRICING, estimateSheets } = await import("../src/lib/lab/pricing.ts");
+  const { parseLabPricing } = await import("../src/server/settings/lab-pricing.ts");
+  it("follows the price list: $10.001,10 per sheet, −10 % from 4, −15 % from 10", () => {
+    assert.deepEqual(estimateSheets(DEFAULT_LAB_PRICING, 3), { sheets: 3, unitMinor: 1_000_110, percent: 0, totalMinor: 3_000_330 });
+    assert.equal(estimateSheets(DEFAULT_LAB_PRICING, 4).unitMinor, 900_100);
+    assert.equal(estimateSheets(DEFAULT_LAB_PRICING, 12).percent, 15);
+    assert.equal(estimateSheets({ sheetPriceMinor: 0, tiers: [] }, 3), null);
+  });
+  it("validates the settings form", () => {
+    const ok = parseLabPricing({ sheetPrice: "10.001,10", tierMin1: "10", tierPercent1: "15", tierMin2: "4", tierPercent2: "10" });
+    assert.deepEqual(ok.value, DEFAULT_LAB_PRICING);
+    assert.equal(parseLabPricing({ sheetPrice: "caro", tierMin1: "1", tierPercent1: "5" }).ok, false);
+  });
+});

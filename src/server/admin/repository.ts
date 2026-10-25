@@ -279,7 +279,7 @@ export function createAdminRepository(sql: QueryFn) {
                OR ($6 = 'pedido' AND NOT v.track_stock)
                OR ($6 = 'con' AND v.track_stock AND ${AVAILABLE} > 0)
                OR ($6 = 'sin' AND v.track_stock AND ${AVAILABLE} <= 0)
-               OR ($6 = 'bajo' AND v.track_stock AND ${AVAILABLE} BETWEEN 1 AND $9::int))
+               OR ($6 = 'bajo' AND v.track_stock AND ${AVAILABLE} BETWEEN 1 AND coalesce(p.low_stock_threshold, $9::int)))
           AND ($7::text IS NULL OR ($7 = 'con') = ${HAS_IMAGES})
           AND ($8::text IS NULL OR ($8 = 'si') = p.featured)
           AND ($10::timestamptz IS NULL OR greatest(p.updated_at, v.updated_at, coalesce(i.updated_at, p.updated_at)) >= $10::timestamptz)`;
@@ -308,7 +308,7 @@ export function createAdminRepository(sql: QueryFn) {
                   count(*) FILTER (WHERE p.status = 'archived')::int AS archived,
                   count(*) FILTER (WHERE v.track_stock AND ${AVAILABLE} > 0)::int AS stock_con,
                   count(*) FILTER (WHERE v.track_stock AND ${AVAILABLE} <= 0)::int AS stock_sin,
-                  count(*) FILTER (WHERE v.track_stock AND ${AVAILABLE} BETWEEN 1 AND $1::int)::int AS stock_bajo,
+                  count(*) FILTER (WHERE v.track_stock AND ${AVAILABLE} BETWEEN 1 AND coalesce(p.low_stock_threshold, $1::int))::int AS stock_bajo,
                   count(*) FILTER (WHERE NOT v.track_stock)::int AS stock_pedido,
                   count(*) FILTER (WHERE ${HAS_IMAGES})::int AS images_con,
                   count(*) FILTER (WHERE NOT ${HAS_IMAGES})::int AS images_sin,
@@ -443,6 +443,45 @@ export function createAdminRepository(sql: QueryFn) {
       } catch (error) {
         throw conflictError(error) ?? error;
       }
+      return getProduct(productId);
+    },
+
+    /**
+     * Copies a product as a draft: texts, category, options, logistics, sale and
+     * every variant with its price and cost. Not copied: stock (counted again),
+     * photos (uploaded again) and the catalog code (unique).
+     */
+    async duplicateProduct(actor: Admin, sourceId: string): Promise<AdminProduct> {
+      assertProductId(sourceId);
+      const productId = newProductId();
+      const base = `SUB-${productId.toUpperCase()}`;
+      const rows = (await sql.query(
+        `WITH source AS (SELECT * FROM products WHERE legacy_id = $1),
+         product AS (
+           INSERT INTO products (legacy_id, slug, name, description, category_id, catalog_code, requires_quote, status, tags,
+                                 theme, featured, details, sort_order, option_names, weight_g, length_mm, width_mm, height_mm,
+                                 low_stock_threshold, sale_percent, sale_price_minor, sale_starts_at, sale_ends_at)
+           SELECT $2, regexp_replace(left(slug, 60), '-+$', '') || '-copia-' || $2, left(name || ' (copia)', 120), description, category_id, NULL, requires_quote,
+                  'draft', tags, theme, false, details, coalesce((SELECT max(sort_order) FROM products), 0) + 1, option_names,
+                  weight_g, length_mm, width_mm, height_mm, low_stock_threshold, sale_percent, sale_price_minor, sale_starts_at, sale_ends_at
+           FROM source
+           RETURNING id, name
+         ),
+         variants AS (
+           INSERT INTO product_variants (product_id, sku, options, price_minor, currency, track_stock, is_default, active, sort_order, cost_minor)
+           SELECT product.id,
+                  CASE WHEN v.is_default THEN $3 ELSE $3 || '-' || row_number() OVER (ORDER BY v.sort_order, v.id) END,
+                  v.options, v.price_minor, v.currency, v.track_stock, v.is_default, v.active, v.sort_order, v.cost_minor
+           FROM product, source JOIN product_variants v ON v.product_id = source.id
+         ),
+         logged AS (
+           INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
+           SELECT $4, $5, 'product.duplicate', 'product', $2, jsonb_build_object('name', product.name, 'from', $1::text) FROM product
+         )
+         SELECT id FROM product`,
+        [sourceId, productId, base, actor.authUserId, actor.email],
+      )) as { id: string }[];
+      if (!rows.length) throw new AdminDataError("not_found", "El producto no existe.");
       return getProduct(productId);
     },
 

@@ -3,10 +3,10 @@ import { createImageRepository, type AdminImage } from "../admin/images-reposito
 import { createVariantRepository, type AdminVariant } from "../admin/variants-repository.ts";
 import { parseOptionDefinitions } from "../admin/variants.ts";
 import { parseProductSearch, type ProductSearch } from "../admin/product-search.ts";
-import { AdminDataError, createAdminRepository, productChanges, type AdminProduct } from "../admin/repository.ts";
+import { AdminDataError, createAdminRepository, productChanges, type Admin, type AdminProduct } from "../admin/repository.ts";
 import { MAX_PRICE_MINOR, parseProductCreate, parseProductUpdate, parseStockCount, type ProductUpdateInput } from "../admin/validation.ts";
 import type { QueryFn } from "../customers/repository.ts";
-import { createApiKeyRepository, hashRequest, integrationActor, RATE_LIMIT, type ApiKey, type ApiScope } from "./keys.ts";
+import { createApiKeyRepository, hashRequest, integrationActor, RATE_LIMIT, type ApiScope } from "./keys.ts";
 import { OPENAPI_SPEC } from "./openapi.ts";
 import { applyPriceRule, type PriceRule, type Rounding } from "./prices.ts";
 
@@ -219,7 +219,8 @@ type Handler = (ctx: Ctx) => Promise<Result>;
 type Route = { method: string; pattern: RegExp; scope: ApiScope; run: Handler };
 
 type Ctx = {
-  key: ApiKey;
+  /** Who the change is recorded as: the API key, or the admin importing a CSV. */
+  actor: Admin;
   match: RegExpMatchArray;
   url: URL;
   body: Record<string, unknown>;
@@ -283,12 +284,12 @@ const routes: Route[] = [
     method: "POST",
     pattern: /^products$/,
     scope: "catalog:write",
-    run: async ({ body, key, repos }) => {
+    run: async ({ body, actor, repos }) => {
       assertKnownFields(body, CREATE_FIELDS);
       await assertCategory(repos, body.categoryId, "categoryId");
       const parsed = parseProductCreate(body);
       if (!parsed.ok) return validation(fieldsFrom(parsed.errors));
-      const product = await repos.products.createProduct(integrationActor(key), parsed.value);
+      const product = await repos.products.createProduct(actor, parsed.value);
       return { status: 201, body: toApiProduct(product) };
     },
   },
@@ -296,24 +297,24 @@ const routes: Route[] = [
     method: "PATCH",
     pattern: new RegExp(`^products/${SKU}$`),
     scope: "catalog:write",
-    run: async ({ body, key, match, repos }) => {
+    run: async ({ body, actor, match, repos }) => {
       assertKnownFields(body, UPDATE_FIELDS);
       await assertCategory(repos, body.categoryId, "categoryId");
       const current = await repos.products.getProductBySku(match[1]);
       assertNoProductPrice(current, body, "priceMinor");
       const parsed = parseProductUpdate({ ...updateInputOf(current), ...body }, current.requiresQuote);
       if (!parsed.ok) return validation(fieldsFrom(parsed.errors));
-      return { status: 200, body: toApiProduct(await repos.products.updateProduct(integrationActor(key), current.id, parsed.value)) };
+      return { status: 200, body: toApiProduct(await repos.products.updateProduct(actor, current.id, parsed.value)) };
     },
   },
   {
     method: "POST",
     pattern: new RegExp(`^products/${SKU}/archive$`),
     scope: "catalog:write",
-    run: async ({ body, key, match, repos }) => {
+    run: async ({ body, actor, match, repos }) => {
       assertKnownFields(body, []);
       const current = await repos.products.getProductBySku(match[1]);
-      const archived = await repos.products.updateProduct(integrationActor(key), current.id, { ...updateInputOf(current), status: "archived" });
+      const archived = await repos.products.updateProduct(actor, current.id, { ...updateInputOf(current), status: "archived" });
       return { status: 200, body: toApiProduct(archived) };
     },
   },
@@ -321,12 +322,12 @@ const routes: Route[] = [
     method: "PUT",
     pattern: new RegExp(`^products/${SKU}/options$`),
     scope: "catalog:write",
-    run: async ({ body, key, match, repos }) => {
+    run: async ({ body, actor, match, repos }) => {
       assertKnownFields(body, ["options"]);
       const parsed = parseOptionDefinitions(body);
       if (!parsed.ok) return validation(fieldsFrom(parsed.errors as Record<string, string>));
       const current = await repos.products.getProductBySku(match[1]);
-      const variants = await repos.variants.configureOptions(integrationActor(key), current.id, parsed.value);
+      const variants = await repos.variants.configureOptions(actor, current.id, parsed.value);
       const product = await repos.products.getProduct(current.id);
       return { status: 200, body: toApiProduct(product, undefined, variants) };
     },
@@ -335,7 +336,7 @@ const routes: Route[] = [
     method: "POST",
     pattern: /^products\/bulk-upsert$/,
     scope: "catalog:write",
-    run: async ({ body, key, repos }) => {
+    run: async ({ body, actor, repos }) => {
       assertKnownFields(body, ["items", "dryRun"]);
       const dryRun = dryRunOf(body);
       const items = assertBatch(body.items, "items");
@@ -352,7 +353,7 @@ const routes: Route[] = [
         if (!current) {
           const parsed = parseProductCreate(item);
           if (!parsed.ok) throw new ApiError(validation(fieldsFrom(parsed.errors, `items[${index}].`)));
-          if (!dryRun) await repos.products.createProduct(integrationActor(key), parsed.value);
+          if (!dryRun) await repos.products.createProduct(actor, parsed.value);
           return { sku, result: "created" };
         }
         if (item.requiresQuote !== undefined || item.initialStock !== undefined) {
@@ -365,7 +366,7 @@ const routes: Route[] = [
         if (!parsed.ok) throw new ApiError(validation(fieldsFrom(parsed.errors, `items[${index}].`)));
         const changes = Object.keys(productChanges(current, { ...parsed.value, priceMinor: current.requiresQuote ? null : parsed.value.priceMinor }));
         if (!changes.length) return { sku, result: "unchanged" };
-        if (!dryRun) await repos.products.updateProduct(integrationActor(key), current.id, parsed.value);
+        if (!dryRun) await repos.products.updateProduct(actor, current.id, parsed.value);
         return { sku, result: "updated", changes };
       });
     },
@@ -374,14 +375,14 @@ const routes: Route[] = [
     method: "POST",
     pattern: /^products\/bulk-archive$/,
     scope: "catalog:write",
-    run: async ({ body, key, repos }) => {
+    run: async ({ body, actor, repos }) => {
       assertKnownFields(body, ["skus", "dryRun"]);
       const dryRun = dryRunOf(body);
       return batch(dryRun, assertBatch(body.skus, "skus"), async (raw) => {
         const sku = String(raw).toUpperCase();
         const current = await repos.products.getProductBySku(sku);
         if (current.status === "archived") return { sku, result: "unchanged" };
-        if (!dryRun) await repos.products.updateProduct(integrationActor(key), current.id, { ...updateInputOf(current), status: "archived" });
+        if (!dryRun) await repos.products.updateProduct(actor, current.id, { ...updateInputOf(current), status: "archived" });
         return { sku, result: "updated", changes: ["status"] };
       });
     },
@@ -390,10 +391,9 @@ const routes: Route[] = [
     method: "POST",
     pattern: /^prices\/bulk-update$/,
     scope: "prices:write",
-    run: async ({ body, key, repos }) => {
+    run: async ({ body, actor, repos }) => {
       assertKnownFields(body, ["items", "rule", "scope", "rounding", "dryRun"]);
       const dryRun = dryRunOf(body);
-      const actor = integrationActor(key);
       /** Prices belong to variants: a SKU is a single product's or one of its variants'. */
       const setPrice = async (productId: string, variant: AdminVariant, requiresQuote: boolean, priceMinor: unknown) => {
         if (requiresQuote) throw new ApiError(validation([{ path: "sku", message: "Producto a pedido: no lleva precio." }]));
@@ -445,7 +445,7 @@ const routes: Route[] = [
     method: "POST",
     pattern: /^stock\/bulk-count$/,
     scope: "stock:write",
-    run: async ({ body, key, repos }) => {
+    run: async ({ body, actor, repos }) => {
       assertKnownFields(body, ["items", "dryRun"]);
       const dryRun = dryRunOf(body);
       return batch(dryRun, assertBatch(body.items, "items"), async (raw, index) => {
@@ -461,7 +461,7 @@ const routes: Route[] = [
           throw new ApiError(validation([{ path: `items[${index}].onHand`, message: `Hay ${variant.reserved} unidades reservadas: el stock no puede ser menor.` }]));
         }
         if (parsed.value.onHand === variant.onHand) return { sku: variant.sku, result: "unchanged" };
-        if (!dryRun) await repos.products.countStock(integrationActor(key), productId, parsed.value, variant.sku);
+        if (!dryRun) await repos.products.countStock(actor, productId, parsed.value, variant.sku);
         return { sku: variant.sku, result: "updated", changes: ["onHand"], before: variant.onHand, after: parsed.value.onHand };
       });
     },
@@ -599,7 +599,7 @@ export async function handleAdminApi(request: Request, path: string[], deps: Api
 
   let result: Result;
   try {
-    result = await handler.run({ key, match: route.match(handler.pattern)!, url: new URL(request.url), body, deps, repos: repositories(deps.sql) });
+    result = await handler.run({ actor: integrationActor(key), match: route.match(handler.pattern)!, url: new URL(request.url), body, deps, repos: repositories(deps.sql) });
   } catch (cause) {
     result = fromDataError(cause);
   }
@@ -608,4 +608,16 @@ export async function handleAdminApi(request: Request, path: string[], deps: Api
   if (wroteSomething) deps.onCatalogChange?.();
   if (idempotency && result.status < 500) await keys.saveIdempotent(key.id, idempotency.key, idempotency.hash, result.status, result.body);
   return json(result.status, result.body, rateHeaders);
+}
+
+/** Bulk routes the admin panel reuses for CSV import (same validation and results as the API). */
+export type BulkRoute = "products/bulk-upsert" | "prices/bulk-update" | "stock/bulk-count";
+
+export async function runBulkAsAdmin(route: BulkRoute, body: Record<string, unknown>, actor: Admin, sql: QueryFn): Promise<{ status: number; body: unknown }> {
+  const handler = routes.find((candidate) => candidate.method === "POST" && candidate.pattern.test(route))!;
+  try {
+    return await handler.run({ actor, match: route.match(handler.pattern)!, url: new URL(`http://panel/${route}`), body, deps: { sql, available: true }, repos: repositories(sql) });
+  } catch (cause) {
+    return fromDataError(cause);
+  }
 }

@@ -13,6 +13,9 @@ import { buildStickerOrder, parseStickerDesigns, TOLERANCE, type BuiltFile } fro
 import { buildTshirtOrder, parseTshirtOrder } from "@/server/lab/tshirt-order";
 import { prepareSticker, StickerError } from "@/server/lab/sticker";
 import { isUploadId, readLabUpload, storeLabUpload } from "@/server/lab/uploads";
+import { estimateSheets } from "@/lib/lab/pricing";
+import { formatPrice } from "@/lib/format";
+import { getLabPricing } from "@/server/settings/session";
 
 const labAvailable = () => customRequestsAvailable() && hasPrivateStorage();
 const UNAVAILABLE = "El Custom Lab todavía no está habilitado en este sitio.";
@@ -88,6 +91,15 @@ export async function submitStickerOrderAction(_state: LabFormState, form: FormD
     throw error;
   }
 
+  // The estimate the customer saw, saved with the request (the shop confirms the final price).
+  const estimate = estimateSheets(await getLabPricing(), order.sheets);
+  if (estimate) {
+    order = {
+      ...order,
+      config: { ...order.config, estimate },
+      summary: `${order.summary} Estimado: ${formatPrice(estimate.totalMinor / 100)}${estimate.percent ? ` (−${estimate.percent} % por cantidad)` : ""}.`,
+    };
+  }
   await saveLabRequest(checked.value!, "sticker", order, notes);
   return {};
 }

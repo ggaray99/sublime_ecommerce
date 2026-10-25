@@ -8,6 +8,8 @@ import {
   type LabFormState,
 } from "@/app/encargos/lab-actions";
 import { packSheets, SHEET, STICKER_SIZE_CM, stickerFootprintMm } from "@/lib/lab/sheets";
+import { estimateSheets, type LabPricing } from "@/lib/lab/pricing";
+import { formatPrice } from "@/lib/format";
 
 const MAX_DESIGNS = 8;
 const MAX_MB = 15;
@@ -40,7 +42,7 @@ function DpiNote({ dpi }: { dpi: number | null }) {
   return <p className="lab-dpi lab-dpi--bad">Resolución baja ({dpi} dpi): elegí un tamaño menor o subí una imagen más grande.</p>;
 }
 
-export function StickerLab() {
+export function StickerLab({ pricing }: { pricing: LabPricing }) {
   const [designs, setDesigns] = useState<Design[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -228,6 +230,21 @@ export function StickerLab() {
             </strong>
             {layout.sheets.length > 0 && <span className="muted"> · {layout.sheets.map((s) => s.length).join(" + ")} por plancha</span>}
           </p>
+          {(() => {
+            const estimate = estimateSheets(pricing, layout.sheets.length);
+            if (!estimate) return null;
+            const next = pricing.tiers.find((tier) => tier.minSheets > estimate.sheets);
+            return (
+              <p className="lab-estimate" aria-live="polite">
+                Precio estimado: <strong>{formatPrice(estimate.totalMinor / 100)}</strong>{" "}
+                <span className="muted">
+                  ({estimate.sheets} × {formatPrice(estimate.unitMinor / 100)}
+                  {estimate.percent ? `, ${estimate.percent} % menos por cantidad` : ""})
+                  {next && ` · desde ${next.minSheets} planchas, ${next.percent} % menos`}. Te confirmamos el presupuesto final.
+                </span>
+              </p>
+            );
+          })()}
           {layout.unplaced.length > 0 && <p className="form-alert">Algún diseño no entra en la plancha: probá con un tamaño menor.</p>}
           <ul className="lab-sheets">
             {layout.sheets.slice(0, 4).map((sheet, index) => (

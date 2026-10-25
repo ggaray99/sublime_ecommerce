@@ -218,9 +218,16 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
         <section className="account__section admin-layout__main" aria-labelledby="productos-title">
           <div className="account__head">
             <h2 id="productos-title">Productos</h2>
-            <Link className="btn btn--acid" href="/admin/productos/nuevo">
-              Nuevo producto
-            </Link>
+            <div className="admin-toolbar">
+              {/* A plain link: the browser downloads the file. */}
+              <a href="/admin/productos/exportar" download>
+                Exportar planilla
+              </a>
+              <Link href="/admin/productos/importar">Importar planilla</Link>
+              <Link className="btn btn--acid" href="/admin/productos/nuevo">
+                Nuevo producto
+              </Link>
+            </div>
           </div>
 
           <p className="muted" role="status">

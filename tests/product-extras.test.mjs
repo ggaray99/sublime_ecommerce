@@ -99,3 +99,48 @@ describe("extras over PostgreSQL (PGlite)", () => {
     await assert.rejects(db.query("UPDATE products SET sale_percent = 10, sale_price_minor = 100 WHERE legacy_id = (SELECT legacy_id FROM products LIMIT 1)"));
   });
 });
+
+describe("duplicate product (PGlite)", () => {
+  it("copies texts, variants, prices and logistics as a draft, without stock", async () => {
+    const { createAdminRepository } = await import("../src/server/admin/repository.ts");
+    const db = new PGlite();
+    for (const text of [...sql("migrations"), ...sql("seed")]) await db.exec(text);
+    const query = { query: async (text, params) => (await db.query(text, params)).rows };
+    const [{ legacy_id: id }] = (await db.query("SELECT legacy_id FROM products WHERE status = 'active' ORDER BY legacy_id LIMIT 1")).rows;
+    await db.query("UPDATE products SET weight_g = 150 WHERE legacy_id = $1", [id]);
+    const copy = await createAdminRepository(query).duplicateProduct({ authUserId: "a", email: "a@example.com" }, id);
+    assert.equal(copy.status, "draft");
+    assert.match(copy.name, /\(copia\)$/);
+    assert.equal(copy.onHand, 0);
+    const [source, copied] = (
+      await db.query(
+        "SELECT p.legacy_id, p.weight_g, count(v.*)::int AS variants, min(v.price_minor) AS price FROM products p JOIN product_variants v ON v.product_id = p.id WHERE p.legacy_id IN ($1, $2) GROUP BY 1, 2 ORDER BY (p.legacy_id = $1) DESC",
+        [id, copy.id],
+      )
+    ).rows;
+    assert.deepEqual([copied.weight_g, copied.variants, copied.price], [source.weight_g, source.variants, source.price]);
+    await db.close();
+  });
+});
+
+describe("low stock alerts (PGlite)", () => {
+  it("announces each drop once and re-arms when stock comes back", async () => {
+    const { enqueueLowStock } = await import("../src/server/notifications/stock-alerts.ts");
+    const db = new PGlite();
+    for (const text of [...sql("migrations"), ...sql("seed")]) await db.exec(text);
+    const query = { query: async (text, params) => (await db.query(text, params)).rows };
+    await db.exec("UPDATE inventory SET on_hand = 100, reserved = 0");
+    assert.equal(await enqueueLowStock(query), 0);
+    await db.exec("UPDATE products SET low_stock_threshold = 3 WHERE legacy_id = 'p08'");
+    await db.exec("UPDATE inventory SET on_hand = 3 FROM product_variants v WHERE v.id = inventory.variant_id AND v.sku = 'SUB-P08'");
+    assert.equal(await enqueueLowStock(query), 1);
+    assert.equal(await enqueueLowStock(query), 0, "already announced");
+    const [{ payload }] = (await db.query("SELECT payload FROM notification_outbox WHERE kind = 'stock.low'")).rows;
+    assert.deepEqual(payload.items.map((item) => [item.sku, item.available, item.threshold]), [["SUB-P08", 3, 3]]);
+    await db.exec("UPDATE inventory SET on_hand = 10 FROM product_variants v WHERE v.id = inventory.variant_id AND v.sku = 'SUB-P08'");
+    await enqueueLowStock(query);
+    await db.exec("UPDATE inventory SET on_hand = 2 FROM product_variants v WHERE v.id = inventory.variant_id AND v.sku = 'SUB-P08'");
+    assert.equal(await enqueueLowStock(query), 1, "a new drop after restocking");
+    await db.close();
+  });
+});

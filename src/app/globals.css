@@ -3628,3 +3628,20 @@ body:has(.admin-bar) .site-footer {
 .request-status--delivered { background: #a7f3c4; }
 .request-status--declined,
 .request-status--cancelled { background: var(--light); }
+
+.steps-list {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+
+.import-report {
+  display: grid;
+  gap: 12px;
+}
+
+.lab-estimate {
+  margin: 0;
+  font-size: var(--fs-sub);
+}

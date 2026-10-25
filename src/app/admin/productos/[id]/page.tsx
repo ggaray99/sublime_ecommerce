@@ -23,6 +23,7 @@ import { optionsLabel } from "@/server/admin/variants";
 import { hasMediaStorage } from "@/server/media/public-files";
 import { ProductExtrasForm } from "@/components/admin/product-extras-form";
 import { toArgentinaInput } from "@/server/admin/product-extras";
+import { duplicateProductAction } from "@/app/admin/actions";
 
 export const metadata: Metadata = {
   title: "Editar producto",
@@ -75,6 +76,12 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
       <section className="account__section" aria-labelledby="producto-title">
         <div className="account__head">
           <h2 id="producto-title">{product.name}</h2>
+          <form action={duplicateProductAction}>
+            <input type="hidden" name="productId" value={product.id} />
+            <button type="submit" className="btn btn--ghost">
+              Duplicar
+            </button>
+          </form>
           {product.status === "active" ? (
             <Link className="btn btn--acid" href={`/producto/${product.slug}`}>
               Ver en la tienda
@@ -89,6 +96,11 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
         {query.creado && (
           <p className="panel panel--muted" role="status">
             Producto creado. {product.status === "draft" && "Está en borrador: publicalo cuando esté completo."}
+          </p>
+        )}
+        {query.copia && (
+          <p className="panel panel--muted" role="status">
+            Copia creada en borrador, con las mismas variantes y precios. Cargá el stock y las fotos, y publicala cuando esté lista.
           </p>
         )}
         {query.imagen === "error" && (

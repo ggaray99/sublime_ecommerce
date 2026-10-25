@@ -199,3 +199,11 @@ export async function updateVariantAction(_state: AdminFormState, form: FormData
   catalogChanged(`/admin/productos/${values.productId}`);
   return { ok: "Guardado.", values };
 }
+
+/** Copies a product as a draft and opens the copy. */
+export async function duplicateProductAction(form: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const copy = await getAdminRepository().duplicateProduct(admin, String(form.get("productId") ?? ""));
+  catalogChanged("/admin");
+  redirect(`/admin/productos/${copy.id}?copia=1`);
+}

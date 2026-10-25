@@ -1,7 +1,7 @@
 import { categoryById, type CategoryId } from "../data/categories.ts";
 import type { Product, ThemeId } from "../data/products";
 
-export type ProductType = "estandar" | "personalizado";
+export type ProductType = "estandar" | "personalizado" | "oferta";
 export type SortOption = "destacados" | "nombre-asc" | "nombre-desc" | "precio-asc" | "precio-desc";
 
 export type CatalogFilters = {
@@ -31,7 +31,12 @@ export const sortOptions: { value: SortOption; label: string }[] = [
 export const typeOptions: { value: ProductType; label: string }[] = [
   { value: "estandar", label: "Estándar (al carrito)" },
   { value: "personalizado", label: "Personalizado (a presupuestar)" },
+  { value: "oferta", label: "En oferta" },
 ];
+
+/** A product sale is running: the store shows the regular price crossed out. */
+export const isOnSale = (product: Pick<Product, "price" | "regularPrice">) =>
+  product.price !== null && product.regularPrice !== undefined && product.regularPrice > product.price;
 
 /** URL keys used by /tienda. Kept in Spanish so shared links read naturally. */
 const keys = { query: "q", category: "categoria", type: "tipo", theme: "tema", sort: "orden" } as const;
@@ -90,6 +95,7 @@ export function filterProducts(products: readonly Product[], filters: CatalogFil
     if (filters.theme !== "todas" && product.theme !== filters.theme) return false;
     if (filters.type === "estandar" && product.requiresQuote) return false;
     if (filters.type === "personalizado" && !product.requiresQuote) return false;
+    if (filters.type === "oferta" && !isOnSale(product)) return false;
     if (!terms.length) return true;
     const haystack = normalize(`${product.name} ${product.tags.join(" ")} ${product.code ?? ""}`);
     return terms.every((term) => haystack.includes(term));

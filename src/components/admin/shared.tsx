@@ -100,6 +100,7 @@ function describe(entry: AuditEntry): string {
     "point.delete": "Punto de venta eliminado",
     "home.hero": "Portada actualizada",
     "settings.contact": changes.whatsapp ? "WhatsApp actualizado" : "WhatsApp quitado",
+    "settings.lab_pricing": "Precios de stickers a medida actualizados",
     "variant.options": "Opciones de variantes actualizadas",
     "variant.update": "Variante actualizada",
     "promotion.create": "Promoción creada",
@@ -108,6 +109,8 @@ function describe(entry: AuditEntry): string {
     "promotion.deactivate": "Promoción pausada",
     "promotion.delete": "Promoción eliminada",
     "product.extras": "Venta y logística actualizadas",
+    "product.duplicate": `Copia de ${changes.from}`,
+    "product.import": `Planilla importada (${changes.sku})`,
   };
   if (verbs[entry.action]) return verbs[entry.action];
   if (entry.action === "product.create") return `Alta de "${changes.name}" (${productStatusLabel[changes.status as ProductStatus] ?? changes.status})`;
