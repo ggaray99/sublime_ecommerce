@@ -10,6 +10,8 @@ VPS de Hostinger (KVM 2, Ubuntu 24.04, `72.60.149.168`). Comparte el servidor co
 | Proxy con HTTPS | Traefik de `/root/docker-compose.yml` (el mismo de n8n). Sublime solo le agrega etiquetas |
 | Base | Contenedor `sublime-postgres-1`, una base por entorno, puerto `127.0.0.1:5433` (no sale a internet) |
 | Respaldos | `/srv/sublime/backups` (14 días) + copia cifrada en Google Drive, carpeta `sublime-backups` (60 días). Todos los días a las 03:30 UTC |
+| Encargos en Drive | Cada encargo nuevo se copia a Google Drive (`Sublime Encargos/ENC-… - Cliente - Tipo`) con `detalle.txt` y sus archivos por tipo. Cron cada 2 minutos (`deploy/drive-sync.py`, log `/var/log/sublime-drive.log`). Sin cifrar, para abrirlos directo. Ya copiados: `/srv/sublime/.drive-synced` |
+| Avisos | Cola de avisos procesada cada minuto (`deploy/outbox.sh`, log `/srv/sublime/outbox.log`). Canal opcional: `NOTIFY_WEBHOOK_URL` en `staging.env` |
 | Despliegue | Automático: el VPS revisa GitHub cada minuto y despliega la rama de `deploy.conf`. Log: `/srv/sublime/auto-deploy.log` |
 
 ## Estructura de `/srv/sublime`
