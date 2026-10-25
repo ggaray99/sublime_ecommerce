@@ -90,6 +90,20 @@ function describe(entry: AuditEntry): string {
     const verb = { create: "Categoría creada", update: "Categoría actualizada", image: "Imagen de categoría actualizada", delete: "Categoría eliminada" };
     return verb[entry.action.slice(9) as keyof typeof verb] ?? entry.action;
   }
+  const verbs: Record<string, string> = {
+    "shipping.create": "Regla de envío creada",
+    "shipping.update": "Regla de envío actualizada",
+    "shipping.delete": "Regla de envío eliminada",
+    "shipping.pickup": "Punto de retiro actualizado",
+    "point.create": "Punto de venta creado",
+    "point.update": "Punto de venta actualizado",
+    "point.delete": "Punto de venta eliminado",
+    "home.hero": "Portada actualizada",
+    "settings.contact": changes.whatsapp ? "WhatsApp actualizado" : "WhatsApp quitado",
+    "variant.options": "Opciones de variantes actualizadas",
+    "variant.update": "Variante actualizada",
+  };
+  if (verbs[entry.action]) return verbs[entry.action];
   if (entry.action === "product.create") return `Alta de "${changes.name}" (${productStatusLabel[changes.status as ProductStatus] ?? changes.status})`;
   if (entry.action === "product.update") {
     // Entries before 0004 stored { before: {...}, after: {...} } with status and price only.
@@ -108,6 +122,31 @@ function describe(entry: AuditEntry): string {
   return entry.action;
 }
 
+/** Areas of the panel, as the activity page filters them. */
+export const AUDIT_AREAS = {
+  product: "Productos",
+  inventory: "Stock",
+  category: "Categorías",
+  shipping: "Envíos",
+  point: "Puntos de venta",
+  home: "Portada",
+  settings: "Ajustes",
+  integration: "Integraciones",
+  admin: "Accesos",
+} as const;
+
+/** What the entry is about: a name when the change stored one, otherwise the area and id. */
+function subject(entry: AuditEntry): string {
+  const name = (entry.changes as { name?: unknown; label?: unknown }).name ?? (entry.changes as { label?: unknown }).label;
+  if (entry.entity === "admin") return "Accesos";
+  if (entry.entity === "integration") return `Integración ${entry.entityId}`;
+  if (entry.entity === "home") return "Portada";
+  if (entry.entity === "settings") return "Ajustes";
+  if ((entry.entity === "point" || entry.entity === "shipping") && typeof name === "string") return name;
+  if (entry.entity === "point" || entry.entity === "shipping") return AUDIT_AREAS[entry.entity];
+  return entry.entityId;
+}
+
 export function AuditList({ entries }: { entries: AuditEntry[] }) {
   if (!entries.length) return <p className="muted">Todavía no hay cambios registrados.</p>;
   return (
@@ -115,7 +154,7 @@ export function AuditList({ entries }: { entries: AuditEntry[] }) {
       {entries.map((entry) => (
         <li key={entry.id}>
           <p>
-            <strong>{entry.entity === "admin" ? "Accesos" : entry.entity === "integration" ? `Integración ${entry.entityId}` : entry.entityId}</strong> · {describe(entry)}
+            <strong>{subject(entry)}</strong> · {describe(entry)}
           </p>
           <p className="muted">
             {entry.actorEmail} · <time dateTime={entry.createdAt.toISOString()}>{dateFormat(entry.createdAt)}</time>

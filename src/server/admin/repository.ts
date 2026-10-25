@@ -44,7 +44,7 @@ export type AuditEntry = {
   createdAt: Date;
 };
 
-export type AuditEntity = "product" | "inventory" | "admin" | "category" | "integration";
+export type AuditEntity = "product" | "inventory" | "admin" | "category" | "integration" | "shipping" | "point" | "home" | "settings";
 const AUDIT_ENTITY_ID = /^[a-z0-9-]{1,40}$/;
 
 export type ProductSearchResult = { items: AdminProduct[]; total: number; page: number; pageSize: number; pages: number };
@@ -523,15 +523,16 @@ export function createAdminRepository(sql: QueryFn) {
     },
 
     /** `entity` narrows ids shared by different kinds (a product and a category could both be "stickers"). */
-    async listAudit(options: { entity?: AuditEntity; entityId?: string; limit?: number } = {}): Promise<AuditEntry[]> {
+    /** `before` pages back: entries older than that id (the activity page's "ver anteriores"). */
+    async listAudit(options: { entity?: AuditEntity; entityId?: string; limit?: number; before?: string } = {}): Promise<AuditEntry[]> {
       if (options.entityId && !AUDIT_ENTITY_ID.test(options.entityId)) return [];
       const rows = (await sql.query(
         `SELECT id, actor_email, action, entity, entity_id, changes, created_at
          FROM audit_logs
-         WHERE ($1::text IS NULL OR entity_id = $1) AND ($3::text IS NULL OR entity = $3)
-         ORDER BY created_at DESC, id DESC
+         WHERE ($1::text IS NULL OR entity_id = $1) AND ($3::text IS NULL OR entity = $3) AND ($4::bigint IS NULL OR id < $4)
+         ORDER BY id DESC
          LIMIT $2`,
-        [options.entityId ?? null, options.limit ?? 50, options.entity ?? null],
+        [options.entityId ?? null, options.limit ?? 50, options.entity ?? null, options.before && /^\d{1,18}$/.test(options.before) ? options.before : null],
       )) as {
         id: string | number;
         actor_email: string;

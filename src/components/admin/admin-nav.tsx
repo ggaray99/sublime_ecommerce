@@ -10,6 +10,7 @@ const LINKS = [
   { id: "categorias", href: "/admin/categorias", label: "Categorías" },
   { id: "integraciones", href: "/admin/integraciones", label: "Integraciones (API)" },
   { id: "ajustes", href: "/admin/ajustes", label: "Ajustes" },
+  { id: "actividad", href: "/admin/actividad", label: "Actividad" },
 ] as const;
 
 export function AdminNav({ current }: { current: (typeof LINKS)[number]["id"] }) {

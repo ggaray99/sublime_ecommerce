@@ -6,7 +6,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
-import { AdminUnavailable, AuditList, productStatusLabel, stockLabel } from "@/components/admin/shared";
+import { AdminUnavailable, productStatusLabel, stockLabel } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { themes } from "@/data/products";
 import { formatPrice } from "@/lib/format";
@@ -189,11 +189,10 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
 
   const search = parseProductSearch(await searchParams);
   const repo = getAdminRepository();
-  const [result, facets, categoryList, audit] = await Promise.all([
+  const [result, facets, categoryList] = await Promise.all([
     repo.searchProducts(search),
     repo.productFacets(),
     getCategoryRepository().listCategories(),
-    repo.listAudit({ limit: 10 }),
   ]);
   const categories = categoryList.map((category) => ({
     value: category.id,
@@ -288,11 +287,7 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
         </section>
       </div>
 
-      <section className="account__section" aria-labelledby="auditoria-title">
-        <h2 id="auditoria-title">Últimos cambios</h2>
-        <AuditList entries={audit} />
-      </section>
-    </div>
+</div>
   );
 }
 
