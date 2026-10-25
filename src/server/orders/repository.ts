@@ -25,6 +25,9 @@ export type ShippingSnapshot = {
   etaMaxDays: number | null;
 };
 
+/** One promotion applied to an order (name and amount as they were). */
+export type OrderPromotion = { promotionId: string; name: string; kind: string; amountMinor: number; coupon: string | null; freeShipping?: boolean };
+
 export type Tracking = { carrier: string; code: string; url: string };
 
 export type OrderItem = { sku: string; productId: string; name: string; options: Record<string, string>; quantity: number; unitPriceMinor: number; lineTotalMinor: number };
@@ -41,6 +44,11 @@ export type Order = {
   delivery: Delivery;
   status: OrderStatus;
   subtotalMinor: number;
+  /** Promotions and coupon, frozen at checkout. */
+  discountMinor: number;
+  promotions: OrderPromotion[];
+  couponCode: string | null;
+  paymentPreference: "any" | "transfer";
   shippingMinor: number | null;
   shipping: ShippingSnapshot | null;
   tracking: Tracking | null;
@@ -64,9 +72,14 @@ export type NewOrder = {
   shipping: ShippingSnapshot;
   /** Lines already priced by the server quote (never by the browser). */
   lines: { sku: string; productId: string; name: string; quantity: number; unitPriceMinor: number }[];
+  /** Discount the server computed (src/lib/promotions.ts); 0 without promotions. */
+  discountMinor?: number;
+  promotions?: OrderPromotion[];
+  couponCode?: string | null;
+  paymentPreference?: "any" | "transfer";
 };
 
-type OrderErrorCode = "not_found" | "invalid_transition" | "insufficient_stock" | "duplicate";
+type OrderErrorCode = "not_found" | "invalid_transition" | "insufficient_stock" | "duplicate" | "coupon_exhausted";
 
 export class OrderError extends Error {
   readonly code: OrderErrorCode;
@@ -88,6 +101,10 @@ type OrderRow = {
   delivery: Delivery;
   status: OrderStatus;
   subtotal_minor: string | number;
+  discount_minor?: string | number;
+  promotions?: OrderPromotion[];
+  coupon_code?: string | null;
+  payment_preference?: "any" | "transfer";
   shipping_minor: string | number | null;
   shipping: ShippingSnapshot | null;
   tracking: Tracking | null;
@@ -108,6 +125,10 @@ const toOrder = (row: OrderRow): Order => ({
   delivery: row.delivery,
   status: row.status,
   subtotalMinor: Number(row.subtotal_minor),
+  discountMinor: Number(row.discount_minor ?? 0),
+  promotions: row.promotions ?? [],
+  couponCode: row.coupon_code ?? null,
+  paymentPreference: row.payment_preference ?? "any",
   shippingMinor: row.shipping_minor === null ? null : Number(row.shipping_minor),
   shipping: row.shipping,
   tracking: row.tracking,
@@ -120,6 +141,10 @@ const toOrder = (row: OrderRow): Order => ({
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const pgCode = (error: unknown) => (error as { code?: string } | null)?.code;
 const pgConstraint = (error: unknown) => (error as { constraint?: string } | null)?.constraint ?? "";
+
+/** What the customer pays: products − discounts + shipping. */
+export const orderTotalMinor = (order: Pick<Order, "subtotalMinor" | "discountMinor" | "shippingMinor">) =>
+  order.subtotalMinor - order.discountMinor + (order.shippingMinor ?? 0);
 
 /** Display number: SUB-1001. */
 export const orderNumber = (order: Pick<Order, "number">) => `SUB-${order.number}`;
@@ -246,10 +271,23 @@ export function createOrderRepository(sql: QueryFn) {
            ),
            created AS (
              INSERT INTO orders (access_token, customer_id, contact_name, contact_email, contact_phone, delivery, notes,
-                                 subtotal_minor, idempotency_key, expires_at, shipping_minor, shipping)
-             SELECT $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, now() + make_interval(mins => $11), $13, $14::jsonb
+                                 subtotal_minor, idempotency_key, expires_at, shipping_minor, shipping,
+                                 discount_minor, promotions, coupon_code, payment_preference)
+             SELECT $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, now() + make_interval(mins => $11), $13, $14::jsonb,
+                    $15, $16::jsonb, $17, $18
              WHERE (SELECT count(*) FROM req) = $12
              RETURNING *
+           ),
+           -- One use per promotion; a coupon past its limit breaks promotions_uses_limit and nothing is written.
+           redeemed AS (
+             INSERT INTO promotion_redemptions (promotion_id, order_id, discount_minor)
+             SELECT (p->>'promotionId')::uuid, created.id, sum((p->>'amountMinor')::bigint)
+             FROM created, jsonb_array_elements($16::jsonb) AS p
+             GROUP BY 1, 2
+             RETURNING promotion_id
+           ),
+           used AS (
+             UPDATE promotions SET uses_count = uses_count + 1 WHERE id IN (SELECT promotion_id FROM redeemed)
            ),
            items AS (
              INSERT INTO order_items (order_id, variant_id, product_legacy_id, sku, name, options, quantity, unit_price_minor, line_total_minor)
@@ -287,12 +325,19 @@ export function createOrderRepository(sql: QueryFn) {
             lines.length,
             input.shipping.costMinor,
             JSON.stringify(input.shipping),
+            input.discountMinor ?? 0,
+            JSON.stringify(input.promotions ?? []),
+            input.couponCode ?? null,
+            input.paymentPreference ?? "any",
           ],
         )) as OrderRow[];
         // A SKU that disappeared between the quote and the order: nothing was written.
         if (!row) throw new OrderError("insufficient_stock", "Un producto dejó de estar disponible. Revisá el carrito.");
         return toOrder(row);
       } catch (error) {
+        if (pgCode(error) === "23514" && pgConstraint(error) === "promotions_uses_limit") {
+          throw new OrderError("coupon_exhausted", "El cupón se terminó de usar mientras completabas el pedido. Quitalo y confirmá de nuevo.");
+        }
         if (pgCode(error) === "23514" && pgConstraint(error).startsWith("inventory")) {
           throw new OrderError("insufficient_stock", "Mientras completabas el pedido se agotó el stock de algún producto. Revisá el carrito.");
         }
@@ -332,6 +377,12 @@ export function createOrderRepository(sql: QueryFn) {
          ),
          history AS (
            ${event("'system'", "pending_payment", "expired", `'Venció la reserva de stock sin pago confirmado.'`)} FROM expired
+         ),
+         -- An unpaid order gives its coupon uses back (the order keeps its frozen discount).
+         freed AS (DELETE FROM promotion_redemptions WHERE order_id IN (SELECT id FROM expired) RETURNING promotion_id),
+         unused AS (
+           UPDATE promotions p SET uses_count = greatest(0, p.uses_count - f.n)
+           FROM (SELECT promotion_id, count(*)::int AS n FROM freed GROUP BY promotion_id) f WHERE p.id = f.promotion_id
          )
          SELECT (SELECT count(*) FROM due)::int AS reservations, (SELECT count(*) FROM expired)::int AS orders`,
       )) as { reservations: number; orders: number }[];

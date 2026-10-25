@@ -26,6 +26,8 @@ export type QuotedLine = {
   lineTotalMinor: number;
   /** null when stock is not tracked for this SKU. */
   available: number | null;
+  /** For category promotions (empty in the static catalog). */
+  categoryId: string;
 };
 
 export type CartQuote = {
@@ -112,6 +114,7 @@ export async function quoteCart(
       unitPriceMinor: variant.unitPriceMinor,
       lineTotalMinor: multiplyMinor(variant.unitPriceMinor, quantity),
       available,
+      categoryId: variant.categoryId ?? "",
     });
   }
 

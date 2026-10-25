@@ -5,6 +5,9 @@ import { parseAddress, type FieldErrors } from "../customers/validation.ts";
 import type { InventoryRepository } from "../inventory/repository.ts";
 import type { ShippingRepository } from "../shipping/repository.ts";
 import { quoteShipping } from "../shipping/rules.ts";
+import { normalizeCoupon, type PaymentPreference, type PromotionResult } from "../../lib/promotions.ts";
+import { discountQuote } from "../promotions/apply.ts";
+import type { PromotionRepository } from "../promotions/repository.ts";
 import { OrderError, type Delivery, type Order, type OrderRepository, type ShippingSnapshot } from "./repository.ts";
 
 export type CheckoutInput = {
@@ -15,6 +18,8 @@ export type CheckoutInput = {
   delivery: Delivery;
   notes: string;
   lines: { productId: string; quantity: number; sku?: string }[];
+  couponCode: string;
+  paymentPreference: PaymentPreference;
 };
 
 type Data = Record<string, unknown>;
@@ -56,6 +61,10 @@ export function parseCheckout(data: Data): { ok: true; value: CheckoutInput } | 
   const notes = text(data, "notes");
   if (notes.length > 500) errors.notes = "Hasta 500 caracteres.";
 
+  const couponCode = normalizeCoupon(text(data, "couponCode"));
+  if (couponCode && !/^[A-Z0-9-]{3,30}$/.test(couponCode)) errors.couponCode = "Revisá el código del cupón.";
+  const paymentPreference: PaymentPreference = text(data, "paymentPreference") === "transfer" ? "transfer" : "any";
+
   let lines: CheckoutInput["lines"] = [];
   try {
     const parsed = parseQuoteRequest({ lines: JSON.parse(text(data, "cart") || "[]") });
@@ -67,14 +76,15 @@ export function parseCheckout(data: Data): { ok: true; value: CheckoutInput } | 
 
   return Object.keys(errors).length
     ? { ok: false, errors }
-    : { ok: true, value: { idempotencyKey, contactName, contactEmail, contactPhone, delivery, notes, lines } };
+    : { ok: true, value: { idempotencyKey, contactName, contactEmail, contactPhone, delivery, notes, lines, couponCode, paymentPreference } };
 }
 
 export type CheckoutResult =
   | { ok: true; order: Order }
   | { ok: false; reason: "cart"; quote: CartQuote; issues: QuoteIssue[] }
   | { ok: false; reason: "stock"; message: string }
-  | { ok: false; reason: "shipping"; message: string };
+  | { ok: false; reason: "shipping"; message: string }
+  | { ok: false; reason: "coupon"; message: string };
 
 /**
  * Places an order from the browser cart: releases expired holds, recomputes
@@ -83,7 +93,14 @@ export type CheckoutResult =
 export async function checkout(
   input: CheckoutInput,
   customerId: string | null,
-  deps: { catalog: CatalogRepository; inventory: InventoryRepository; orders: OrderRepository; shipping: ShippingRepository },
+  deps: {
+    catalog: CatalogRepository;
+    inventory: InventoryRepository;
+    orders: OrderRepository;
+    shipping: ShippingRepository;
+    /** Without it (no database for promotions) nothing is discounted. */
+    promotions?: Pick<PromotionRepository, "listActive">;
+  },
 ): Promise<CheckoutResult> {
   // Retrying the same submit returns the order already created.
   const previous = await deps.orders.findByIdempotencyKey(input.idempotencyKey);
@@ -93,6 +110,16 @@ export async function checkout(
   const quote = await quoteCart(input.lines, deps);
   if (!quote.valid) return { ok: false, reason: "cart", quote, issues: quote.issues };
 
+  // Promotions are recomputed here too: what the browser showed is only a preview.
+  const discount: PromotionResult = discountQuote(quote, deps.promotions ? await deps.promotions.listActive() : [], {
+    couponCode: input.couponCode,
+    paymentPreference: input.paymentPreference,
+  });
+  if (input.couponCode && discount.coupon?.status !== "applied") {
+    return { ok: false, reason: "coupon", message: discount.coupon?.message ?? "Ese cupón no existe." };
+  }
+  const payableMinor = quote.subtotalMinor - discount.discountMinor;
+
   // Shipping is quoted on the server too: the browser only shows an estimate.
   let shipping: ShippingSnapshot;
   if (input.delivery.method === "pickup") {
@@ -101,14 +128,15 @@ export async function checkout(
     shipping = { method: "pickup", costMinor: 0, label: "Retiro en el taller", ruleId: null, free: false, etaMinDays: null, etaMaxDays: null };
   } else {
     const rules = await deps.shipping.listRules({ activeOnly: true });
-    const estimate = quoteShipping(rules, input.delivery.address, quote.subtotalMinor);
+    // "Free from $X" rules look at what is paid after discounts.
+    const estimate = quoteShipping(rules, input.delivery.address, payableMinor);
     if (!estimate.covered) return { ok: false, reason: "shipping", message: estimate.reason };
     shipping = {
       method: "shipping",
-      costMinor: estimate.costMinor,
+      costMinor: discount.freeShipping ? 0 : estimate.costMinor,
       label: estimate.label,
       ruleId: estimate.ruleId,
-      free: estimate.free,
+      free: estimate.free || discount.freeShipping,
       etaMinDays: estimate.etaMinDays,
       etaMaxDays: estimate.etaMaxDays,
     };
@@ -131,9 +159,14 @@ export async function checkout(
         quantity: line.quantity,
         unitPriceMinor: line.unitPriceMinor,
       })),
+      discountMinor: discount.discountMinor,
+      promotions: discount.applied,
+      couponCode: discount.coupon?.status === "applied" ? discount.coupon.code : null,
+      paymentPreference: input.paymentPreference,
     });
     return { ok: true, order };
   } catch (error) {
+    if (error instanceof OrderError && error.code === "coupon_exhausted") return { ok: false, reason: "coupon", message: error.message };
     if (error instanceof OrderError && error.code === "insufficient_stock") {
       // Someone else took the last units between the quote and the order: show what is left.
       const fresh = await quoteCart(input.lines, deps);

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useId, useState } from "react";
-import { placeOrderAction, type CheckoutState } from "@/app/checkout/actions";
+import { useActionState, useEffect, useId, useState, useTransition } from "react";
+import { placeOrderAction, previewDiscountAction, type CheckoutState, type DiscountPreview } from "@/app/checkout/actions";
 import { Field } from "@/components/admin/forms";
 import type { Product } from "@/data/products";
 import { formatPrice } from "@/lib/format";
@@ -47,6 +47,20 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
   // Where the estimate comes from: follows what is typed in province, city and postal code.
   const [typed, setTyped] = useState<{ province?: string; city?: string; postalCode?: string }>({});
   const ids = useId();
+  // Coupon and payment choice: the server previews the discount (and applies it again on confirm).
+  const [couponDraft, setCouponDraft] = useState(state.values?.couponCode ?? "");
+  const [coupon, setCoupon] = useState(state.values?.couponCode ?? "");
+  const [payment, setPayment] = useState<"any" | "transfer">(state.values?.paymentPreference === "transfer" ? "transfer" : "any");
+  const [preview, setPreview] = useState<DiscountPreview | null>(null);
+  const [checking, startChecking] = useTransition();
+  const cartJson = JSON.stringify(lines);
+  useEffect(() => {
+    if (!lines.length) return;
+    startChecking(async () => {
+      setPreview(await previewDiscountAction({ cart: cartJson, couponCode: coupon, paymentPreference: payment }).catch(() => null));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cartJson stands for the lines
+  }, [cartJson, coupon, payment]);
 
   if (!hydrated) return <p className="panel panel--muted">Cargando tu carrito…</p>;
 
@@ -70,11 +84,14 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
     postalCode: typed.postalCode ?? value("postalCode", address?.postalCode ?? ""),
   };
   const subtotalMinor = Math.round(subtotal * 100);
+  const discountMinor = preview?.discountMinor ?? 0;
+  const freeShipping = preview?.freeShipping ?? false;
   const estimate =
     method === "shipping" && destination.province && destination.postalCode
-      ? quoteShipping(shippingRules, destination, subtotalMinor)
+      ? quoteShipping(shippingRules, destination, subtotalMinor - discountMinor)
       : null;
-  const shippingMinor = method === "pickup" ? 0 : estimate?.covered ? estimate.costMinor : null;
+  const shippingMinor = method === "pickup" || freeShipping ? 0 : estimate?.covered ? estimate.costMinor : null;
+  const couponState = coupon && preview?.coupon?.code === coupon.toUpperCase().replace(/\s+/g, "") ? preview.coupon : null;
   const issueFor = (productId: string, sku?: string) =>
     state.issues?.find((issue) => issue.productId === productId && (issue.sku ?? "") === (sku ?? ""))?.message ??
     state.issues?.find((issue) => issue.productId === productId && !issue.sku)?.message;
@@ -90,7 +107,8 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
       }}
     >
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
-      <input type="hidden" name="cart" value={JSON.stringify(lines)} />
+      <input type="hidden" name="cart" value={cartJson} />
+      <input type="hidden" name="couponCode" value={couponState?.applied ? coupon : ""} />
 
       <div className="checkout-form__fields">
         {state.error && (
@@ -169,6 +187,69 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
           )}
         </fieldset>
 
+        <fieldset className="admin-fieldset">
+          <legend>Pago</legend>
+          <div className="delivery-choice">
+            {[
+              { value: "any" as const, label: "Lo coordinamos después", hint: "Te escribimos con los medios disponibles." },
+              {
+                value: "transfer" as const,
+                label: preview?.transferPercent ? `Transferencia o efectivo (−${preview.transferPercent} %)` : "Transferencia o efectivo",
+                hint: preview?.transferPercent ? "El descuento ya se ve en el total." : "Te pasamos los datos al confirmar.",
+              },
+            ].map((option) => (
+              <label key={option.value} className="delivery-choice__option">
+                <input type="radio" name="paymentPreference" value={option.value} checked={payment === option.value} onChange={() => setPayment(option.value)} />
+                <span>
+                  <strong>{option.label}</strong>
+                  <small>{option.hint}</small>
+                </span>
+              </label>
+            ))}
+          </div>
+          <div className="field">
+            <label htmlFor={`${ids}-coupon`}>Cupón de descuento</label>
+            <div className="coupon-row">
+              <input
+                id={`${ids}-coupon`}
+                value={couponDraft}
+                autoComplete="off"
+                autoCapitalize="characters"
+                placeholder="Ej.: VERANO10"
+                onChange={(event) => setCouponDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  // Enter applies the coupon instead of submitting the order.
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    setCoupon(couponDraft.trim());
+                  }
+                }}
+              />
+              {coupon && couponState?.applied ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => {
+                    setCoupon("");
+                    setCouponDraft("");
+                  }}
+                >
+                  Quitar
+                </button>
+              ) : (
+                <button type="button" className="btn btn--coal" disabled={!couponDraft.trim() || checking} onClick={() => setCoupon(couponDraft.trim())}>
+                  Aplicar
+                </button>
+              )}
+            </div>
+            {(couponState || state.fields?.couponCode) && (
+              <p className={couponState?.applied ? "field__hint" : "field__error"} aria-live="polite">
+                {couponState?.message ?? state.fields?.couponCode}
+              </p>
+            )}
+          </div>
+        </fieldset>
+
         <Field name="notes" label="Comentarios del pedido" state={state} defaultValue={value("notes")} hint="Opcional (hasta 500 caracteres)." multiline />
       </div>
 
@@ -194,11 +275,21 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
             <dt>Productos ({count})</dt>
             <dd>{formatPrice(subtotal)}</dd>
           </div>
+          {preview?.lines
+            .filter((line) => line.amountMinor > 0)
+            .map((line) => (
+              <div key={line.name} className="summary__discount">
+                <dt>{line.name}</dt>
+                <dd>−{formatPrice(line.amountMinor / 100)}</dd>
+              </div>
+            ))}
           <div>
             <dt>Envío</dt>
             <dd>
               {method === "pickup"
                 ? "Sin cargo (retiro)"
+                : freeShipping
+                  ? "Gratis (promoción)"
                 : !estimate
                   ? "Completá la dirección"
                   : estimate.covered
@@ -210,7 +301,7 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
           </div>
           <div className="summary__total">
             <dt>Total</dt>
-            <dd>{formatPrice((subtotalMinor + (shippingMinor ?? 0)) / 100)}</dd>
+            <dd>{formatPrice((subtotalMinor - discountMinor + (shippingMinor ?? 0)) / 100)}</dd>
           </div>
         </dl>
         {estimate?.covered && (
@@ -230,8 +321,8 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
           {pending ? "Confirmando…" : "Confirmar pedido"}
         </button>
         <p className="fine-print">
-          Al confirmar reservamos el stock por 15 minutos y te escribimos para coordinar el pago. Precios y envío se
-          recalculan al confirmar.
+          Al confirmar reservamos el stock por 15 minutos y te escribimos para coordinar el pago. Precios, descuentos y
+          envío se recalculan al confirmar.
         </p>
         {state.issues && (
           <Link className="link-button" href="/carrito">

@@ -371,6 +371,22 @@ textarea {
   font-weight: 800;
 }
 
+.badge--ok {
+  background: #d9f2e1;
+  color: #145c30;
+}
+
+.promo-pair {
+  display: contents;
+}
+
+.promo-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 12px;
+}
+
 .badge--pending {
   border-style: dashed;
   background: var(--light);
@@ -1781,6 +1797,22 @@ li:nth-child(3n) > .category-card .category-card__body {
   font-weight: 800;
 }
 
+.summary .summary__discount dt,
+.summary .summary__discount dd {
+  color: #157a3c;
+}
+
+.coupon-row {
+  display: flex;
+  gap: 8px;
+}
+
+.coupon-row input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+}
+
 .summary .summary__total {
   border-bottom: 0;
   padding-top: 12px;
@@ -3110,6 +3142,11 @@ body:has(.admin-bar) .site-footer {
 .order-items tfoot th,
 .order-items tfoot td {
   text-align: right;
+}
+
+.order-items__discount th,
+.order-items__discount td {
+  color: #157a3c;
 }
 
 .order-items__total th,

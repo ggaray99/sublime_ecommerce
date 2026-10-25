@@ -1,5 +1,6 @@
 import { getSql, hasDatabase } from "../db/client.ts";
 import { createShippingRepository, type ShippingRepository } from "../shipping/repository.ts";
+import { createPromotionRepository, type PromotionRepository } from "../promotions/repository.ts";
 import { createOrderRepository, type OrderRepository } from "./repository.ts";
 
 /** Real orders exist only where the database does (staging/previews today). */
@@ -11,4 +12,8 @@ export function getOrderRepository(): OrderRepository {
 
 export function getShippingRepository(): ShippingRepository {
   return createShippingRepository(getSql());
+}
+
+export function getPromotionRepository(): PromotionRepository {
+  return createPromotionRepository(getSql());
 }

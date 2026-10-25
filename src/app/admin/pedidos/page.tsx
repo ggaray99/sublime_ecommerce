@@ -9,7 +9,7 @@ import { argentinaTime, orderStatusLabel } from "@/components/orders/order-view"
 import { PageIntro } from "@/components/page-intro";
 import { formatPrice } from "@/lib/format";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
-import { ORDER_STATUSES, orderNumber, type OrderStatus } from "@/server/orders/repository";
+import { ORDER_STATUSES, orderNumber, orderTotalMinor, type OrderStatus } from "@/server/orders/repository";
 import { getOrderRepository } from "@/server/orders/session";
 
 export const metadata: Metadata = {
@@ -75,7 +75,7 @@ async function Orders({ searchParams }: { searchParams: PageProps<"/admin/pedido
                       <span className="muted">{order.contactEmail}</span>
                     </td>
                     <td>{order.delivery.method === "shipping" ? `Envío · ${order.delivery.address.city}` : "Retiro"}</td>
-                    <td>{formatPrice(order.subtotalMinor / 100)}</td>
+                    <td>{formatPrice(orderTotalMinor(order) / 100)}</td>
                     <td>
                       {orderStatusLabel[order.status]}
                       {order.status === "pending_payment" && <span className="muted"> · reserva hasta {argentinaTime(order.expiresAt).split(" ")[1]}</span>}

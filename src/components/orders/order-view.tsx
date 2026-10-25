@@ -1,5 +1,5 @@
 import { formatPrice } from "@/lib/format";
-import { orderNumber, type OrderDetail, type OrderStatus } from "@/server/orders/repository";
+import { orderNumber, orderTotalMinor, type OrderDetail, type OrderStatus } from "@/server/orders/repository";
 import { etaLabel } from "@/server/shipping/rules";
 
 export const orderStatusLabel: Record<OrderStatus, string> = {
@@ -113,6 +113,17 @@ export function OrderSummary({ order }: { order: OrderDetail }) {
             </th>
             <td>{formatPrice(order.subtotalMinor / 100)}</td>
           </tr>
+          {order.promotions
+            .filter((promotion) => promotion.amountMinor > 0)
+            .map((promotion) => (
+              <tr key={promotion.promotionId} className="order-items__discount">
+                <th scope="row" colSpan={3}>
+                  {promotion.name}
+                  {promotion.coupon && ` (cupón ${promotion.coupon})`}
+                </th>
+                <td>−{formatPrice(promotion.amountMinor / 100)}</td>
+              </tr>
+            ))}
           <tr>
             <th scope="row" colSpan={3}>
               Envío
@@ -133,10 +144,11 @@ export function OrderSummary({ order }: { order: OrderDetail }) {
             <th scope="row" colSpan={3}>
               Total
             </th>
-            <td>{formatPrice((order.subtotalMinor + (order.shippingMinor ?? 0)) / 100)}</td>
+            <td>{formatPrice(orderTotalMinor(order) / 100)}</td>
           </tr>
         </tfoot>
       </table>
+      {order.paymentPreference === "transfer" && <p className="muted">Pago elegido: transferencia o efectivo.</p>}
       {order.notes && <p className="muted">Comentarios: {order.notes}</p>}
     </div>
   );

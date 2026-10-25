@@ -9,7 +9,7 @@ import { PageIntro } from "@/components/page-intro";
 import { argentinaTime, orderStatusLabel } from "@/components/orders/order-view";
 import { formatPrice } from "@/lib/format";
 import { getCurrentAdmin } from "@/server/admin/session";
-import { orderNumber } from "@/server/orders/repository";
+import { orderNumber, orderTotalMinor } from "@/server/orders/repository";
 import { getOrderRepository, ordersAvailable } from "@/server/orders/session";
 import { requestStatusLabel } from "@/components/requests/request-view";
 import { requestNumber } from "@/server/custom-requests/repository";
@@ -66,7 +66,7 @@ async function AccountContent() {
                   <Link href={`/pedido/${order.id}`}>
                     <strong>{orderNumber(order)}</strong>
                   </Link>{" "}
-                  · {orderStatusLabel[order.status]} · {formatPrice(order.subtotalMinor / 100)}
+                  · {orderStatusLabel[order.status]} · {formatPrice(orderTotalMinor(order) / 100)}
                 </p>
                 <p className="muted">{argentinaTime(order.createdAt)}</p>
               </li>

@@ -102,6 +102,12 @@ function describe(entry: AuditEntry): string {
     "settings.contact": changes.whatsapp ? "WhatsApp actualizado" : "WhatsApp quitado",
     "variant.options": "Opciones de variantes actualizadas",
     "variant.update": "Variante actualizada",
+    "promotion.create": "Promoción creada",
+    "promotion.update": "Promoción actualizada",
+    "promotion.activate": "Promoción activada",
+    "promotion.deactivate": "Promoción pausada",
+    "promotion.delete": "Promoción eliminada",
+    "product.extras": "Venta y logística actualizadas",
   };
   if (verbs[entry.action]) return verbs[entry.action];
   if (entry.action === "product.create") return `Alta de "${changes.name}" (${productStatusLabel[changes.status as ProductStatus] ?? changes.status})`;
@@ -130,6 +136,7 @@ export const AUDIT_AREAS = {
   shipping: "Envíos",
   point: "Puntos de venta",
   home: "Portada",
+  promotion: "Promociones",
   settings: "Ajustes",
   integration: "Integraciones",
   admin: "Accesos",
@@ -142,8 +149,8 @@ function subject(entry: AuditEntry): string {
   if (entry.entity === "integration") return `Integración ${entry.entityId}`;
   if (entry.entity === "home") return "Portada";
   if (entry.entity === "settings") return "Ajustes";
-  if ((entry.entity === "point" || entry.entity === "shipping") && typeof name === "string") return name;
-  if (entry.entity === "point" || entry.entity === "shipping") return AUDIT_AREAS[entry.entity];
+  if ((entry.entity === "point" || entry.entity === "shipping" || entry.entity === "promotion") && typeof name === "string") return name;
+  if (entry.entity === "point" || entry.entity === "shipping" || entry.entity === "promotion") return AUDIT_AREAS[entry.entity];
   return entry.entityId;
 }
 
