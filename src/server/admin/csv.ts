@@ -262,6 +262,8 @@ export async function importCatalog(sql: QueryFn, actor: Admin, text: string, dr
   }
 
   // 3. Cost (per SKU) and weight/dimensions (per product), not part of the API.
+  // Rows are validated here and written together below, in one statement.
+  const writes: { sku: string; cost: number | null; weight: number | null; length: number | null; width: number | null; height: number | null; changes: string }[] = [];
   for (const record of records) {
     const line = note(record);
     if (!line.sku || (!existing.has(line.sku) && !line.created)) continue;
@@ -285,39 +287,49 @@ export async function importCatalog(sql: QueryFn, actor: Admin, text: string, dr
       if (setLogistics.length && dryRun) line.changed.push("peso/medidas");
       continue;
     }
-    const [changed] = (await sql.query(
-      `WITH variant AS (SELECT id, product_id, cost_minor FROM product_variants WHERE sku = $1),
+    writes.push({
+      sku: line.sku,
+      cost: cost ?? null,
+      weight: logistics.weight_g ?? null,
+      length: logistics.length_mm ?? null,
+      width: logistics.width_mm ?? null,
+      height: logistics.height_mm ?? null,
+      changes: JSON.stringify({ sku: line.sku, costMinor: cost ?? undefined, ...Object.fromEntries(setLogistics) }),
+    });
+  }
+  if (writes.length) {
+    const column = <K extends keyof (typeof writes)[number]>(key: K) => writes.map((write) => write[key]);
+    const changed = (await sql.query(
+      `WITH input AS (
+         SELECT * FROM unnest($1::text[], $2::bigint[], $3::int[], $4::int[], $5::int[], $6::int[], $7::jsonb[])
+           AS t(sku, cost, weight, length, width, height, changes)
+       ),
+       target AS (SELECT input.*, v.id AS variant_id, v.product_id FROM input JOIN product_variants v ON v.sku = input.sku),
        cost AS (
-         UPDATE product_variants v SET cost_minor = $2, updated_at = now() FROM variant
-         WHERE v.id = variant.id AND $2::bigint IS NOT NULL AND v.cost_minor IS DISTINCT FROM $2::bigint RETURNING v.id
+         UPDATE product_variants v SET cost_minor = t.cost, updated_at = now() FROM target t
+         WHERE v.id = t.variant_id AND t.cost IS NOT NULL AND v.cost_minor IS DISTINCT FROM t.cost
+         RETURNING t.sku
        ),
        logistics AS (
-         UPDATE products p SET weight_g = coalesce($3, p.weight_g), length_mm = coalesce($4, p.length_mm),
-                width_mm = coalesce($5, p.width_mm), height_mm = coalesce($6, p.height_mm), updated_at = now()
-         FROM variant WHERE p.id = variant.product_id AND ($3::int IS NOT NULL OR $4::int IS NOT NULL OR $5::int IS NOT NULL OR $6::int IS NOT NULL)
-         RETURNING p.legacy_id
+         UPDATE products p SET weight_g = coalesce(t.weight, p.weight_g), length_mm = coalesce(t.length, p.length_mm),
+                width_mm = coalesce(t.width, p.width_mm), height_mm = coalesce(t.height, p.height_mm), updated_at = now()
+         FROM target t
+         WHERE p.id = t.product_id
+           AND (p.weight_g IS DISTINCT FROM coalesce(t.weight, p.weight_g) OR p.length_mm IS DISTINCT FROM coalesce(t.length, p.length_mm)
+                OR p.width_mm IS DISTINCT FROM coalesce(t.width, p.width_mm) OR p.height_mm IS DISTINCT FROM coalesce(t.height, p.height_mm))
+         RETURNING t.sku
        ),
        logged AS (
          INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
-         SELECT $7, $8, 'product.import', 'product', p.legacy_id, $9::jsonb
-         FROM variant JOIN products p ON p.id = variant.product_id
-         WHERE EXISTS (SELECT 1 FROM cost) OR EXISTS (SELECT 1 FROM logistics)
+         SELECT $8, $9, 'product.import', 'product', p.legacy_id, t.changes
+         FROM target t JOIN products p ON p.id = t.product_id
+         WHERE t.sku IN (SELECT sku FROM cost UNION SELECT sku FROM logistics)
        )
-       SELECT (SELECT count(*) FROM cost)::int AS cost, (SELECT count(*) FROM logistics)::int AS logistics`,
-      [
-        line.sku,
-        cost ?? null,
-        logistics.weight_g ?? null,
-        logistics.length_mm ?? null,
-        logistics.width_mm ?? null,
-        logistics.height_mm ?? null,
-        actor.authUserId,
-        actor.email,
-        JSON.stringify({ sku: line.sku, costMinor: cost ?? undefined, ...Object.fromEntries(setLogistics) }),
-      ],
-    )) as { cost: number; logistics: number }[];
-    if (changed?.cost) line.changed.push("costo");
-    if (changed?.logistics) line.changed.push("peso/medidas");
+       SELECT 'cost' AS kind, sku FROM cost UNION ALL SELECT 'logistics', sku FROM logistics`,
+      [column("sku"), column("cost"), column("weight"), column("length"), column("width"), column("height"), column("changes"), actor.authUserId, actor.email],
+    )) as { kind: "cost" | "logistics"; sku: string }[];
+    const bySku = new Map([...lines.values()].map((line) => [line.sku, line]));
+    for (const row of changed) bySku.get(row.sku)?.changed.push(row.kind === "cost" ? "costo" : "peso/medidas");
   }
 
   const report: ImportLine[] = [...lines.entries()]

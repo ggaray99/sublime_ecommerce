@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getSessionUser } from "../auth/server.ts";
 import { getSql } from "../db/client.ts";
 import { accountsAvailable } from "../customers/session.ts";
@@ -25,9 +26,9 @@ export const getProductExtrasRepository = () => createProductExtrasRepository(ge
  * The only authorization check for /admin: a signed-in user is an admin when
  * their account id is in admin_users. Returns null otherwise.
  */
-export async function getCurrentAdmin(): Promise<Admin | null> {
+export const getCurrentAdmin = cache(async function getCurrentAdmin(): Promise<Admin | null> {
   if (!adminAvailable()) return null;
   const user = await getSessionUser();
   if (!user) return null;
   return getAdminRepository().findAdmin(user.id);
-}
+});

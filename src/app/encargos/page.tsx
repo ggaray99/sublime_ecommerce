@@ -5,6 +5,7 @@ import { PageIntro } from "@/components/page-intro";
 import { QuoteForm } from "@/components/quote-form";
 import { customRequestsAvailable } from "@/server/custom-requests/session";
 import { hasPrivateStorage } from "@/server/media/private-files";
+import { getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
   title: "Encargos personalizados",
@@ -12,7 +13,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/encargos" },
 };
 
-export default function EncargosPage() {
+export default async function EncargosPage() {
+  const references = (await getStorefrontProducts()).map(({ slug, name, category }) => ({ slug, name, category }));
   const live = customRequestsAvailable();
   const lab = live && hasPrivateStorage();
   return (
@@ -61,7 +63,7 @@ export default function EncargosPage() {
       )}
       <div className="quote-layout" id="otro">
         <Suspense fallback={<p className="panel panel--muted">Cargando formulario…</p>}>
-          <QuoteForm live={live} uploads={live && hasPrivateStorage()} />
+          <QuoteForm live={live} uploads={live && hasPrivateStorage()} references={references} />
         </Suspense>
         <aside className="quote-aside" aria-labelledby="quote-aside-title">
           <h2 id="quote-aside-title">Qué pasaría después</h2>

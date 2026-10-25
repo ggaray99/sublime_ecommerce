@@ -5,7 +5,7 @@ import Link from "next/link";
 export function BrandLogo({ className = "" }: { className?: string }) {
   return (
     <Link href="/" className={`brand-logo ${className}`.trim()} aria-label="Sublime, ir al inicio">
-      <Image src="/brand/sublime-logo.png" alt="Sublime" width={640} height={179} preload />
+      <Image src="/brand/sublime-logo.png" alt="Sublime" width={640} height={179} sizes="200px" loading="eager" />
     </Link>
   );
 }

@@ -21,6 +21,9 @@ export const CATALOG_DESIGNS = [
   { id: "bestia", name: "Bestia" },
 ] as const;
 
+/** Every catalog design file is 2400 × 3040 px: known up front, so picking one downloads nothing extra. */
+export const CATALOG_DESIGN_SIZE = { width: 2400, height: 3040 } as const;
+
 /** Light ink on black shirts, dark ink on white ones. */
 export const catalogDesignSrc = (id: string, color: ShirtColor) => `/lab/designs/${id}-${color === "black" ? "claro" : "oscuro"}.png`;
 

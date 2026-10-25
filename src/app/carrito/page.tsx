@@ -3,6 +3,7 @@ import { CartView } from "@/components/cart/cart-view";
 import { PageIntro } from "@/components/page-intro";
 import { ordersAvailable } from "@/server/orders/session";
 import { getStorefrontProducts } from "@/server/storefront";
+import { forClient } from "@/lib/catalog";
 
 export const metadata: Metadata = {
   title: "Carrito",
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CarritoPage() {
-  const catalog = await getStorefrontProducts();
+  const catalog = (await getStorefrontProducts()).map((product) => forClient(product));
   return (
     <main id="contenido" className="page">
       <PageIntro

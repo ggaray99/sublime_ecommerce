@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useActionState, useId, useRef, useState, type FormEvent } from "react";
 import { submitCustomRequestAction, type RequestFormState } from "@/app/encargos/actions";
-import { productBySlug } from "@/data/products";
+import type { Product } from "@/data/products";
 import {
   ACCEPTED_FILE_TYPES,
   quoteProductTypes,
@@ -28,9 +28,13 @@ const suggestedType: Record<string, (typeof quoteProductTypes)[number]> = {
  * page to follow it. Otherwise it is the original local simulation.
  * `uploads`: private file storage is configured.
  */
-export function QuoteForm({ live = false, uploads = false }: { live?: boolean; uploads?: boolean }) {
+export type QuoteReference = Pick<Product, "slug" | "name" | "category">;
+
+/** `references`: products a request can start from (?producto=slug), names only. */
+export function QuoteForm({ live = false, uploads = false, references = [] }: { live?: boolean; uploads?: boolean; references?: QuoteReference[] }) {
   const searchParams = useSearchParams();
-  const product = productBySlug(searchParams.get("producto") ?? "");
+  const slug = searchParams.get("producto") ?? "";
+  const product = slug ? references.find((candidate) => candidate.slug === slug) : undefined;
   const defaultType =
     product?.slug === "etiquetas-para-tu-marca"
       ? "Etiquetas para marca"

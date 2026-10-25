@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   images: {
+    // AVIF first (about 20–30 % smaller than WebP); generated once and cached by the server.
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 2678400,
     // Uploaded photos are served from /media/* (local). Photos uploaded while the
     // staging site ran on Vercel stay in Vercel Blob until they are re-uploaded.
     remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com", pathname: "/**" }],

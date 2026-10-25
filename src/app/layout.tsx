@@ -10,7 +10,8 @@ import "./globals.css";
 /* Brand typography (client branding kit):
    Bebas Neue — primary: titles, highlighted numbers, promotional buttons.
    Gontserrat — secondary: product names, prices, forms, buttons and states.
-   Gontserrat is OFL licensed; the files are latin subsets of the kit's TTFs. */
+   Gontserrat is OFL licensed; the files are latin subsets of the kit's TTFs.
+   Only the weights the CSS uses (400, 600, 700, 800) are loaded. */
 const bebas = Bebas_Neue({
   subsets: ["latin"],
   weight: "400",
@@ -21,7 +22,6 @@ const bebas = Bebas_Neue({
 const gontserrat = localFont({
   src: [
     { path: "../fonts/gontserrat/Gontserrat-Regular.woff2", weight: "400", style: "normal" },
-    { path: "../fonts/gontserrat/Gontserrat-Medium.woff2", weight: "500", style: "normal" },
     { path: "../fonts/gontserrat/Gontserrat-SemiBold.woff2", weight: "600", style: "normal" },
     { path: "../fonts/gontserrat/Gontserrat-Bold.woff2", weight: "700", style: "normal" },
     { path: "../fonts/gontserrat/Gontserrat-ExtraBold.woff2", weight: "800", style: "normal" },

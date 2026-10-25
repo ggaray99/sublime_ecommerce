@@ -1,9 +1,11 @@
 "use client";
 
-import { useActionState, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import Image from "next/image";
+import { useActionState, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { submitTshirtOrderAction, uploadLabImageAction, type LabFormState } from "@/app/encargos/lab-actions";
 import {
   CATALOG_DESIGNS,
+  CATALOG_DESIGN_SIZE,
   catalogDesignSrc,
   clampPlacement,
   printArea,
@@ -54,18 +56,28 @@ export function TshirtLab() {
   const total = Object.values(sizes).reduce((sum, n) => sum + (n || 0), 0);
 
   const move = (patch: Partial<Placement>) => setPlacement((p) => clampPlacement({ ...p, ...patch }, aspect));
+  // Dragging fires many pointer events per frame: apply at most one move per frame.
+  const pendingMove = useRef<Partial<Placement> | null>(null);
+  const moveOnNextFrame = (patch: Partial<Placement>) => {
+    if (!pendingMove.current) {
+      requestAnimationFrame(() => {
+        if (pendingMove.current) move(pendingMove.current);
+        pendingMove.current = null;
+      });
+    }
+    pendingMove.current = patch;
+  };
+  // Uploaded previews are object URLs: release the previous one when it changes.
+  const uploadedSrc = design?.source === "upload" ? design.src : null;
+  useEffect(() => (uploadedSrc ? () => URL.revokeObjectURL(uploadedSrc) : undefined), [uploadedSrc]);
 
   function pointerPosition(event: ReactPointerEvent) {
     const rect = areaRef.current!.getBoundingClientRect();
     return { x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height };
   }
 
-  async function pickCatalog(id: string, name: string) {
-    // Aspect from the real image, so the frame matches what gets printed.
-    const img = new Image();
-    img.src = catalogDesignSrc(id, color);
-    await img.decode().catch(() => undefined);
-    setDesign({ source: "catalog", id, name, aspect: img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0.79 });
+  function pickCatalog(id: string, name: string) {
+    setDesign({ source: "catalog", id, name, aspect: CATALOG_DESIGN_SIZE.width / CATALOG_DESIGN_SIZE.height });
   }
 
   async function upload(file: File | undefined) {
@@ -78,7 +90,7 @@ export function TshirtLab() {
     setUploading(false);
     if (!result.ok) return setUploadError(result.error);
     const src = URL.createObjectURL(file);
-    const img = new Image();
+    const img = new window.Image();
     img.src = src;
     await img.decode().catch(() => undefined);
     setDesign({ source: "upload", uploadId: result.uploadId, name: result.name, src, aspect: img.naturalWidth / img.naturalHeight || 1, widthPx: img.naturalWidth });
@@ -97,8 +109,15 @@ export function TshirtLab() {
     <div className="lab lab--shirt">
       <div className="shirt-editor">
         <div className="shirt-stage">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="shirt-stage__photo" src={shirtTemplateSrc(color, side)} alt={`Remera ${SHIRT_COLORS[color].toLowerCase()}, ${SHIRT_SIDES[side].toLowerCase()}`} />
+          <Image
+            className="shirt-stage__photo"
+            src={shirtTemplateSrc(color, side)}
+            alt={`Remera ${SHIRT_COLORS[color].toLowerCase()}, ${SHIRT_SIDES[side].toLowerCase()}`}
+            width={1080}
+            height={1080}
+            sizes="(max-width: 899px) 100vw, 560px"
+            preload
+          />
           <div
             ref={areaRef}
             className="shirt-stage__area"
@@ -106,16 +125,20 @@ export function TshirtLab() {
             onPointerMove={(event) => {
               if (!drag.current) return;
               const pos = pointerPosition(event);
-              move({ x: pos.x - drag.current.dx, y: pos.y - drag.current.dy });
+              moveOnNextFrame({ x: pos.x - drag.current.dx, y: pos.y - drag.current.dy });
             }}
             onPointerUp={() => (drag.current = null)}
             onPointerCancel={() => (drag.current = null)}
           >
             {designSrc && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 className={`shirt-stage__design${color === "white" ? " is-multiply" : ""}`}
                 src={designSrc}
+                // Catalog designs go through the optimizer; an upload is a local object URL.
+                width={design?.source === "upload" ? design.widthPx || 1000 : CATALOG_DESIGN_SIZE.width}
+                height={design?.source === "upload" ? Math.round((design.widthPx || 1000) / aspect) : CATALOG_DESIGN_SIZE.height}
+                unoptimized={design?.source === "upload"}
+                sizes="(max-width: 899px) 60vw, 340px"
                 alt={`Diseño ${design!.name}`}
                 draggable={false}
                 style={{ width: `${placed.scale * 100}%`, left: `${placed.x * 100}%`, top: `${placed.y * 100}%` }}
@@ -159,8 +182,7 @@ export function TshirtLab() {
                 aria-pressed={design?.source === "catalog" && design.id === d.id}
                 onClick={() => pickCatalog(d.id, d.name)}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={catalogDesignSrc(d.id, color)} alt="" />
+                <Image src={catalogDesignSrc(d.id, color)} alt="" width={CATALOG_DESIGN_SIZE.width} height={CATALOG_DESIGN_SIZE.height} sizes="96px" />
                 {d.name}
               </button>
             ))}

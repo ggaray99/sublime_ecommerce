@@ -121,7 +121,7 @@ export default async function Home() {
             <li key={category.id}>
               <Link href={`/tienda?categoria=${category.id}`} className="category-card">
                 <span className="category-card__media">
-                  <Image src={category.image} alt="" width={800} height={800} sizes="(max-width: 559px) 100vw, (max-width: 1023px) 50vw, 33vw" />
+                  <Image src={category.image} alt="" width={800} height={800} sizes="(max-width: 359px) 100vw, (max-width: 899px) 50vw, 33vw" />
                 </span>
                 <span className="category-card__body">
                   <small>{String(index + 1).padStart(2, "0")}</small>

@@ -4,66 +4,8 @@ import { useActionState, useId } from "react";
 import { countStockAction, createProductAction, updateProductAction } from "@/app/admin/actions";
 import type { AdminFormState } from "@/server/admin/guard";
 
-export type Option = { value: string; label: string };
-
-type FieldProps = {
-  name: string;
-  label: string;
-  state: AdminFormState;
-  defaultValue: string;
-  hint?: string;
-  options?: Option[];
-  multiline?: boolean;
-  inputMode?: "numeric" | "decimal";
-  required?: boolean;
-};
-
-export function Field({ name, label, state, defaultValue, hint, options, multiline, inputMode, required }: FieldProps) {
-  const id = useId();
-  const error = state.fields?.[name];
-  const describedBy = [hint ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
-  const common = { id, name, defaultValue, "aria-invalid": Boolean(error), "aria-describedby": describedBy };
-  return (
-    <div className="field">
-      <label htmlFor={id}>
-        {label}
-        {required && " *"}
-      </label>
-      {/* Inputs show the hint inside, as a placeholder, so labels and inputs stay aligned across columns;
-          screen readers still get it as the field description. Selects have no placeholder: theirs goes below. */}
-      {hint && !options && (
-        <p className="visually-hidden" id={`${id}-hint`}>
-          {hint}
-        </p>
-      )}
-      {options ? (
-        // React resets forms after an action, and a select returns to the option it was first rendered with.
-        // Keying it by the default remounts it with the saved value, so the reset lands on what was saved.
-        <select key={defaultValue} {...common}>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      ) : multiline ? (
-        <textarea {...common} rows={4} placeholder={hint} />
-      ) : (
-        <input {...common} type="text" inputMode={inputMode} autoComplete="off" placeholder={hint} />
-      )}
-      {hint && options && (
-        <p className="field__hint" id={`${id}-hint`}>
-          {hint}
-        </p>
-      )}
-      {error && (
-        <p className="field__error" id={`${id}-error`}>
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
+export { Field, type Option } from "../form-field";
+import { Field, type Option } from "../form-field";
 
 export function Checkbox({ name, label, defaultChecked, hint }: { name: string; label: string; defaultChecked: boolean; hint?: string }) {
   const id = useId();

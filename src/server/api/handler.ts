@@ -160,6 +160,9 @@ async function assertCategory(repos: ReturnType<typeof repositories>, categoryId
   }
 }
 
+/** Upper-cased SKU of a batch item (bulk routes look every SKU up in one query first). */
+const skuOf = (raw: unknown) => String((raw as { sku?: unknown } | null)?.sku ?? "").toUpperCase();
+
 const dryRunOf = (body: Record<string, unknown>) => {
   if (body.dryRun !== undefined && typeof body.dryRun !== "boolean") throw new ApiError(validation([{ path: "dryRun", message: "Debe ser true o false." }]));
   return body.dryRun === true;
@@ -340,16 +343,18 @@ const routes: Route[] = [
       assertKnownFields(body, ["items", "dryRun"]);
       const dryRun = dryRunOf(body);
       const items = assertBatch(body.items, "items");
+      const existing = await repos.products.getProductsBySkus(items.map(skuOf));
       return batch(dryRun, items, async (raw, index) => {
         const item = assertObject(raw, `items[${index}]`);
         assertKnownFields(item, CREATE_FIELDS, `items[${index}].`);
         if (typeof item.sku !== "string" || !item.sku) throw new ApiError(validation([{ path: `items[${index}].sku`, message: "Cada ítem necesita su sku." }]));
         const sku = item.sku.toUpperCase();
         await assertCategory(repos, item.categoryId, `items[${index}].categoryId`);
-        const current = await repos.products.getProductBySku(sku).catch((cause) => {
+        // Read in bulk above; a SKU created earlier in this same batch is looked up again.
+        const current = existing.get(sku) ?? (await repos.products.getProductBySku(sku).catch((cause) => {
           if (cause instanceof AdminDataError && cause.code === "not_found") return null;
           throw cause;
-        });
+        }));
         if (!current) {
           const parsed = parseProductCreate(item);
           if (!parsed.ok) throw new ApiError(validation(fieldsFrom(parsed.errors, `items[${index}].`)));
@@ -394,32 +399,43 @@ const routes: Route[] = [
     run: async ({ body, actor, repos }) => {
       assertKnownFields(body, ["items", "rule", "scope", "rounding", "dryRun"]);
       const dryRun = dryRunOf(body);
-      /** Prices belong to variants: a SKU is a single product's or one of its variants'. */
-      const setPrice = async (productId: string, variant: AdminVariant, requiresQuote: boolean, priceMinor: unknown) => {
+      /**
+       * Prices belong to variants: a SKU is a single product's or one of its variants'.
+       * Items are validated one by one (each gets its own result) and written together
+       * at the end in one statement, instead of several round trips per item.
+       */
+      const pending = new Map<string, { productId: string; variantId: string; sku: string; before: number | null; priceMinor: number }>();
+      const setPrice = (productId: string, variant: AdminVariant, requiresQuote: boolean, priceMinor: unknown) => {
         if (requiresQuote) throw new ApiError(validation([{ path: "sku", message: "Producto a pedido: no lleva precio." }]));
         if (typeof priceMinor !== "number" || !Number.isInteger(priceMinor) || priceMinor <= 0 || priceMinor > MAX_PRICE_MINOR) {
           throw new ApiError(validation([{ path: "priceMinor", message: "Centavos enteros, mayor a 0 y hasta 1000000000." }]));
         }
-        if (variant.priceMinor === priceMinor) return { sku: variant.sku, result: "unchanged" };
-        if (!dryRun) await repos.variants.updateVariant(actor, productId, variant.id, { priceMinor, active: variant.active });
-        return { sku: variant.sku, result: "updated", changes: ["priceMinor"], before: variant.priceMinor, after: priceMinor };
+        // The same SKU twice in one request: compare with the price set by the earlier item.
+        const current = pending.get(variant.id)?.priceMinor ?? variant.priceMinor;
+        if (current === priceMinor) return { sku: variant.sku, result: "unchanged" };
+        pending.set(variant.id, { productId, variantId: variant.id, sku: variant.sku, before: variant.priceMinor, priceMinor });
+        return { sku: variant.sku, result: "updated", changes: ["priceMinor"], before: current, after: priceMinor };
       };
-      const bySku = async (sku: string) => {
-        const found = await repos.variants.findBySku(sku);
-        if (!found) throw new AdminDataError("not_found", "El SKU no existe.");
-        return found;
+      const write = async (result: Result) => {
+        if (!dryRun) await repos.variants.setPrices(actor, [...pending.values()]);
+        return result;
       };
 
       if (body.items !== undefined) {
         if (body.rule !== undefined || body.scope !== undefined) {
           return validation([{ path: "items", message: "Usá items (precio exacto) o rule + scope (ajuste), no ambos." }]);
         }
-        return batch(dryRun, assertBatch(body.items, "items"), async (raw, index) => {
-          const item = assertObject(raw, `items[${index}]`);
-          assertKnownFields(item, ["sku", "priceMinor"], `items[${index}].`);
-          const found = await bySku(String(item.sku ?? "").toUpperCase());
-          return setPrice(found.productId, found.variant, found.requiresQuote, item.priceMinor);
-        });
+        const items = assertBatch(body.items, "items");
+        const found = await repos.variants.findBySkus(items.map(skuOf));
+        return write(
+          await batch(dryRun, items, async (raw, index) => {
+            const item = assertObject(raw, `items[${index}]`);
+            assertKnownFields(item, ["sku", "priceMinor"], `items[${index}].`);
+            const target = found.get(skuOf(item));
+            if (!target) throw new AdminDataError("not_found", "El SKU no existe.");
+            return setPrice(target.productId, target.variant, target.requiresQuote, item.priceMinor);
+          }),
+        );
       }
 
       const rule = parseRule(body.rule);
@@ -427,18 +443,19 @@ const routes: Route[] = [
       if (!["none", "nearest_100", "nearest_1000"].includes(rounding)) {
         return validation([{ path: "rounding", message: "Valores posibles: none, nearest_100, nearest_1000." }]);
       }
-      // A rule applies to every active variant of the products in scope.
-      const targets: { product: AdminProduct; variant: AdminVariant }[] = [];
-      for (const product of await scopedProducts(body.scope, repos)) {
-        for (const variant of await repos.variants.listVariants(product.id)) if (variant.active) targets.push({ product, variant });
-      }
-      return batch(dryRun, targets, async (target) => {
-        const { product, variant } = target as { product: AdminProduct; variant: AdminVariant };
-        if (product.requiresQuote || variant.priceMinor === null) return { sku: variant.sku, result: "skipped", reason: "Producto a pedido." };
-        const next = applyPriceRule(variant.priceMinor, rule, rounding);
-        if (next === null) throw new ApiError(validation([{ path: "rule", message: "El precio resultante quedaría en $ 0 o menos, o supera el máximo." }]));
-        return setPrice(product.id, variant, false, next);
-      });
+      // A rule applies to every active variant of the products in scope (read in one query).
+      const products = await scopedProducts(body.scope, repos);
+      const variants = await repos.variants.listActiveVariantsOf(products.map((product) => product.id));
+      const targets = products.flatMap((product) => (variants.get(product.id) ?? []).map((variant) => ({ product, variant })));
+      return write(
+        await batch(dryRun, targets, async (target) => {
+          const { product, variant } = target as (typeof targets)[number];
+          if (product.requiresQuote || variant.priceMinor === null) return { sku: variant.sku, result: "skipped", reason: "Producto a pedido." };
+          const next = applyPriceRule(variant.priceMinor, rule, rounding);
+          if (next === null) throw new ApiError(validation([{ path: "rule", message: "El precio resultante quedaría en $ 0 o menos, o supera el máximo." }]));
+          return setPrice(product.id, variant, false, next);
+        }),
+      );
     },
   },
   {
@@ -448,20 +465,27 @@ const routes: Route[] = [
     run: async ({ body, actor, repos }) => {
       assertKnownFields(body, ["items", "dryRun"]);
       const dryRun = dryRunOf(body);
-      return batch(dryRun, assertBatch(body.items, "items"), async (raw, index) => {
+      const items = assertBatch(body.items, "items");
+      const skus = await repos.variants.findBySkus(items.map(skuOf));
+      // Counted earlier in this same request: the next count of that SKU starts from it.
+      const counted = new Map<string, number>();
+      return batch(dryRun, items, async (raw, index) => {
         const item = assertObject(raw, `items[${index}]`);
         assertKnownFields(item, ["sku", "onHand", "reason", "note"], `items[${index}].`);
         const parsed = parseStockCount({ onHand: String(item.onHand ?? ""), reason: item.reason, note: item.note ?? "" });
         if (!parsed.ok) throw new ApiError(validation(fieldsFrom(parsed.errors, `items[${index}].`)));
-        const found = await repos.variants.findBySku(String(item.sku ?? "").toUpperCase());
+        const found = skus.get(skuOf(item));
         if (!found) throw new AdminDataError("not_found", "El SKU no existe.");
-        const { variant, productId } = found;
+        const { productId } = found;
+        const variant = { ...found.variant, onHand: counted.get(found.variant.sku) ?? found.variant.onHand };
         if (!variant.trackStock) throw new ApiError(validation([{ path: `items[${index}].sku`, message: "Producto a pedido: no lleva stock." }]));
         if (parsed.value.onHand < variant.reserved) {
           throw new ApiError(validation([{ path: `items[${index}].onHand`, message: `Hay ${variant.reserved} unidades reservadas: el stock no puede ser menor.` }]));
         }
         if (parsed.value.onHand === variant.onHand) return { sku: variant.sku, result: "unchanged" };
-        if (!dryRun) await repos.products.countStock(actor, productId, parsed.value, variant.sku);
+        // Already checked above with the SKU data read in bulk: write only.
+        if (!dryRun) await repos.products.recordCount(actor, productId, parsed.value, variant.sku);
+        counted.set(variant.sku, parsed.value.onHand);
         return { sku: variant.sku, result: "updated", changes: ["onHand"], before: variant.onHand, after: parsed.value.onHand };
       });
     },
@@ -484,18 +508,25 @@ function parseRule(value: unknown): PriceRule {
 }
 
 /** Products a price rule applies to: a category, a list of SKUs or the whole catalog. */
-async function scopedProducts(value: unknown, repos: ReturnType<typeof repositories>): Promise<AdminProduct[]> {
+type ScopedProduct = Pick<AdminProduct, "id" | "requiresQuote">;
+
+async function scopedProducts(value: unknown, repos: ReturnType<typeof repositories>): Promise<ScopedProduct[]> {
   const scope = assertObject(value, "scope");
   assertKnownFields(scope, ["categoryId", "skus", "all"], "scope.");
   const chosen = ["categoryId", "skus", "all"].filter((key) => scope[key] !== undefined);
   if (chosen.length !== 1) throw new ApiError(validation([{ path: "scope", message: "Indicá uno: categoryId, skus o all: true." }]));
   if (scope.skus !== undefined) {
-    return Promise.all(assertBatch(scope.skus, "scope.skus").map((sku) => repos.products.getProductBySku(String(sku).toUpperCase())));
+    const skus = assertBatch(scope.skus, "scope.skus").map((sku) => String(sku).toUpperCase());
+    const found = await repos.variants.findBySkus(skus);
+    const missing = skus.find((sku) => !found.has(sku));
+    if (missing) throw new AdminDataError("not_found", `El SKU ${missing} no existe.`);
+    const byId = new Map([...found.values()].map((entry) => [entry.productId, { id: entry.productId, requiresQuote: entry.requiresQuote }]));
+    return [...byId.values()];
   }
   if (scope.all !== undefined && scope.all !== true) throw new ApiError(validation([{ path: "scope.all", message: "Debe ser true." }]));
   const search = parseProductSearch({ categoria: scope.categoryId === undefined ? undefined : String(scope.categoryId) });
   if (scope.categoryId !== undefined && !search.categoryId) throw new ApiError(validation([{ path: "scope.categoryId", message: "Categoría inválida." }]));
-  const items: AdminProduct[] = [];
+  const items: ScopedProduct[] = [];
   for (let page = 1; ; page++) {
     const result = await repos.products.searchProducts({ ...search, page, pageSize: 200 });
     items.push(...result.items);

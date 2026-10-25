@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCartSummary } from "./cart-store";
+import { useCartCount } from "./cart-store";
 
 export function CartLink() {
-  const { count } = useCartSummary();
+  const count = useCartCount();
   return (
     <Link href="/carrito" className="cart-link" aria-label={`Carrito: ${count} ${count === 1 ? "artículo" : "artículos"}`}>
       <svg className="cart-link__icon" viewBox="0 0 24 24" aria-hidden="true">

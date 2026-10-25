@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useId, useState, useTransition } from "react";
 import { placeOrderAction, previewDiscountAction, type CheckoutState, type DiscountPreview } from "@/app/checkout/actions";
-import { Field } from "@/components/admin/forms";
+import { Field } from "@/components/form-field";
 import type { Product } from "@/data/products";
 import { formatPrice } from "@/lib/format";
 import { etaLabel, quoteShipping, type PickupSettings, type ShippingRule } from "@/server/shipping/rules";

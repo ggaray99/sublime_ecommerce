@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
+import { cache } from "react";
 import { getPool } from "../db/client.ts";
 import { isAuthEnabled } from "./config.ts";
 
@@ -19,6 +20,10 @@ function createAuth() {
       fields: { emailVerified: "email_verified", ...TIMESTAMPS },
     },
     session: {
+      // The signed session is also kept in a cookie for 5 minutes, so most page
+      // views skip the session lookup. Signing out clears it at once; a session
+      // revoked elsewhere stays usable up to those 5 minutes.
+      cookieCache: { enabled: true, maxAge: 5 * 60 },
       modelName: "auth_sessions",
       fields: { userId: "user_id", expiresAt: "expires_at", ipAddress: "ip_address", userAgent: "user_agent", ...TIMESTAMPS },
     },
@@ -58,11 +63,14 @@ export function getAuth(): Auth {
 
 export type SessionUser = { id: string; email: string; name: string };
 
-/** Current signed-in user, or null (also null when auth is disabled). */
-export async function getSessionUser(): Promise<SessionUser | null> {
+/**
+ * Current signed-in user, or null (also null when auth is disabled). Memoized
+ * per request: the layout and the page both ask without a second lookup.
+ */
+export const getSessionUser = cache(async function getSessionUser(): Promise<SessionUser | null> {
   if (!isAuthEnabled()) return null;
   const session = await getAuth().api.getSession({ headers: await headers() });
   const user = session?.user;
   if (!user?.id || !user.email) return null;
   return { id: user.id, email: user.email, name: user.name ?? "" };
-}
+});

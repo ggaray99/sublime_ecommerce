@@ -1,16 +1,8 @@
+import type { ThemeId } from "./themes.ts";
+
+export { themes, type ThemeId } from "./themes.ts";
 import type { CategoryId } from "./categories";
 
-export type ThemeId =
-  | "anime"
-  | "futbol"
-  | "gaming"
-  | "motor"
-  | "musica"
-  | "grafico"
-  | "espacio"
-  | "argentina"
-  | "naturaleza"
-  | "aventura";
 
 export type ProductImage = { src: string; alt: string };
 
@@ -61,18 +53,6 @@ export type ProductVariant = {
   stock: number | null;
 };
 
-export const themes: Record<ThemeId, string> = {
-  anime: "Anime y personajes",
-  futbol: "Fútbol",
-  gaming: "Gaming y sci-fi",
-  motor: "Autos y motos",
-  musica: "Música y skate",
-  grafico: "Gráfico y urbano",
-  espacio: "Espacio",
-  argentina: "Argentina y Mendoza",
-  naturaleza: "Flores y naturaleza",
-  aventura: "Aventura y viajes",
-};
 
 const gallery = (slug: string, alts: string[]): ProductImage[] =>
   alts.map((alt, index) => ({ src: `/demo/products/${slug}-${index + 1}.webp`, alt }));

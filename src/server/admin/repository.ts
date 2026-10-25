@@ -219,7 +219,61 @@ export function createAdminRepository(sql: QueryFn) {
     return toProduct(row);
   }
 
+  /**
+   * Writes a stock count: inventory, movement and audit in one statement. The
+   * caller checked that the SKU tracks stock and the count covers its
+   * reservations; the database still refuses a count below what is reserved.
+   */
+  async function recordCount(actor: Admin, productId: string, input: StockCountInput, sku: string): Promise<void> {
+    try {
+      await sql.query(
+        `WITH target AS (
+           SELECT v.id AS variant_id, coalesce(i.on_hand, 0) AS previous
+           FROM products p
+           JOIN product_variants v ON v.product_id = p.id AND v.sku = $7 AND v.track_stock
+           LEFT JOIN inventory i ON i.variant_id = v.id
+           WHERE p.legacy_id = $1
+         ),
+         counted AS (
+           INSERT INTO inventory (variant_id, on_hand) SELECT variant_id, $2::int FROM target
+           ON CONFLICT (variant_id) DO UPDATE SET on_hand = EXCLUDED.on_hand, updated_at = now()
+           RETURNING variant_id
+         ),
+         movement AS (
+           INSERT INTO inventory_movements (variant_id, delta_on_hand, reason, actor, note)
+           SELECT variant_id, $2::int - previous, $3::text, $5::text, $4::text FROM target WHERE previous <> $2::int
+           RETURNING id
+         )
+         INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
+         SELECT $6, $5::text, 'inventory.count', 'inventory', $1,
+                jsonb_build_object('before', previous, 'after', $2::int, 'reason', $3::text, 'note', $4::text, 'sku', $7::text)
+         FROM target WHERE previous <> $2::int`,
+        [productId, input.onHand, input.reason, input.note, actor.email, actor.authUserId, sku],
+      );
+    } catch (error) {
+      // A reservation may have landed between the read and the write.
+      if (isCheckViolation(error)) throw new AdminDataError("below_reserved", "Hay unidades reservadas: el stock no puede ser menor.");
+      throw error;
+    }
+  }
+
   return {
+    recordCount,
+
+    /** Products behind many SKUs (product or variant SKUs) in two queries, keyed by SKU. */
+    async getProductsBySkus(skus: readonly string[]): Promise<Map<string, AdminProduct>> {
+      const valid = [...new Set(skus.filter((sku) => /^[A-Z0-9][A-Z0-9-]{1,39}$/.test(sku)))];
+      if (!valid.length) return new Map();
+      const owners = (await sql.query(
+        "SELECT v.sku, p.legacy_id FROM product_variants v JOIN products p ON p.id = v.product_id WHERE v.sku = ANY ($1::text[])",
+        [valid],
+      )) as { sku: string; legacy_id: string }[];
+      if (!owners.length) return new Map();
+      const rows = (await sql.query(`${SELECT_PRODUCTS} WHERE p.legacy_id = ANY ($1::text[])`, [[...new Set(owners.map((owner) => owner.legacy_id))]])) as ProductRow[];
+      const products = new Map(rows.map((row) => [row.legacy_id, toProduct(row)]));
+      return new Map(owners.flatMap((owner) => (products.has(owner.legacy_id) ? [[owner.sku, products.get(owner.legacy_id)!] as const] : [])));
+    },
+
     async findAdmin(authUserId: string): Promise<Admin | null> {
       const [row] = (await sql.query("SELECT auth_user_id, email, role FROM admin_users WHERE auth_user_id = $1", [
         authUserId,
@@ -505,36 +559,7 @@ export function createAdminRepository(sql: QueryFn) {
       if (input.onHand < variant.reserved) {
         throw new AdminDataError("below_reserved", `Hay ${variant.reserved} unidades reservadas: el stock no puede ser menor.`);
       }
-      try {
-        await sql.query(
-          `WITH target AS (
-             SELECT v.id AS variant_id, coalesce(i.on_hand, 0) AS previous
-             FROM products p
-             JOIN product_variants v ON v.product_id = p.id AND v.sku = $7 AND v.track_stock
-             LEFT JOIN inventory i ON i.variant_id = v.id
-             WHERE p.legacy_id = $1
-           ),
-           counted AS (
-             INSERT INTO inventory (variant_id, on_hand) SELECT variant_id, $2::int FROM target
-             ON CONFLICT (variant_id) DO UPDATE SET on_hand = EXCLUDED.on_hand, updated_at = now()
-             RETURNING variant_id
-           ),
-           movement AS (
-             INSERT INTO inventory_movements (variant_id, delta_on_hand, reason, actor, note)
-             SELECT variant_id, $2::int - previous, $3::text, $5::text, $4::text FROM target WHERE previous <> $2::int
-             RETURNING id
-           )
-           INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
-           SELECT $6, $5::text, 'inventory.count', 'inventory', $1,
-                  jsonb_build_object('before', previous, 'after', $2::int, 'reason', $3::text, 'note', $4::text, 'sku', $7::text)
-           FROM target WHERE previous <> $2::int`,
-          [productId, input.onHand, input.reason, input.note, actor.email, actor.authUserId, variant.sku],
-        );
-      } catch (error) {
-        // A reservation may have landed between the read and the write.
-        if (isCheckViolation(error)) throw new AdminDataError("below_reserved", "Hay unidades reservadas: el stock no puede ser menor.");
-        throw error;
-      }
+      await recordCount(actor, productId, input, variant.sku);
       return getProduct(productId);
     },
 

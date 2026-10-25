@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { memo } from "react";
 import Link from "next/link";
 import type { Product } from "@/data/products";
 import { categoryLabelOf, hasPriceRange, isOutOfStock } from "@/lib/catalog";
@@ -7,7 +8,7 @@ import { AddToCartButton } from "./cart/add-to-cart";
 
 type Props = { product: Product; headingLevel?: "h2" | "h3"; preload?: boolean };
 
-export function ProductCard({ product, headingLevel = "h3", preload = false }: Props) {
+function ProductCardView({ product, headingLevel = "h3", preload = false }: Props) {
   const Heading = headingLevel;
   const href = `/producto/${product.slug}`;
   const cover = product.images[0];
@@ -20,7 +21,7 @@ export function ProductCard({ product, headingLevel = "h3", preload = false }: P
           alt=""
           width={800}
           height={800}
-          sizes="(max-width: 559px) 100vw, (max-width: 1023px) 50vw, 25vw"
+          sizes="(max-width: 359px) 100vw, (max-width: 639px) 50vw, (max-width: 1199px) 33vw, 25vw"
           preload={preload}
         />
         <span className="product-card__badges">
@@ -72,3 +73,6 @@ export function ProductCard({ product, headingLevel = "h3", preload = false }: P
     </article>
   );
 }
+
+/** Memoized: the shop grid re-renders on every search keystroke, cards only when their product changes. */
+export const ProductCard = memo(ProductCardView);

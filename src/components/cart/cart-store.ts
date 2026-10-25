@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { products, type Product } from "@/data/products";
+import type { Product } from "@/data/products";
 import { addLine, parseCart, removeLine, setQuantity, summarizeCart, type CartLine } from "@/lib/cart";
 
 const STORAGE_KEY = "sublime-demo-cart-v1";
@@ -75,12 +75,18 @@ export function useCartLines(): CartLine[] {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-/**
- * Cart pages pass the server catalog (database prices where connected); the
- * header badge only needs the count and uses the static catalog.
- */
-export function useCartSummary(catalog: readonly Product[] = products) {
+/** Cart pages pass the server catalog (database prices where connected). */
+export function useCartSummary(catalog: readonly Product[]) {
   return summarizeCart(useCartLines(), catalog);
+}
+
+/**
+ * Units in the cart, for the header badge. Needs no catalog, so the header
+ * never ships product data to the browser; unknown products are dropped when
+ * the cart page quotes them.
+ */
+export function useCartCount(): number {
+  return useCartLines().reduce((total, line) => total + line.quantity, 0);
 }
 
 const noopSubscribe = () => () => {};

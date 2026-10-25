@@ -8,6 +8,7 @@ import { getCurrentCustomer, getCustomerRepository } from "@/server/customers/se
 import { PROVINCES } from "@/server/customers/validation";
 import { getShippingRepository, ordersAvailable } from "@/server/orders/session";
 import { getStorefrontProducts } from "@/server/storefront";
+import { forClient } from "@/lib/catalog";
 
 export const metadata: Metadata = {
   title: "Checkout",
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 /** Request-time: reads the session to pre-fill contact data and saved addresses. */
 async function RealCheckout() {
   await connection();
-  const catalog = await getStorefrontProducts();
+  const catalog = (await getStorefrontProducts()).map((product) => forClient(product));
   const customer = await getCurrentCustomer().catch(() => null);
   const shipping = getShippingRepository();
   const [addresses, shippingRules, pickup] = await Promise.all([
@@ -43,7 +44,7 @@ async function RealCheckout() {
 
 export default async function CheckoutPage() {
   if (!ordersAvailable()) {
-    const catalog = await getStorefrontProducts();
+    const catalog = (await getStorefrontProducts()).map((product) => forClient(product));
     return (
       <main id="contenido" className="page">
         <PageIntro

@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { newestFirst } from "../db/list-filter.ts";
 import type { QueryFn } from "../customers/repository.ts";
 
 export const REQUEST_STATUSES = ["received", "quoted", "accepted", "declined", "in_production", "delivered", "cancelled"] as const;
@@ -205,12 +206,8 @@ export function createCustomRequestRepository(sql: QueryFn) {
     },
 
     async list(filter: { status?: RequestStatus; customerId?: string; limit?: number } = {}): Promise<CustomRequest[]> {
-      const rows = (await sql.query(
-        `SELECT * FROM custom_requests
-         WHERE ($1::text IS NULL OR status = $1) AND ($2::uuid IS NULL OR customer_id = $2)
-         ORDER BY created_at DESC LIMIT $3`,
-        [filter.status ?? null, filter.customerId ?? null, filter.limit ?? 100],
-      )) as RequestRow[];
+      const { text, params } = newestFirst("custom_requests", filter);
+      const rows = (await sql.query(text, params)) as RequestRow[];
       return rows.map(toRequest);
     },
 

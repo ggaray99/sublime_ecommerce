@@ -2,9 +2,10 @@
 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Category } from "@/data/categories";
-import { themes, type Product } from "@/data/products";
+import type { Product } from "@/data/products";
+import { themes } from "@/data/themes";
 import {
   defaultFilters,
   filterProducts,
@@ -33,7 +34,10 @@ export function Shop({ products, categories }: { products: Product[]; categories
     setDraft(filters.query);
   }
 
-  const view = useMemo(() => ({ ...filters, query: draft }), [filters, draft]);
+  // The input updates at once; the grid follows as a lower-priority render that
+  // React can drop when the next key arrives.
+  const query = useDeferredValue(draft);
+  const view = useMemo(() => ({ ...filters, query }), [filters, query]);
   const results = useMemo(() => filterProducts(products, view), [products, view]);
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);

@@ -65,8 +65,72 @@ export function createVariantRepository(sql: QueryFn) {
     return rows.map(toVariant);
   }
 
+  /** Variant, product and price-on-request flag for many SKUs in one query (bulk API, CSV). */
+  async function findBySkus(skus: readonly string[]): Promise<Map<string, { productId: string; variant: AdminVariant; requiresQuote: boolean }>> {
+    const valid = [...new Set(skus.filter((sku) => SKU.test(sku)))];
+    if (!valid.length) return new Map();
+    const rows = (await sql.query(
+      `SELECT v.id, v.sku, v.options, v.price_minor, v.active, v.is_default, v.track_stock, i.on_hand, i.reserved,
+              p.legacy_id, p.requires_quote
+       FROM product_variants v
+       JOIN products p ON p.id = v.product_id
+       LEFT JOIN inventory i ON i.variant_id = v.id
+       WHERE v.sku = ANY ($1::text[])`,
+      [valid],
+    )) as (VariantRow & { legacy_id: string; requires_quote: boolean })[];
+    return new Map(rows.map((row) => [row.sku, { productId: row.legacy_id, variant: toVariant(row), requiresQuote: row.requires_quote }]));
+  }
+
   return {
     listVariants,
+    findBySkus,
+
+    /** Active variants of many products in one query (price rules over a scope). */
+    async listActiveVariantsOf(productIds: readonly string[]): Promise<Map<string, AdminVariant[]>> {
+      const valid = [...new Set(productIds.filter((id) => PRODUCT_ID.test(id)))];
+      const byProduct = new Map<string, AdminVariant[]>(valid.map((id) => [id, []]));
+      if (!valid.length) return byProduct;
+      const rows = (await sql.query(
+        `SELECT v.id, v.sku, v.options, v.price_minor, v.active, v.is_default, v.track_stock, i.on_hand, i.reserved, p.legacy_id
+         FROM product_variants v
+         JOIN products p ON p.id = v.product_id
+         LEFT JOIN inventory i ON i.variant_id = v.id
+         WHERE p.legacy_id = ANY ($1::text[]) AND v.active
+         ORDER BY p.legacy_id, v.sort_order, v.sku`,
+        [valid],
+      )) as (VariantRow & { legacy_id: string })[];
+      for (const row of rows) byProduct.get(row.legacy_id)?.push(toVariant(row));
+      return byProduct;
+    },
+
+    /**
+     * Sets many prices in one statement, each with its audit entry (same shape as
+     * updateVariant). The caller validated every price; unchanged ones are skipped.
+     */
+    async setPrices(actor: Admin, changes: { productId: string; variantId: string; sku: string; before: number | null; priceMinor: number }[]): Promise<void> {
+      const due = changes.filter((change) => change.before !== change.priceMinor);
+      if (!due.length) return;
+      await sql.query(
+        `WITH input AS (
+           SELECT * FROM unnest($1::uuid[], $2::bigint[], $3::text[], $4::jsonb[]) AS t(variant_id, price_minor, product_id, changes)
+         ),
+         updated AS (
+           UPDATE product_variants v SET price_minor = input.price_minor, updated_at = now()
+           FROM input WHERE v.id = input.variant_id AND v.track_stock
+           RETURNING v.sku, input.product_id, input.changes
+         )
+         ${audit}
+         SELECT $5, $6, 'variant.update', 'product', product_id, jsonb_build_object('sku', sku) || changes FROM updated`,
+        [
+          due.map((change) => change.variantId),
+          due.map((change) => change.priceMinor),
+          due.map((change) => change.productId),
+          due.map((change) => JSON.stringify({ priceMinor: { before: change.before, after: change.priceMinor } })),
+          actor.authUserId,
+          actor.email,
+        ],
+      );
+    },
 
     /** Creates or re-shapes the variants from the option definitions (see planVariants). */
     async configureOptions(actor: Admin, productId: string, definitions: OptionDefinition[]): Promise<AdminVariant[]> {
