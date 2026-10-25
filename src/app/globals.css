@@ -3174,6 +3174,8 @@ body:has(.admin-bar) .site-footer {
   padding: 12px;
   border: var(--line);
   background: var(--white);
+  /* Always dark text: the option is white even on dark pages (checkout). */
+  color: var(--black);
   cursor: pointer;
 }
 
@@ -3187,6 +3189,10 @@ body:has(.admin-bar) .site-footer {
 .delivery-choice__option span {
   display: grid;
   gap: 2px;
+}
+
+.delivery-choice__option small {
+  color: #555;
 }
 
 .checkout-form__fields {
