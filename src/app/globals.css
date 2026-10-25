@@ -345,6 +345,32 @@ textarea {
   border-color: var(--white);
 }
 
+.badge--sale {
+  border-color: var(--black);
+  background: #ff3d6e;
+  color: var(--white);
+}
+
+/* Previous price during a sale. */
+.price-was {
+  margin-right: 6px;
+  color: var(--muted-light);
+  font-size: 0.8em;
+  font-weight: 600;
+  text-decoration-thickness: 2px;
+}
+
+.extras-margin {
+  padding: 10px 12px;
+  border: 2px dashed var(--black);
+  font-weight: 800;
+}
+
+.field__label {
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .badge--pending {
   border-style: dashed;
   background: var(--light);

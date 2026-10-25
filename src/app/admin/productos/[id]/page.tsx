@@ -10,6 +10,7 @@ import {
   AdminUnavailable,
   AuditList,
   loadCategoryOptions,
+  priceInput,
   productFormValues,
   productStatusLabel,
   stockLabel,
@@ -17,9 +18,11 @@ import {
 } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { AdminDataError } from "@/server/admin/repository";
-import { adminAvailable, getAdminRepository, getCurrentAdmin, getImageRepository, getVariantRepository } from "@/server/admin/session";
+import { adminAvailable, getAdminRepository, getCurrentAdmin, getImageRepository, getProductExtrasRepository, getVariantRepository } from "@/server/admin/session";
 import { optionsLabel } from "@/server/admin/variants";
 import { hasMediaStorage } from "@/server/media/public-files";
+import { ProductExtrasForm } from "@/components/admin/product-extras-form";
+import { toArgentinaInput } from "@/server/admin/product-extras";
 
 export const metadata: Metadata = {
   title: "Editar producto",
@@ -48,13 +51,14 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
     if (error instanceof AdminDataError) notFound();
     throw error;
   });
-  const [movements, audit, query, categoryOptions, images, variants] = await Promise.all([
+  const [movements, audit, query, categoryOptions, images, variants, extras] = await Promise.all([
     repo.listMovements(id),
     repo.listAudit({ entityId: id, limit: 20 }),
     searchParams,
     loadCategoryOptions(),
     getImageRepository().listImages(id),
     getVariantRepository().listVariants(id),
+    getProductExtrasRepository().get(id),
   ]);
   const hasOptions = product.optionNames.length > 0;
   const stockVariants = hasOptions
@@ -100,6 +104,28 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
           categories={categoryOptions}
           themes={themeOptions}
           hasOptions={hasOptions}
+        />
+      </section>
+
+      <section className="account__section" aria-labelledby="venta-title">
+        <h2 id="venta-title">Venta y logística</h2>
+        <ProductExtrasForm
+          productId={product.id}
+          priceMinor={product.priceMinor}
+          hasOptions={hasOptions}
+          initial={{
+            weightG: extras?.weightG ? String(extras.weightG) : "",
+            length: extras?.lengthMm ? String(extras.lengthMm / 10).replace(".", ",") : "",
+            width: extras?.widthMm ? String(extras.widthMm / 10).replace(".", ",") : "",
+            height: extras?.heightMm ? String(extras.heightMm / 10).replace(".", ",") : "",
+            cost: extras?.costMinor !== null && extras?.costMinor !== undefined ? priceInput(extras.costMinor) : "",
+            lowStockThreshold: extras?.lowStockThreshold !== null && extras?.lowStockThreshold !== undefined ? String(extras.lowStockThreshold) : "",
+            saleKind: extras?.salePercent ? "percent" : extras?.salePriceMinor ? "price" : "none",
+            salePercent: extras?.salePercent ? String(extras.salePercent) : "",
+            salePrice: extras?.salePriceMinor ? priceInput(extras.salePriceMinor) : "",
+            saleStartsAt: toArgentinaInput(extras?.saleStartsAt ?? null),
+            saleEndsAt: toArgentinaInput(extras?.saleEndsAt ?? null),
+          }}
         />
       </section>
 

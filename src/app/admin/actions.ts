@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { catalogChanged, dataError, formValues, requireAdmin, type AdminFormState } from "@/server/admin/guard";
 import { parseImageAlt, parsePesos, parseProductCreate, parseProductUpdate, parseStockCount } from "@/server/admin/validation";
-import { getAdminRepository, getImageRepository, getVariantRepository } from "@/server/admin/session";
+import { getAdminRepository, getImageRepository, getProductExtrasRepository, getVariantRepository } from "@/server/admin/session";
+import { parseProductExtras } from "@/server/admin/product-extras";
 import { parseOptionDefinitions } from "@/server/admin/variants";
 import { deleteStoredImage, hasMediaStorage, storeImage } from "@/server/media/public-files";
 import { inspectImage } from "@/server/media/image-file";
@@ -70,6 +71,23 @@ export async function updateProductAction(_state: AdminFormState, form: FormData
   }
   catalogChanged(`/admin/productos/${productId}`);
   return { ok: "Cambios guardados.", values };
+}
+
+/** "Venta y logística": weight, dimensions, cost, stock alert and sale price. */
+export async function updateProductExtrasAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
+  const admin = await requireAdmin();
+  const values = formValues(form);
+  const productId = values.productId ?? "";
+  try {
+    const product = await getAdminRepository().getProduct(productId);
+    const parsed = parseProductExtras(values, { hasOptions: product.optionNames.length > 0 });
+    if (!parsed.ok) return { fields: parsed.errors, values };
+    await getProductExtrasRepository().save(admin, productId, parsed.value);
+  } catch (error) {
+    return dataError(error, values);
+  }
+  catalogChanged(`/admin/productos/${productId}`);
+  return { ok: "Venta y logística guardadas.", values };
 }
 
 export async function countStockAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {

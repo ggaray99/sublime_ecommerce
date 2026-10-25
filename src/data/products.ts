@@ -25,6 +25,10 @@ export type Product = {
   theme: ThemeId;
   /** Illustrative price in ARS. `null` means the product is quoted on request. */
   price: number | null;
+  /** Price before an active sale (the store shows it struck through). */
+  regularPrice?: number;
+  /** When the sale ends, if it has an end date (ISO). */
+  saleEndsAt?: string;
   images: ProductImage[];
   tags: string[];
   featured: boolean;
@@ -51,6 +55,8 @@ export type ProductVariant = {
   options: Record<string, string>;
   /** ARS; null when made to order. */
   price: number | null;
+  /** Price before an active sale. */
+  regularPrice?: number;
   /** Available units; null when made to order. */
   stock: number | null;
 };

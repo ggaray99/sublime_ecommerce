@@ -80,7 +80,14 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
           ) : (
             <>
               <p className="product-detail__price">
+                {product.regularPrice && (
+                  <s className="price-was">
+                    <span className="visually-hidden">Antes </span>
+                    {priceLabel(product.regularPrice)}
+                  </s>
+                )}
                 {priceLabel(product.price)}
+                {product.regularPrice && <span className="badge badge--sale">Oferta</span>}
                 {product.price === null && <span className="badge badge--violet">Se cotiza a pedido</span>}
               </p>
               <StockNote product={product} />

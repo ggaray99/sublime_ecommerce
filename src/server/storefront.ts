@@ -18,8 +18,9 @@ export async function getStorefrontProducts(): Promise<Product[]> {
     cacheLife("max");
     return products;
   }
-  // Admin changes refresh it immediately; the lifetime is only a safety net.
-  cacheLife("hours");
+  // Admin changes refresh it immediately. Minutes (not hours) so a sale with
+  // dates starts and ends on time in the store, not only in the cart.
+  cacheLife("minutes");
   return listStorefrontProducts(getSql());
 }
 

@@ -20,6 +20,10 @@ export type CatalogVariant = {
   active: boolean;
   /** The product has options (size, color…): the cart must say which variant (by SKU). */
   hasOptions: boolean;
+  /** Price before a product sale; equals unitPriceMinor when there is none. */
+  regularPriceMinor?: number | null;
+  /** For category-wide promotions. */
+  categoryId?: string;
 };
 
 /** Persistence-agnostic access to the catalog (static today, Postgres later). */

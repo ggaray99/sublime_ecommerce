@@ -5,6 +5,7 @@ import { createCategoryRepository } from "./categories-repository.ts";
 import { createApiKeyRepository } from "../api/keys.ts";
 import { createImageRepository } from "./images-repository.ts";
 import { createVariantRepository } from "./variants-repository.ts";
+import { createProductExtrasRepository } from "./product-extras.ts";
 import { createAdminRepository, type Admin, type AdminRepository } from "./repository.ts";
 
 /** The admin panel lives wherever customer accounts do (staging/previews today). */
@@ -18,6 +19,7 @@ export const getCategoryRepository = () => createCategoryRepository(getSql());
 export const getImageRepository = () => createImageRepository(getSql());
 export const getApiKeyRepository = () => createApiKeyRepository(getSql());
 export const getVariantRepository = () => createVariantRepository(getSql());
+export const getProductExtrasRepository = () => createProductExtrasRepository(getSql());
 
 /**
  * The only authorization check for /admin: a signed-in user is an admin when

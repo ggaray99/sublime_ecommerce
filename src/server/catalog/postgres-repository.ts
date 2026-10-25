@@ -1,4 +1,5 @@
 import type { QueryFn } from "../db/client.ts";
+import { effectivePriceMinor, saleOf } from "../../lib/pricing.ts";
 import type { Currency } from "../money.ts";
 import type { CatalogRepository, CatalogVariant } from "./repository.ts";
 
@@ -14,12 +15,18 @@ type VariantRow = {
   active: boolean;
   option_names: string[];
   options: Record<string, string>;
+  category_id: string;
+  sale_percent: number | null;
+  sale_price_minor: string | number | null;
+  sale_starts_at: Date | null;
+  sale_ends_at: Date | null;
 };
 
 const SELECT_VARIANTS = `
   SELECT p.legacy_id AS product_id, v.sku, p.slug, p.name, v.price_minor, v.currency,
          p.requires_quote, v.track_stock, (p.status = 'active' AND v.active) AS active,
-         p.option_names, v.options
+         p.option_names, v.options, p.category_id,
+         p.sale_percent, p.sale_price_minor, p.sale_starts_at, p.sale_ends_at
   FROM products p
   JOIN product_variants v ON v.product_id = p.id`;
 const SELECT_DEFAULT_VARIANTS = `${SELECT_VARIANTS} AND v.is_default`;
@@ -35,7 +42,9 @@ const variantName = (row: VariantRow) => {
 
 function toVariant(row: VariantRow): CatalogVariant {
   // bigint columns arrive as strings; prices stay far below Number.MAX_SAFE_INTEGER.
-  const unitPriceMinor = row.price_minor === null ? null : Number(row.price_minor);
+  const regularPriceMinor = row.price_minor === null ? null : Number(row.price_minor);
+  // The charged price includes an active product sale (same rule as the store).
+  const unitPriceMinor = regularPriceMinor === null ? null : effectivePriceMinor(regularPriceMinor, saleOf(row));
   return {
     sku: row.sku,
     productId: row.product_id,
@@ -48,6 +57,8 @@ function toVariant(row: VariantRow): CatalogVariant {
     trackStock: row.track_stock,
     active: row.active,
     hasOptions: row.option_names.length > 0,
+    regularPriceMinor,
+    categoryId: row.category_id,
   };
 }
 

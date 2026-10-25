@@ -76,7 +76,14 @@ export function VariantPurchase({ productId, productName, optionNames, variants 
       ))}
 
       <p className="product-detail__price" aria-live="polite">
+        {variant?.regularPrice && (
+          <s className="price-was">
+            <span className="visually-hidden">Antes </span>
+            {formatPrice(variant.regularPrice)}
+          </s>
+        )}
         {variant?.price != null ? formatPrice(variant.price) : "—"}
+        {variant?.regularPrice && <span className="badge badge--sale">Oferta</span>}
       </p>
       <p className={`stock-note ${variant && inStock(variant) ? "stock-note--in" : "stock-note--out"}`} aria-live="polite">
         {!variant

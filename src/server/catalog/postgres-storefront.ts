@@ -1,5 +1,6 @@
 import type { Category } from "../../data/categories.ts";
 import { themes, type Product, type ProductImage, type ProductVariant, type ThemeId } from "../../data/products.ts";
+import { effectivePriceMinor, saleActive, saleOf } from "../../lib/pricing.ts";
 import type { QueryFn } from "../customers/repository.ts";
 
 /** Used when a category has no image yet. */
@@ -21,6 +22,10 @@ type StorefrontRow = {
   requires_quote: boolean;
   option_names: string[];
   variants: { sku: string; options: Record<string, string>; price_minor: string | number | null; track_stock: boolean; available: number }[];
+  sale_percent: number | null;
+  sale_price_minor: string | number | null;
+  sale_starts_at: string | null;
+  sale_ends_at: string | null;
   images: ProductImage[] | null;
 };
 
@@ -29,6 +34,7 @@ const SELECT_PUBLISHED = `
   SELECT p.legacy_id, p.slug, p.name, p.description, p.category_id, c.label AS category_label,
          c.image_url AS category_image, p.theme, p.tags, p.featured, p.details,
          p.catalog_code, p.requires_quote, p.option_names, vs.variants,
+         p.sale_percent, p.sale_price_minor, p.sale_starts_at, p.sale_ends_at,
          (SELECT json_agg(json_build_object('src', im.url, 'alt', im.alt) ORDER BY im.sort_order)
           FROM product_images im WHERE im.product_id = p.id) AS images
   FROM products p
@@ -45,13 +51,21 @@ const SELECT_PUBLISHED = `
   ORDER BY p.sort_order, p.created_at, p.legacy_id`;
 
 /** Maps a database row to the shape the store components already use. */
-export function toStorefrontProduct(row: StorefrontRow): Product {
-  const variants: ProductVariant[] = row.variants.map((variant) => ({
-    sku: variant.sku,
-    options: variant.options,
-    price: variant.price_minor === null ? null : Number(variant.price_minor) / 100,
-    stock: variant.track_stock ? variant.available : null,
-  }));
+export function toStorefrontProduct(row: StorefrontRow, now = new Date()): Product {
+  const sale = saleOf(row);
+  const onSale = saleActive(sale, now) && !row.requires_quote;
+  const variants: ProductVariant[] = row.variants.map((variant) => {
+    const regular = variant.price_minor === null ? null : Number(variant.price_minor);
+    const current = regular === null ? null : effectivePriceMinor(regular, sale, now);
+    return {
+      sku: variant.sku,
+      options: variant.options,
+      price: current === null ? null : current / 100,
+      ...(onSale && regular !== null && current !== regular ? { regularPrice: regular / 100 } : {}),
+      stock: variant.track_stock ? variant.available : null,
+    };
+  });
+  const regularPrices = variants.flatMap((variant) => (variant.price === null ? [] : [variant.regularPrice ?? variant.price]));
   const prices = variants.flatMap((variant) => (variant.price === null ? [] : [variant.price]));
   // "Desde": the lowest price among the active variants.
   const priceMinor = row.requires_quote || !prices.length ? null : Math.round(Math.min(...prices) * 100);
@@ -67,6 +81,9 @@ export function toStorefrontProduct(row: StorefrontRow): Product {
     categoryLabel: row.category_label,
     theme: (row.theme in themes ? row.theme : "grafico") as ThemeId,
     price: priceMinor === null ? null : priceMinor / 100,
+    ...(onSale && priceMinor !== null && regularPrices.length && Math.min(...regularPrices) * 100 > priceMinor
+      ? { regularPrice: Math.min(...regularPrices), ...(sale.endsAt ? { saleEndsAt: sale.endsAt.toISOString() } : {}) }
+      : {}),
     images,
     tags: row.tags,
     featured: row.featured,
@@ -82,7 +99,8 @@ export function toStorefrontProduct(row: StorefrontRow): Product {
 
 /** Published products with their active variants, images and available stock. */
 export async function listStorefrontProducts(sql: QueryFn): Promise<Product[]> {
-  return ((await sql.query(SELECT_PUBLISHED)) as StorefrontRow[]).map(toStorefrontProduct);
+  const now = new Date();
+  return ((await sql.query(SELECT_PUBLISHED)) as StorefrontRow[]).map((row) => toStorefrontProduct(row, now));
 }
 
 type CategoryRow = { id: string; label: string; tagline: string; description: string; image_url: string };

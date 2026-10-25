@@ -24,6 +24,7 @@ export function ProductCard({ product, headingLevel = "h3", preload = false }: P
           preload={preload}
         />
         <span className="product-card__badges">
+          {product.regularPrice && <span className="badge badge--sale">Oferta</span>}
           {product.featured && <span className="badge badge--acid">Destacado</span>}
           {product.requiresQuote && <span className="badge badge--violet">A medida</span>}
           {isOutOfStock(product) && <span className="badge badge--pending">Sin stock</span>}
@@ -39,6 +40,13 @@ export function ProductCard({ product, headingLevel = "h3", preload = false }: P
         </Heading>
         <p className="product-card__price">
           {hasPriceRange(product) && <span className="product-card__from">desde </span>}
+          {product.regularPrice && (
+            <s className="price-was">
+              <span className="visually-hidden">Antes </span>
+              {priceLabel(product.regularPrice)}
+            </s>
+          )}
+          {product.regularPrice && <span className="visually-hidden">Ahora </span>}
           {priceLabel(product.price)}
         </p>
         <div className="product-card__actions">
