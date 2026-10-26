@@ -25,7 +25,12 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN --mount=type=secret,id=dotenv,target=/app/.env.production,required=true npm run build
+# Docker leaves secret contents out of the build cache key, so staging and the
+# store would share this step. The deploy scripts pass a hash of the env file:
+# a different environment (or a changed one) always builds again.
+ARG ENV_FINGERPRINT
+RUN --mount=type=secret,id=dotenv,target=/app/.env.production,required=true \
+    test -n "$ENV_FINGERPRINT" && npm run build
 
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app

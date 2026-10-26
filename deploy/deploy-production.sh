@@ -24,7 +24,8 @@ BUILD_ENV=$(mktemp "$ROOT/.build-env.XXXXXX")
 trap 'rm -f "$BUILD_ENV"' EXIT
 sed 's#@postgres:5432/#@127.0.0.1:5433/#' production.env > "$BUILD_ENV"
 
-DOCKER_BUILDKIT=1 docker build --network host --secret id=dotenv,src="$BUILD_ENV" -t sublime:production src
+DOCKER_BUILDKIT=1 docker build --network host --secret id=dotenv,src="$BUILD_ENV" \
+  --build-arg ENV_FINGERPRINT="$(sha256sum production.env | cut -c1-16)" -t sublime:production src
 
 docker compose -f compose.yaml up -d production
 docker image prune -f >/dev/null
