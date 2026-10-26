@@ -11,7 +11,10 @@ import { priceLabel } from "@/lib/format";
 import { getStorefrontProduct, getStorefrontProducts } from "@/server/storefront";
 
 export async function generateStaticParams() {
-  return (await getStorefrontProducts()).map((product) => ({ slug: product.slug }));
+  const slugs = (await getStorefrontProducts()).map((product) => ({ slug: product.slug }));
+  // Cache Components needs at least one entry. A new store has no products yet:
+  // this placeholder prerenders as "not found", and real products render on request.
+  return slugs.length ? slugs : [{ slug: "sin-productos" }];
 }
 
 export async function generateMetadata({ params }: PageProps<"/producto/[slug]">): Promise<Metadata> {
