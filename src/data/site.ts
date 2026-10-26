@@ -1,6 +1,7 @@
 export const site = {
   name: "Sublime",
-  url: "https://sublime-ecommerce.vercel.app",
+  // Public address of this deployment (same variable the sign-in uses); read on the server.
+  url: process.env.BETTER_AUTH_URL ?? "https://sublimestudio.com.ar",
   description:
     "Calcos, stickers, remeras estampadas, planchas DTF, vinilos y productos personalizados con diseños originales.",
 };

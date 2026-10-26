@@ -1,8 +1,9 @@
-// Applies db/migrations/*.sql (and optionally the catalog seed) to a STAGING database.
+// Applies db/migrations/*.sql (and, on staging, the demo seeds) to a database.
 //
 //   node --env-file=.env.local scripts/db-migrate.mjs --target=staging            # status only
 //   node --env-file=.env.local scripts/db-migrate.mjs --target=staging --apply    # apply pending migrations
 //   node --env-file=.env.local scripts/db-migrate.mjs --target=staging --apply --seed
+//   node scripts/db-migrate.mjs --target=production --apply                         # inside the VPS, SUBLIME_ENV=production
 //
 // Each file runs in its own transaction together with its row in schema_migrations,
 // so a failure leaves nothing half-applied. Applied files are checksummed: editing
@@ -21,8 +22,18 @@ function fail(message) {
   process.exit(1);
 }
 
-if (!args.has("--target=staging")) fail("Indicá --target=staging. Este script no está habilitado para producción.");
-if (process.env.SUBLIME_ENV === "production" || process.env.VERCEL_ENV === "production") fail("Entorno de producción: ejecución bloqueada.");
+// The target must match the environment of DATABASE_URL, so a staging command can
+// never touch production and the other way round. Production never takes the
+// demo seeds: its catalog is loaded from the admin panel.
+const production = process.env.SUBLIME_ENV === "production" || process.env.VERCEL_ENV === "production";
+if (args.has("--target=production")) {
+  if (!production) fail("--target=production solo corre con SUBLIME_ENV=production.");
+  if (args.has("--seed")) fail("Producción no lleva los datos de prueba (--seed).");
+} else if (args.has("--target=staging")) {
+  if (production) fail("Entorno de producción: usá --target=production.");
+} else {
+  fail("Indicá --target=staging o --target=production.");
+}
 if (!process.env.DATABASE_URL) fail("Falta DATABASE_URL (por ejemplo: node --env-file=.env.local …).");
 
 const files = [

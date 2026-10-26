@@ -2767,8 +2767,55 @@ li:nth-child(3n) > .category-card .category-card__body {
    rendered (signed-in admins); strangers keep the normal store 404. */
 body:has(.admin-bar) .demo-bar,
 body:has(.admin-bar) .site-header,
-body:has(.admin-bar) .site-footer {
+body:has(.admin-bar) .site-footer,
+body:has(.maintenance) .demo-bar,
+body:has(.maintenance) .site-header,
+body:has(.maintenance) .site-footer,
+body:has(.maintenance) .skip-link {
   display: none;
+}
+
+/* Public screen while the store is closed (SUBLIME_MAINTENANCE=1). */
+.maintenance {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--black);
+  color: var(--white);
+  text-align: center;
+}
+
+.maintenance__box {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  max-width: 560px;
+}
+
+.maintenance__logo {
+  width: min(260px, 70vw);
+  height: auto;
+}
+
+.maintenance h1 {
+  margin: 0;
+  font-family: var(--font-bebas), sans-serif;
+  font-weight: 400;
+  font-size: clamp(44px, 9vw, 88px);
+  line-height: 0.95;
+}
+
+.maintenance h1 em {
+  font-style: normal;
+  color: var(--cyan);
+}
+
+.maintenance p {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.5;
+  opacity: 0.85;
 }
 
 .admin-bar {

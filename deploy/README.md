@@ -5,7 +5,7 @@ VPS de Hostinger (KVM 2, Ubuntu 24.04, `72.60.149.168`). Comparte el servidor co
 | Qué | Dónde |
 | --- | --- |
 | Staging | https://staging.sublime.consulte.app (protegido con usuario y contraseña) |
-| Tienda | `sublime.consulte.app` (DNS listo; se activa en el corte) |
+| Tienda | https://sublimestudio.com.ar (en mantenimiento: el público ve "Estamos trabajando"; `/admin` funciona) |
 | Archivos de Sublime | `/srv/sublime` (dueño: usuario `deploy`) |
 | Proxy con HTTPS | Traefik de `/root/docker-compose.yml` (el mismo de n8n). Sublime solo le agrega etiquetas |
 | Base | Contenedor `sublime-postgres-1`, una base por entorno, puerto `127.0.0.1:5433` (no sale a internet) |
@@ -21,6 +21,8 @@ compose.yaml          copia de deploy/compose.yaml (se actualiza en cada deploy)
 src/                  código desplegado
 postgres.env          clave del admin de Postgres                     (600)
 staging.env           entorno de staging: base, secreto de cuentas…   (600)
+production.env        entorno de la tienda (incluye SUBLIME_MAINTENANCE) (600)
+media/production/     fotos y adjuntos de la tienda
 .env                  hash de la contraseña de staging para Traefik   (600)
 staging-access.txt    usuario y contraseña para entrar a staging      (600)
 media/staging/        fotos y adjuntos (uid 10001 = usuario de la app)
@@ -50,6 +52,21 @@ cd /srv/sublime && docker run --rm --network sublime_internal --env-file staging
   sh -c 'npm ci --omit=dev --ignore-scripts >/dev/null && node scripts/admin-grant.mjs --target=staging --email=persona@dominio --role=owner'
 ```
 
+## Tienda (producción)
+
+Se despliega **a mano**, nunca sola: el despliegue automático solo toca staging.
+
+| Tarea | Comando |
+| --- | --- |
+| Primera vez (base, secretos) | `sudo bash /srv/sublime/src/deploy/setup-production.sh` |
+| Desplegar la versión que corre en staging | `bash /srv/sublime/src/deploy/deploy-production.sh` |
+| Abrir la tienda al público | En `production.env` cambiar `SUBLIME_MAINTENANCE=1` por `0` y `docker compose -f /srv/sublime/compose.yaml up -d production` (sin reconstruir) |
+| Dar admin | Registrarse en https://sublimestudio.com.ar/cuenta/ingresar y correr `admin-grant` con `--env-file production.env --target=production` |
+
+En mantenimiento (`src/proxy.ts`), todas las páginas públicas muestran `/mantenimiento` con `X-Robots-Tag: noindex` y `robots.txt` bloquea todo. Siguen abiertos `/admin`, `/cuenta` (para iniciar sesión), `/api/auth`, `/api/admin`, `/api/internal` y `/media`.
+
+La base `sublime_prod` arranca vacía: sin los datos de prueba de staging. El catálogo, las reglas de envío y los puntos de venta reales se cargan desde el panel.
+
 ## Cómo se construye
 
 `deploy-staging.sh` hace tres cosas, en orden:
@@ -61,7 +78,6 @@ cd /srv/sublime && docker run --rm --network sublime_internal --env-file staging
 ## Pendiente
 
 - **Quitarle a `deploy` el sudo sin clave** cuando termine el armado.
-- **Tienda (producción):** base `sublime_prod`, servicio `production` en `compose.yaml` y modo producción del script de migraciones. Se hace en el corte, con aprobación.
 
 ## Seguridad del servidor
 

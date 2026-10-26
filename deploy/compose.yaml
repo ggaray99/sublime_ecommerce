@@ -55,6 +55,43 @@ services:
       traefik.http.middlewares.sublime-staging-headers.headers.referrerPolicy: strict-origin-when-cross-origin
       traefik.http.services.sublime-staging.loadbalancer.server.port: "3000"
 
+  # The store. Deployed by hand (deploy/deploy-production.sh), never by the staging
+  # auto-deploy. SUBLIME_MAINTENANCE=1 in production.env shows only the
+  # "Estamos trabajando" page to the public (src/proxy.ts).
+  production:
+    image: sublime:production
+    restart: unless-stopped
+    # Optional so staging deploys work before setup-production.sh creates it;
+    # deploy-production.sh refuses to run without it.
+    env_file:
+      - path: ./production.env
+        required: false
+    environment:
+      MEDIA_ROOT: /data/media
+    volumes:
+      - ./media/production:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal, proxy]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: root_default
+      traefik.http.routers.sublime-production.rule: Host(`sublimestudio.com.ar`) || Host(`www.sublimestudio.com.ar`)
+      traefik.http.routers.sublime-production.entrypoints: websecure
+      traefik.http.routers.sublime-production.tls: "true"
+      traefik.http.routers.sublime-production.tls.certresolver: mytlschallenge
+      traefik.http.routers.sublime-production.middlewares: sublime-www,sublime-production-headers
+      # One address for the store: www goes to the bare domain.
+      traefik.http.middlewares.sublime-www.redirectregex.regex: ^https://www\.sublimestudio\.com\.ar/(.*)
+      traefik.http.middlewares.sublime-www.redirectregex.replacement: https://sublimestudio.com.ar/$${1}
+      traefik.http.middlewares.sublime-www.redirectregex.permanent: "true"
+      traefik.http.middlewares.sublime-production-headers.headers.stsSeconds: "31536000"
+      traefik.http.middlewares.sublime-production-headers.headers.contentTypeNosniff: "true"
+      traefik.http.middlewares.sublime-production-headers.headers.frameDeny: "true"
+      traefik.http.middlewares.sublime-production-headers.headers.referrerPolicy: strict-origin-when-cross-origin
+      traefik.http.services.sublime-production.loadbalancer.server.port: "3000"
+
 networks:
   internal: {}
   proxy:
