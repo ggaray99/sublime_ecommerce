@@ -44,13 +44,15 @@ Los secretos se generan en el servidor con `setup-staging.sh` y no salen de ahí
 | Probar restauración | `sudo bash /srv/sublime/src/deploy/restore-test.sh` |
 | Dar admin | Registrarse en staging y abrir `/cuenta`; después: `docker run --rm --network sublime_internal --env-file /srv/sublime/staging.env sublime:migrate …` (ver abajo) |
 
-Para dar permisos de admin, el script `admin-grant` necesita el código fuente. Se corre así:
+Para dar permisos de admin, el script `admin-grant` necesita el código fuente y sus dependencias. La imagen `sublime:migrate` ya trae las dependencias; el código se monta encima. Se corre así (para la tienda: `production.env` y `--target=production`):
 
 ```sh
 cd /srv/sublime && docker run --rm --network sublime_internal --env-file staging.env \
-  -v "$PWD/src:/src:ro" -w /src node:24-bookworm-slim \
-  sh -c 'npm ci --omit=dev --ignore-scripts >/dev/null && node scripts/admin-grant.mjs --target=staging --email=persona@dominio --role=owner'
+  -v "$PWD/src/scripts:/app/scripts:ro" -v "$PWD/src/src:/app/src:ro" -w /app sublime:migrate \
+  node scripts/admin-grant.mjs --target=staging --email=persona@dominio --role=owner
 ```
+
+La persona tiene que haberse registrado y abierto **Mi cuenta** una vez antes.
 
 ## Tienda (producción)
 
