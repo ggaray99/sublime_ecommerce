@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bebas_Neue } from "next/font/google";
 import localFont from "next/font/local";
 import { CartToast } from "@/components/cart/cart-toast";
+import { PreviewBar } from "@/components/preview-bar";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { site } from "@/data/site";
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <a className="skip-link" href="#contenido">
           Saltar al contenido
         </a>
+        <PreviewBar />
         <SiteHeader />
         {children}
         <SiteFooter />

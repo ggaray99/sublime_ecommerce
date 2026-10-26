@@ -2,6 +2,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getSql, hasDatabase } from "../db/client.ts";
 import { createContactRepository, DEFAULT_CONTACT, type ContactSettings } from "./contact.ts";
 import { createLabPricingRepository } from "./lab-pricing.ts";
+import { createStoreStatusRepository } from "../store-status.ts";
 import { DEFAULT_LAB_PRICING, type LabPricing } from "../../lib/lab/pricing.ts";
 
 /** Invalidated with updateTag() when /admin/ajustes saves. */
@@ -34,3 +35,5 @@ export async function getLabPricing(): Promise<LabPricing> {
   cacheLife("hours");
   return getLabPricingRepository().get();
 }
+
+export const getStoreStatusRepository = () => createStoreStatusRepository(getSql());

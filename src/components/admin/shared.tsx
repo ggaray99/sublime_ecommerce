@@ -101,6 +101,7 @@ function describe(entry: AuditEntry): string {
     "home.hero": "Portada actualizada",
     "settings.contact": changes.whatsapp ? "WhatsApp actualizado" : "WhatsApp quitado",
     "settings.lab_pricing": "Precios de stickers a medida actualizados",
+    "settings.store_status": changes.closed ? "Tienda cerrada al público (Estamos trabajando)" : "Tienda abierta al público",
     "variant.options": "Opciones de variantes actualizadas",
     "variant.update": "Variante actualizada",
     "promotion.create": "Promoción creada",
