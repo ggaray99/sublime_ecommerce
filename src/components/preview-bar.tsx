@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { exitPreviewAction } from "@/app/preview-actions";
 
 const subscribe = () => () => {};
 const inPreview = () => document.cookie.split("; ").includes("sublime_preview_on=1");
@@ -10,8 +10,11 @@ const inPreview = () => document.cookie.split("; ").includes("sublime_preview_on
 /**
  * Shown only to an admin previewing the closed store (cookie set from the
  * panel). Read in the browser, so prerendered pages stay the same for everyone.
+ * It lives in the root layout and survives client navigations: reading the
+ * pathname re-renders it on each one, and the cookie is read again then.
  */
 export function PreviewBar() {
+  usePathname();
   const visible = useSyncExternalStore(subscribe, inPreview, () => false);
   if (!visible) return null;
   return (
@@ -21,11 +24,8 @@ export function PreviewBar() {
       </p>
       <div className="preview-bar__actions">
         <Link href="/admin/ajustes">Volver al panel</Link>
-        <form action={exitPreviewAction}>
-          <button type="submit" className="link-button">
-            Salir de la vista previa
-          </button>
-        </form>
+        {/* A full page load, so the whole page switches to what customers see. */}
+        <a href="/vista-previa/salir">Salir de la vista previa</a>
       </div>
     </div>
   );

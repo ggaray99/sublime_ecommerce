@@ -2765,13 +2765,15 @@ li:nth-child(3n) > .category-card .category-card__body {
 /* Admin shell: its own bar replaces the store header, cart and footer, and the
    section heading is compact. Store chrome hides only when the admin bar is
    rendered (signed-in admins); strangers keep the normal store 404. */
-body:has(.admin-bar) .demo-bar,
-body:has(.admin-bar) .site-header,
-body:has(.admin-bar) .site-footer,
-body:has(.maintenance) .demo-bar,
-body:has(.maintenance) .site-header,
-body:has(.maintenance) .site-footer,
-body:has(.maintenance) .skip-link {
+/* Next keeps visited pages mounted but hidden (inline display: none) for instant
+   back/forward, so only a *visible* admin shell or maintenance page counts. */
+body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .demo-bar,
+body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .site-header,
+body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .site-footer,
+body:has(.maintenance:not([style*="none"])) .demo-bar,
+body:has(.maintenance:not([style*="none"])) .site-header,
+body:has(.maintenance:not([style*="none"])) .site-footer,
+body:has(.maintenance:not([style*="none"])) .skip-link {
   display: none;
 }
 
@@ -3731,6 +3733,6 @@ body:has(.maintenance) .skip-link {
   font-weight: 700;
 }
 
-body:has(.admin-bar) .preview-bar {
+body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .preview-bar {
   display: none;
 }
