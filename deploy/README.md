@@ -69,6 +69,17 @@ En mantenimiento (`src/proxy.ts`), todas las páginas públicas muestran `/mante
 
 La base `sublime_prod` arranca vacía: sin los datos de prueba de staging. El catálogo, las reglas de envío y los puntos de venta reales se cargan desde el panel.
 
+### Lanzamiento en buscadores (SEO)
+
+La tienda no se indexa hasta que se decide: `noindex` en todas las páginas y `robots.txt` con `Disallow: /`. Staging nunca se indexa.
+
+1. **Antes:** catálogo con precios, fotos y textos alternativos reales; políticas, envíos y contacto confirmados (sin "Pendiente de confirmación" ni "A definir").
+2. En `production.env`: `SITE_INDEXABLE=true` y, si el dominio público no es el de `BETTER_AUTH_URL`, `SITE_URL=https://sublimestudio.com.ar`.
+3. **Reconstruir** con `deploy-production.sh`: las variables se leen en el `next build`, reiniciar no alcanza.
+4. Comprobar `https://sublimestudio.com.ar/robots.txt` (debe declarar el sitemap) y que el HTML ya no tenga `noindex`.
+5. Validar una ficha de producto en https://search.google.com/test/rich-results.
+6. Dar de alta el dominio en Google Search Console y enviar `/sitemap.xml`.
+
 ## Cómo se construye
 
 `deploy-staging.sh` hace tres cosas, en orden:
