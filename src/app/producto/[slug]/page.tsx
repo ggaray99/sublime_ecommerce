@@ -3,11 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCartPanel } from "@/components/cart/add-to-cart";
 import { VariantPurchase } from "@/components/cart/variant-purchase";
+import { JsonLd } from "@/components/json-ld";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
 import { themes, type Product } from "@/data/products";
 import { categoryLabelOf, hasPriceRange, isOutOfStock, relatedProducts } from "@/lib/catalog";
 import { priceLabel } from "@/lib/format";
+import { breadcrumbJsonLd, productJsonLd } from "@/lib/structured-data";
+import { site } from "@/data/site";
 import { getStorefrontProduct, getStorefrontProducts } from "@/server/storefront";
 
 export async function generateStaticParams() {
@@ -154,6 +157,20 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
           </ul>
         </section>
       )}
+      <JsonLd
+        data={[
+          productJsonLd(product, { baseUrl: site.url, brand: site.name, category: categoryLabel }),
+          // Mirrors the visible breadcrumbs.
+          breadcrumbJsonLd(
+            [
+              { name: "Tienda", path: "/tienda" },
+              { name: categoryLabel, path: `/tienda?categoria=${product.category}` },
+              { name: product.name, path: `/producto/${product.slug}` },
+            ],
+            site.url,
+          ),
+        ]}
+      />
     </main>
   );
 }

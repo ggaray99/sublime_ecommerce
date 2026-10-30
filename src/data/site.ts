@@ -1,7 +1,8 @@
 export const site = {
   name: "Sublime",
-  // Public address of this deployment (same variable the sign-in uses); read on the server.
-  url: process.env.BETTER_AUTH_URL ?? "https://sublimestudio.com.ar",
+  // Public address of this deployment (canonical URLs, sitemap, structured data); read on the server.
+  // SITE_URL wins; otherwise the sign-in origin.
+  url: process.env.SITE_URL ?? process.env.BETTER_AUTH_URL ?? "https://sublimestudio.com.ar",
   description:
     "Calcos, stickers, remeras estampadas, planchas DTF, vinilos y productos personalizados con diseños originales.",
 };

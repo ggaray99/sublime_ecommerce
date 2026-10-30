@@ -6,7 +6,10 @@ import { PreviewBar } from "@/components/preview-bar";
 import { Suspense } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { JsonLd } from "@/components/json-ld";
 import { site } from "@/data/site";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
+import { isSiteIndexable } from "@/server/env";
 import "./globals.css";
 
 /* Brand typography (client branding kit):
@@ -49,8 +52,8 @@ export const metadata: Metadata = {
     description: site.description,
     url: "/",
   },
-  // Kept out of search results until launch (real catalog, prices and policies).
-  robots: { index: false, follow: false },
+  // Kept out of search results until launch (real catalog, prices and policies): see SITE_INDEXABLE.
+  robots: isSiteIndexable() ? { index: true, follow: true } : { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
@@ -71,6 +74,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SiteHeader />
         {children}
         <SiteFooter />
+        <JsonLd data={[organizationJsonLd(site), websiteJsonLd(site)]} />
         <CartToast />
       </body>
     </html>
