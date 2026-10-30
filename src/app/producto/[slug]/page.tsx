@@ -32,6 +32,8 @@ export async function generateMetadata({ params }: PageProps<"/producto/[slug]">
       title: `${product.name} — Sublime`,
       description: product.description,
       url: `/producto/${product.slug}`,
+      // Shared links (WhatsApp, redes) show the product photo instead of the generic store image.
+      ...(product.images[0] && { images: [{ url: product.images[0].src, alt: product.images[0].alt || product.name }] }),
     },
   };
 }
@@ -67,7 +69,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             <Link href="/tienda">Tienda</Link>
           </li>
           <li>
-            <Link href={`/tienda?categoria=${product.category}`}>{categoryLabel}</Link>
+            <Link href={`/categorias/${product.category}`}>{categoryLabel}</Link>
           </li>
           <li aria-current="page">{product.name}</li>
         </ol>
@@ -164,7 +166,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
           breadcrumbJsonLd(
             [
               { name: "Tienda", path: "/tienda" },
-              { name: categoryLabel, path: `/tienda?categoria=${product.category}` },
+              { name: categoryLabel, path: `/categorias/${product.category}` },
               { name: product.name, path: `/producto/${product.slug}` },
             ],
             site.url,

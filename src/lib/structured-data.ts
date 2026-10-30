@@ -103,6 +103,21 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[], baseUr
   };
 }
 
+/** Products of a listing page (a category), in display order. */
+export function itemListJsonLd(products: Pick<Product, "slug" | "name">[], baseUrl: string): JsonLd {
+  return {
+    "@context": CONTEXT,
+    "@type": "ItemList",
+    numberOfItems: products.length,
+    itemListElement: products.map((product, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: product.name,
+      url: absolute(`/producto/${product.slug}`, baseUrl),
+    })),
+  };
+}
+
 /** Pending answers ("A definir") stay out: only confirmed answers are published. */
 export function faqJsonLd(content: InfoPageContent): JsonLd {
   return {

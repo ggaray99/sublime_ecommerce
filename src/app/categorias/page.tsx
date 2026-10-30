@@ -29,7 +29,7 @@ export default async function CategoriasPage() {
                 <p className="muted">
                   {count} {count === 1 ? "producto" : "productos"}
                 </p>
-                <Link className="btn btn--coal" href={`/tienda?categoria=${category.id}`}>
+                <Link className="btn btn--coal" href={`/categorias/${category.id}`}>
                   Ver {category.label.toLowerCase()}
                 </Link>
               </div>

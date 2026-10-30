@@ -4,6 +4,7 @@ import { isProductionEnv, isSiteIndexable } from "../src/server/env.ts";
 import {
   breadcrumbJsonLd,
   faqJsonLd,
+  itemListJsonLd,
   organizationJsonLd,
   productJsonLd,
   websiteJsonLd,
@@ -124,6 +125,20 @@ describe("product", () => {
     const data = productJsonLd({ ...baseProduct, price: 9000, variants }, { baseUrl: site.url, brand: "Sublime" });
     assert.equal(data.offers["@type"], "Offer");
     assert.equal(data.offers.availability, "https://schema.org/OutOfStock");
+  });
+});
+
+describe("category listing", () => {
+  it("lists the category products in order", () => {
+    const data = itemListJsonLd([baseProduct, { ...baseProduct, slug: "sticker-perro", name: "Sticker perro" }], site.url);
+    assert.equal(data["@type"], "ItemList");
+    assert.equal(data.numberOfItems, 2);
+    assert.deepEqual(data.itemListElement[1], {
+      "@type": "ListItem",
+      position: 2,
+      name: "Sticker perro",
+      url: "https://example.com.ar/producto/sticker-perro",
+    });
   });
 });
 
