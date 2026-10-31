@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { formValues, requireOwner, type AdminFormState } from "@/server/admin/guard";
 import { getApiKeyRepository } from "@/server/admin/session";
 import { API_SCOPES, ApiKeyError, type ApiScope } from "@/server/api/keys";
+import { getMercadoPago } from "@/server/payments/session";
 
 /** The full key travels back once, in this response; it is never stored nor shown again. */
 export type CreateKeyState = AdminFormState & { token?: string; keyName?: string };
@@ -29,6 +30,12 @@ export async function createApiKeyAction(_state: CreateKeyState, form: FormData)
     if (error instanceof ApiKeyError) return { error: error.message, values };
     throw error;
   }
+}
+
+export async function disconnectMercadoPagoAction(): Promise<void> {
+  const admin = await requireOwner();
+  await getMercadoPago()?.accounts.disconnect(admin);
+  revalidatePath("/admin/integraciones");
 }
 
 export async function revokeApiKeyAction(form: FormData): Promise<void> {

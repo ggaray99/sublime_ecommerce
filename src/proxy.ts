@@ -9,7 +9,7 @@ import { createStoreStatusRepository, envClosed, isStoreClosed } from "@/server/
 const storeClosed = () => (hasDatabase() ? isStoreClosed(() => createStoreStatusRepository(getSql()).get()) : Promise.resolve(envClosed()));
 
 /** Paths that keep working during maintenance: the admin panel and what it needs to sign in. */
-const OPEN_DURING_MAINTENANCE = /^\/(mantenimiento|vista-previa|admin|cuenta|api\/auth|api\/admin|api\/internal|media)(\/|$)/;
+const OPEN_DURING_MAINTENANCE = /^\/(mantenimiento|vista-previa|admin|cuenta|api\/auth|api\/admin|api\/internal|api\/mercadopago|media)(\/|$)/;
 
 /** Account area and admin panel: signed-out visitors go to the sign-in page. */
 const NEEDS_SESSION = /^\/(admin(\/.*)?|cuenta|cuenta\/direcciones(\/.*)?)$/;

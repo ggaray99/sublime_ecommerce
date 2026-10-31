@@ -15,8 +15,8 @@ Branch: feat/mercadopago (from feat/vps-self-hosting @ cdea515) · Delivery: ask
 
 | ID | Specs | Route | Status | Commit |
 | --- | --- | --- | --- | --- |
-| T1 | S3, S6 | inline | pending | |
-| T2 | S1, S2, S3, S6 | inline | pending | |
+| T1 | S3, S6 | inline | done (RED→GREEN 8 tests) | 0c6b707 |
+| T2 | S1, S2, S3, S6 | inline | done (RED→GREEN 10 tests; suite 336/336; build) | see log L6 |
 | T3 | S4 | inline | pending | |
 | T4 | S5 | inline | pending | |
 | T5 | S7 | inline | pending | |
@@ -31,3 +31,4 @@ Route evidence: no Writer trigger (units depend on each other; no parallelism); 
 - **L3 (user):** "dale avancemos" — explicit approval for payments (AGENTS.md / pendientes 5.1), test mode first.
 - **L4:** Mapping (explorer): `confirmPayment` (src/server/orders/repository.ts:395) handles pending/expired/needs_review; no encryption helper; proxy OPEN_DURING_MAINTENANCE lacks `/api/mercadopago`; next migration 0019; tests use PGlite + migrations.
 - **L5:** MCP of Mercado Pago is beta and only documents `search_documentation`; not needed. Docs verified: auth code 10 min, access token 180 days, refresh rotates refresh token, webhook HMAC-SHA256 manifest above, `test_token: "true"` yields sandbox credentials.
+- **L6 (T2):** migration 0019 (payment_accounts + payments), accounts repo with optimistic token rotation, REST client (no SDK), /api/mercadopago/connect + /callback (owner-only, state + PKCE cookie, `connection()` so they are never prerendered: the first build marked them static), proxy allows /api/mercadopago during maintenance, Integraciones section (missing settings list, connect button, account card, Desconectar). Proxy change not unit-testable under node --test (imports next/server): verify at the end with a running server.
