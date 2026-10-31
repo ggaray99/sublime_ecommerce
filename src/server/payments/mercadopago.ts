@@ -140,6 +140,8 @@ export function createMercadoPagoClient(config: MercadoPagoConfig, fetchFn: type
           notification_url: input.notificationUrl,
           back_urls: { success: input.returnUrl, pending: input.returnUrl, failure: input.returnUrl },
           auto_return: "approved",
+          // Cash (Rapipago, Pago Fácil) settles in days; the stock reservation lasts minutes.
+          payment_methods: { excluded_payment_types: [{ id: "ticket" }, { id: "atm" }] },
           expires: true,
           expiration_date_to: input.expiresAt.toISOString(),
           statement_descriptor: "SUBLIME",
