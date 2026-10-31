@@ -16,10 +16,10 @@ Branch: feat/mercadopago (from feat/vps-self-hosting @ cdea515) · Delivery: ask
 | ID | Specs | Route | Status | Commit |
 | --- | --- | --- | --- | --- |
 | T1 | S3, S6 | inline | done (RED→GREEN 8 tests) | 0c6b707 |
-| T2 | S1, S2, S3, S6 | inline | done (RED→GREEN 10 tests; suite 336/336; build) | see log L6 |
-| T3 | S4 | inline | pending | |
-| T4 | S5 | inline | pending | |
-| T5 | S7 | inline | pending | |
+| T2 | S1, S2, S3, S6 | inline | done (RED→GREEN 10 tests; suite 336/336; build) | 768f847 |
+| T3 | S4 | inline | done (RED→GREEN 4 tests; suite 340/340) | 4536653 |
+| T4 | S5 | inline | done (RED→GREEN 12 tests; suite 352/352; build) | c3d0658 |
+| T5 | S7 | inline | done (structural readback) | see git log |
 
 T1 config + encryption helper · T2 migration, account repository, OAuth routes, admin UI · T3 preference + pay button · T4 webhook + payment records · T5 docs.
 Route evidence: no Writer trigger (units depend on each other; no parallelism); all inline. Risk: items 2 (credentials) and 1 (payment state) → independent verifier at feature end.

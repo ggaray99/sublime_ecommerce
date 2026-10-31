@@ -47,11 +47,11 @@ Lista viva de lo que quedó para revisar después. Cada ítem dice de qué fase 
 | P.1 | **Cargar los puntos reales** | Panel → Puntos de venta ([puntos-de-venta.md](puntos-de-venta.md)) | Negocio |
 | P.2 | **Todos los marcadores en un mismo mapa** | Clave de la API de Google Maps (proyecto de Google Cloud con facturación; uso gratuito con este tráfico) | Negocio decide |
 
-## Fase 5 — Pagos (no iniciada)
+## Fase 5 — Pagos (Mercado Pago en código, falta probarlo en staging)
 
 | # | Pendiente | Qué hace falta |
 | --- | --- | --- |
-| 5.1 | Mercado Pago (modo prueba) y transferencia con verificación manual | **Aprobación explícita** para integrar pagos. Cuenta de Mercado Pago del negocio (credenciales de prueba) |
+| 5.1 | Probar Mercado Pago en staging con usuarios de prueba y pasar a cobros reales | Crear la aplicación y cargar las variables ([fase-5-pagos.md](fase-5-pagos.md)); decidir en qué cuenta queda la aplicación antes del lanzamiento. La transferencia sigue con verificación manual |
 | 5.2 | Impuestos y facturación | Definición contable. Fuera del alcance técnico actual |
 
 ## API de administración (próximas versiones)
