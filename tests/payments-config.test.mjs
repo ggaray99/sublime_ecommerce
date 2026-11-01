@@ -44,6 +44,12 @@ describe("payments configuration", () => {
     assert.deepEqual(missingPaymentSettings({ ...full, SUBLIME_ENV: "production" }), ["SUBLIME_PAYMENTS_IN_PRODUCTION"]);
   });
 
+  it("flags a client id that is not the numeric application number (e.g. a public key)", () => {
+    const publicKey = { ...full, MERCADOPAGO_CLIENT_ID: "APP_USR-2ce35105-b5fc-412f-88c4-35c7dc25c4a8" };
+    assert.deepEqual(missingPaymentSettings(publicKey), ["MERCADOPAGO_CLIENT_ID"]);
+    assert.equal(mercadoPagoConfig(publicKey), null);
+  });
+
   it("rejects an encryption key that is not 32 bytes", () => {
     const short = { ...full, PAYMENTS_ENCRYPTION_KEY: randomBytes(16).toString("base64") };
     assert.deepEqual(missingPaymentSettings(short), ["PAYMENTS_ENCRYPTION_KEY"]);

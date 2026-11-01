@@ -17,6 +17,13 @@ const encryptionKey = (value: string | undefined) => {
   return key.length === 32 ? key : null;
 };
 
+/** The client id is the application number: a public key or access token (APP_USR-…) there is a common mix-up. */
+const valid = (name: (typeof REQUIRED)[number], value: string | undefined) => {
+  if (name === "PAYMENTS_ENCRYPTION_KEY") return Boolean(encryptionKey(value));
+  if (name === "MERCADOPAGO_CLIENT_ID") return /^\d{1,20}$/.test(value ?? "");
+  return Boolean(value);
+};
+
 /**
  * Names of the settings that keep online payments off (never their values),
  * so the admin can say what is missing. Same rules as the other backend
@@ -26,7 +33,7 @@ export function missingPaymentSettings(env: NodeJS.ProcessEnv = process.env): st
   const missing: string[] = [];
   if (!env.DATABASE_URL) missing.push("DATABASE_URL");
   for (const name of REQUIRED) {
-    if (name === "PAYMENTS_ENCRYPTION_KEY" ? !encryptionKey(env[name]) : !env[name]) missing.push(name);
+    if (!valid(name, env[name])) missing.push(name);
   }
   if (isProductionEnv(env) && env.SUBLIME_PAYMENTS_IN_PRODUCTION !== "enabled") missing.push("SUBLIME_PAYMENTS_IN_PRODUCTION");
   return missing;

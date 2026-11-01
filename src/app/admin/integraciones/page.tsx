@@ -51,7 +51,7 @@ async function MercadoPagoSection({ result }: { result: string | undefined }) {
 
       {!mercadoPago && (
         <div className="panel panel--muted">
-          <p>Para conectar Mercado Pago, quien administra el servidor tiene que completar esta configuración:</p>
+          <p>Para conectar Mercado Pago, quien administra el servidor tiene que completar o corregir esta configuración:</p>
           <ul>
             {missingPaymentSettings().map((name) => (
               <li key={name}>
