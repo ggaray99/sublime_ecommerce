@@ -166,4 +166,15 @@ describe("connected account storage", () => {
   it("returns null when no account is connected", async () => {
     assert.equal(await sellerAccessToken(repo, createMercadoPagoClient(config, fakeFetch())), null);
   });
+
+  it("falls back to the server's access token when no account is connected", async () => {
+    const fetch = fakeFetch();
+    assert.equal(await sellerAccessToken(repo, createMercadoPagoClient(config, fetch), "APP_USR-server-token"), "APP_USR-server-token");
+    assert.equal(fetch.calls.length, 0);
+  });
+
+  it("an account connected by OAuth wins over the server's token", async () => {
+    await repo.connect(owner, linked, { nickname: "A", email: "" });
+    assert.equal(await sellerAccessToken(repo, createMercadoPagoClient(config, fakeFetch()), "APP_USR-server-token"), "APP_USR-access-1");
+  });
 });

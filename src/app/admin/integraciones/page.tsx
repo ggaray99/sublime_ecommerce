@@ -95,6 +95,19 @@ async function MercadoPagoSection({ result }: { result: string | undefined }) {
         </div>
       ) : (
         <>
+          {mercadoPago.config.serverAccessToken && (
+            <div className="address-card">
+              <p className="address-card__title">
+                Cuenta de la aplicación
+                <span className="badge badge--acid">Conectada con credenciales del servidor</span>
+                {mercadoPago.config.testMode && <span className="badge badge--pending">Modo prueba</span>}
+              </p>
+              <p className="muted">
+                Se cobra con la cuenta dueña de la aplicación de Mercado Pago (<code>MERCADOPAGO_ACCESS_TOKEN</code>). Si conectás
+                otra cuenta, esa pasa a cobrar.
+              </p>
+            </div>
+          )}
           <p className="muted">Vas a iniciar sesión en Mercado Pago con la cuenta que va a recibir el dinero y autorizar a Sublime.</p>
           <a className="btn btn--violet" href="/api/mercadopago/connect">
             Conectar Mercado Pago

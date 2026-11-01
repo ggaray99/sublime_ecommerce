@@ -46,6 +46,7 @@ La aplicación puede ser de quien desarrolla, para probar, o del negocio. Antes 
 | `MERCADOPAGO_CLIENT_SECRET` | Aplicación → Credenciales (Client Secret) |
 | `MERCADOPAGO_WEBHOOK_SECRET` | Aplicación → Webhooks → clave secreta |
 | `PAYMENTS_ENCRYPTION_KEY` | `openssl rand -base64 32`. Si cambia, hay que volver a conectar |
+| `MERCADOPAGO_ACCESS_TOKEN` | Opcional, **modo directo**: Access Token de la cuenta dueña de la aplicación (en staging, el de la pestaña **Prueba**). Se usa mientras no haya una cuenta conectada por OAuth |
 | `MERCADOPAGO_TEST_MODE` | `true` mientras se prueba con usuarios de prueba |
 | `SUBLIME_PAYMENTS_IN_PRODUCTION` | `enabled`, solo en producción y cuando se aprueba cobrar |
 
@@ -80,6 +81,8 @@ Si falta algo, Admin → Integraciones lista qué variables faltan, y los pedido
 - **Tests:** `payments-config`, `mercadopago-account`, `payments-checkout` y `mercadopago-webhook`.
 
 ## Pendiente
+
+- **OAuth bloqueado por Mercado Pago (2026-10-31):** con la aplicación "Sublime Tienda", la autorización devuelve "La aplicación no está preparada para conectarse a Mercado Pago" después del login, con cualquier cuenta y variante del pedido. No está documentado; se consultó al soporte de developers. Mientras tanto se cobra en **modo directo** (`MERCADOPAGO_ACCESS_TOKEN`).
 
 - **Panel del pedido:** mostrar en el admin los pagos de Mercado Pago de cada pedido. Hoy quedan en la tabla `payments` y en el historial.
 - **Devoluciones** desde el admin. Hoy se hacen desde Mercado Pago.

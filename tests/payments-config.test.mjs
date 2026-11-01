@@ -27,6 +27,11 @@ describe("payments configuration", () => {
     assert.ok(mercadoPagoConfig({ ...full, SUBLIME_ENV: "production", SUBLIME_PAYMENTS_IN_PRODUCTION: "enabled" }));
   });
 
+  it("reads the optional server access token (direct mode)", () => {
+    assert.equal(mercadoPagoConfig(full)?.serverAccessToken, null);
+    assert.equal(mercadoPagoConfig({ ...full, MERCADOPAGO_ACCESS_TOKEN: "APP_USR-server-token" })?.serverAccessToken, "APP_USR-server-token");
+  });
+
   it("reads test mode only when explicitly on", () => {
     assert.equal(mercadoPagoConfig({ ...full, MERCADOPAGO_TEST_MODE: "true" })?.testMode, true);
     assert.equal(mercadoPagoConfig({ ...full, MERCADOPAGO_TEST_MODE: "1" })?.testMode, false);

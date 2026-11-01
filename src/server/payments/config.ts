@@ -8,6 +8,11 @@ export type MercadoPagoConfig = {
   encryptionKey: Buffer;
   /** Sandbox credentials on connect (test_token), for Mercado Pago test users. */
   testMode: boolean;
+  /**
+   * Direct mode: the access token of the application owner's account
+   * (MERCADOPAGO_ACCESS_TOKEN), used while no account is connected by OAuth.
+   */
+  serverAccessToken: string | null;
 };
 
 const REQUIRED = ["MERCADOPAGO_CLIENT_ID", "MERCADOPAGO_CLIENT_SECRET", "MERCADOPAGO_WEBHOOK_SECRET", "PAYMENTS_ENCRYPTION_KEY"] as const;
@@ -48,5 +53,6 @@ export function mercadoPagoConfig(env: NodeJS.ProcessEnv = process.env): Mercado
     webhookSecret: env.MERCADOPAGO_WEBHOOK_SECRET as string,
     encryptionKey: encryptionKey(env.PAYMENTS_ENCRYPTION_KEY) as Buffer,
     testMode: env.MERCADOPAGO_TEST_MODE === "true",
+    serverAccessToken: env.MERCADOPAGO_ACCESS_TOKEN || null,
   };
 }

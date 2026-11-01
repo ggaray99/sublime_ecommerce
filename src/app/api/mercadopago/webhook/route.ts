@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   if (type !== "order" || !signedId || !/^[A-Za-z0-9]{1,64}$/.test(signedId)) return answer("ignored");
 
   try {
-    const token = await sellerAccessToken(mercadoPago.accounts, mercadoPago.client);
+    const token = await sellerAccessToken(mercadoPago.accounts, mercadoPago.client, mercadoPago.config.serverAccessToken);
     if (!token) return answer("not_connected");
     const outcome = await reconcilePayment(
       { getOrder: (id) => mercadoPago.client.getOrder(token, id), orders: getOrderRepository(), payments: createPaymentRepository(getSql()) },

@@ -115,10 +115,14 @@ export function createPaymentAccountRepository(sql: QueryFn, key: Buffer) {
 
 export type PaymentAccountRepository = ReturnType<typeof createPaymentAccountRepository>;
 
-/** The seller's access token, refreshed first when it is close to expiring. Null when not connected. */
-export async function sellerAccessToken(accounts: PaymentAccountRepository, client: MercadoPagoClient): Promise<string | null> {
+/**
+ * The seller's access token, refreshed first when it is close to expiring.
+ * Without an account connected by OAuth, the server's own token (direct mode,
+ * MERCADOPAGO_ACCESS_TOKEN) is used when configured; otherwise null.
+ */
+export async function sellerAccessToken(accounts: PaymentAccountRepository, client: MercadoPagoClient, serverToken: string | null = null): Promise<string | null> {
   const current = await accounts.credentials();
-  if (!current) return null;
+  if (!current) return serverToken;
   if (current.expiresAt.getTime() - Date.now() > REFRESH_MARGIN_MS) return current.accessToken;
   const tokens = await client.refresh(current.refreshToken);
   if (await accounts.rotate(current.refreshTokenEnc, tokens)) return tokens.accessToken;

@@ -60,7 +60,7 @@ async function OrderPage({ params, searchParams }: Pick<Props, "params" | "searc
   if (!order) notFound();
 
   const mercadoPago = canPayOnline(order) ? getMercadoPago() : null;
-  const payOnline = Boolean(mercadoPago && (await mercadoPago.accounts.get()));
+  const payOnline = Boolean(mercadoPago && (mercadoPago.config.serverAccessToken || (await mercadoPago.accounts.get())));
   // ?pago= from the pay action; ?status= when Mercado Pago sends the customer back.
   const paymentNotice = PAYMENT_NOTICES[String(query.pago ?? "")] ?? (order.status === "pending_payment" ? RETURN_NOTICES[String(query.status ?? "")] : undefined);
 

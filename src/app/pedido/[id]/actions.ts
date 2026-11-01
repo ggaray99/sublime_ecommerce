@@ -33,7 +33,10 @@ export async function payWithMercadoPagoAction(form: FormData): Promise<void> {
   if (!mercadoPago) redirect(withResult("not_connected"));
 
   const result = await startMercadoPagoCheckout(
-    { accessToken: () => sellerAccessToken(mercadoPago.accounts, mercadoPago.client), client: mercadoPago.client },
+    {
+      accessToken: () => sellerAccessToken(mercadoPago.accounts, mercadoPago.client, mercadoPago.config.serverAccessToken),
+      client: mercadoPago.client,
+    },
     order,
     { returnUrl: `${site.url}${back}` },
   );
