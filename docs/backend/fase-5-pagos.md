@@ -1,17 +1,17 @@
 # Fase 5 · Pagos con Mercado Pago
 
-Los clientes pagan sus pedidos con Mercado Pago (Checkout Pro) y el pedido pasa a **Pagado** solo. La cuenta que cobra se conecta desde **Admin → Integraciones → Conectar Mercado Pago**: el dueño inicia sesión en Mercado Pago y autoriza. Nadie copia ni pega claves.
+Los clientes pagan sus pedidos con Mercado Pago (Checkout Pro, **API de Orders**) y el pedido pasa a **Pagado** solo. La cuenta que cobra se conecta desde **Admin → Integraciones → Conectar Mercado Pago**: el dueño inicia sesión en Mercado Pago y autoriza. Nadie copia ni pega claves.
 
 ## Cómo funciona
 
 1. **Conectar (una vez).** El dueño toca "Conectar Mercado Pago", inicia sesión con la cuenta que va a recibir el dinero y autoriza. El servidor recibe las credenciales de esa cuenta y las guarda **cifradas** (AES-256-GCM). Se renuevan solas antes de vencer (duran 180 días).
 2. **Pagar.** En la página del pedido pendiente aparece "Pagar con Mercado Pago". El cliente paga en Mercado Pago (tarjeta, dinero en cuenta, Mercado Crédito) y vuelve a su pedido. Los datos de la tarjeta nunca pasan por Sublime.
-3. **Confirmar.** Mercado Pago avisa al webhook. El servidor verifica la firma, consulta el pago en Mercado Pago y, si está aprobado por el total exacto del pedido, lo confirma con las mismas reglas que el botón del admin.
+3. **Confirmar.** Mercado Pago avisa al webhook. El servidor verifica la firma, consulta la order de Mercado Pago y, si está pagada (`processed`) por el total exacto del pedido, lo confirma con las mismas reglas que el botón del admin.
 
 | Caso | Qué pasa |
 | --- | --- |
-| Aprobado | El pedido pasa a Pagado; el stock reservado pasa a venta. Historial: "mercadopago". |
-| Pendiente / en revisión / rechazado | Se registra el pago; el pedido sigue esperando. El cliente puede reintentar. |
+| Pagado (`processed`) | El pedido pasa a Pagado; el stock reservado pasa a venta. Historial: "mercadopago". |
+| Pendiente / requiere acción / rechazado / vencido | Se registra el intento; el pedido sigue esperando. El cliente puede reintentar. |
 | Duplicado (el mismo aviso dos veces o a la vez) | Se confirma una sola vez. |
 | Tardío (la reserva ya venció) | Si hay stock, se vende; si no, el pedido queda **En revisión** para decidir reposición, demora o devolución. |
 | Monto o moneda distintos | **No se aplica.** Queda registrado en el log del servidor. |
@@ -20,20 +20,20 @@ Los clientes pagan sus pedidos con Mercado Pago (Checkout Pro) y el pedido pasa 
 | Firma inválida | Se rechaza (401) sin consultar nada. |
 
 **Detalles de diseño:**
-- **Vencimiento:** la preferencia vence junto con la reserva de stock (15 minutos).
+- **Vencimiento:** la order de Mercado Pago vence con la reserva de stock (15 minutos), redondeando para abajo.
 - **Efectivo excluido:** no se ofrecen Rapipago ni Pago Fácil, porque se acreditan en días y la reserva vencería antes.
 - **Envío sin costo:** si el envío todavía no tiene costo, no se ofrece el pago online.
 
 ## Configuración (una vez por entorno)
 
 ### 1. Crear la aplicación en Mercado Pago
-En [Tus integraciones](https://www.mercadopago.com.ar/developers/panel/app), crear una aplicación:
-- **Producto:** pagos online, Checkout Pro.
+En [Tus integraciones](https://www.mercadopago.com.ar/developers/panel/app), crear una aplicación. Admin → Integraciones muestra las dos URLs exactas del entorno:
+- **Solución:** Checkout Pro. **Tipo de API: API de Orders.** La API de Preferences es legacy y el panel avisa que se va a discontinuar.
 - **URL de redireccionamiento:** `https://<dominio>/api/mercadopago/callback`. Una por entorno; por ejemplo, staging usa `https://staging.sublime.consulte.app/api/mercadopago/callback`.
 - **PKCE:** activarlo en la configuración de OAuth. El servidor siempre lo usa.
 - **Webhooks → Configurar notificaciones:**
   - URL: `https://<dominio>/api/mercadopago/webhook`.
-  - Evento: **Pagos**.
+  - Evento: **Order (Mercado Pago)**. Las notificaciones llegan como `?data.id=ORD…&type=order`.
   - Al guardar se genera la **clave secreta**.
 
 La aplicación puede ser de quien desarrolla, para probar, o del negocio. Antes del lanzamiento conviene que quede a nombre del negocio. Cambiarla es solo cambiar las variables y volver a conectar.
@@ -69,7 +69,7 @@ Si falta algo, Admin → Integraciones lista qué variables faltan, y los pedido
 ## Código
 
 - **Configuración y cifrado:** `src/server/payments/config.ts` y `crypto.ts`.
-- **Cliente REST:** `mercadopago.ts` (OAuth, preferencias, pagos; sin SDK).
+- **Cliente REST:** `mercadopago.ts` (OAuth, `POST /v1/orders`, `GET /v1/orders/{id}`; sin SDK).
 - **Cuenta conectada:** `accounts.ts` (tokens cifrados, renovación con control de concurrencia).
 - **Inicio del pago:** `checkout.ts`. **Webhook:** `webhook.ts` (firma y conciliación).
 - **Rutas:**

@@ -10,7 +10,7 @@ import { PageIntro } from "@/components/page-intro";
 import { adminAvailable, getApiKeyRepository, getCurrentAdmin } from "@/server/admin/session";
 import { API_SCOPES, RATE_LIMIT, SCOPE_LABELS } from "@/server/api/keys";
 import { missingPaymentSettings } from "@/server/payments/config";
-import { getMercadoPago } from "@/server/payments/session";
+import { getMercadoPago, mercadoPagoRedirectUri, mercadoPagoWebhookUrl } from "@/server/payments/session";
 import { disconnectMercadoPagoAction, revokeApiKeyAction } from "./actions";
 
 export const metadata: Metadata = {
@@ -49,7 +49,7 @@ async function MercadoPagoSection({ result }: { result: string | undefined }) {
           </p>
         ))}
 
-      {!mercadoPago ? (
+      {!mercadoPago && (
         <div className="panel panel--muted">
           <p>Para conectar Mercado Pago, quien administra el servidor tiene que completar esta configuración:</p>
           <ul>
@@ -60,7 +60,23 @@ async function MercadoPagoSection({ result }: { result: string | undefined }) {
             ))}
           </ul>
         </div>
-      ) : account ? (
+      )}
+
+      {!account && (
+        <div className="panel panel--muted">
+          <p>Datos para la aplicación de Mercado Pago (Tus integraciones):</p>
+          <ul>
+            <li>
+              URL de redireccionamiento: <code>{mercadoPagoRedirectUri()}</code>
+            </li>
+            <li>
+              Webhook, evento “Order (Mercado Pago)”: <code>{mercadoPagoWebhookUrl()}</code>
+            </li>
+          </ul>
+        </div>
+      )}
+
+      {!mercadoPago ? null : account ? (
         <div className="address-card">
           <p className="address-card__title">
             {account.nickname || `Cuenta ${account.userId}`}

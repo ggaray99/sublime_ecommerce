@@ -6,7 +6,7 @@ import { getCurrentCustomer } from "@/server/customers/session";
 import { getOrderRepository, ordersAvailable } from "@/server/orders/session";
 import { sellerAccessToken } from "@/server/payments/accounts";
 import { startMercadoPagoCheckout } from "@/server/payments/checkout";
-import { getMercadoPago, mercadoPagoWebhookUrl } from "@/server/payments/session";
+import { getMercadoPago } from "@/server/payments/session";
 
 /** Same access rule as the page: the private link, or the signed-in customer who placed it. */
 async function findOrder(id: string, token: string) {
@@ -19,7 +19,7 @@ async function findOrder(id: string, token: string) {
   return candidate && customer && candidate.customerId === customer.id ? candidate : null;
 }
 
-/** "Pagar con Mercado Pago": creates the preference and sends the customer to Mercado Pago. */
+/** "Pagar con Mercado Pago": creates the Mercado Pago order and sends the customer to its checkout. */
 export async function payWithMercadoPagoAction(form: FormData): Promise<void> {
   if (!ordersAvailable()) notFound();
   const id = String(form.get("orderId") ?? "");
@@ -35,7 +35,7 @@ export async function payWithMercadoPagoAction(form: FormData): Promise<void> {
   const result = await startMercadoPagoCheckout(
     { accessToken: () => sellerAccessToken(mercadoPago.accounts, mercadoPago.client), client: mercadoPago.client },
     order,
-    { returnUrl: `${site.url}${back}`, notificationUrl: mercadoPagoWebhookUrl() },
+    { returnUrl: `${site.url}${back}` },
   );
   redirect(result.ok ? result.url : withResult(result.reason));
 }

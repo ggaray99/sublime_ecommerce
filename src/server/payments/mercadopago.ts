@@ -1,9 +1,9 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { MercadoPagoConfig } from "./config.ts";
 
 /**
- * Mercado Pago REST client (no SDK): OAuth account linking, Checkout Pro
- * preferences and payment lookups. `fetch` is injectable for tests.
+ * Mercado Pago REST client (no SDK): OAuth account linking and Checkout Pro
+ * through the Orders API. `fetch` is injectable for tests.
  */
 
 const API = "https://api.mercadopago.com";
@@ -64,25 +64,30 @@ function toTokens(body: TokenBody): LinkedTokens {
   };
 }
 
-export type PreferenceInput = {
+export type CheckoutOrderInput = {
   orderId: string;
   title: string;
   amountMinor: number;
   payerEmail: string;
   returnUrl: string;
-  notificationUrl: string;
-  expiresAt: Date;
+  /** Whole minutes left in the stock reservation. */
+  expiresInMinutes: number;
 };
 
-export type MercadoPagoPayment = {
+/** A Checkout Pro order (Orders API) as Mercado Pago reports it. */
+export type MercadoPagoOrder = {
   id: string;
+  /** created | processed (paid) | action_required | expired | canceled | failed | refunded… */
   status: string;
   statusDetail: string;
   externalReference: string;
-  amountMinor: number;
+  paidAmountMinor: number;
   currency: string;
-  liveMode: boolean;
 };
+
+/** "12000.50" ⇄ 1200050: the Orders API takes and returns amounts as decimal strings. */
+const toAmount = (minor: number) => (minor / 100).toFixed(2);
+const toMinor = (amount: string | number | undefined) => Math.round(Number(amount ?? 0) * 100);
 
 export function createMercadoPagoClient(config: MercadoPagoConfig, fetchFn: typeof fetch = fetch) {
   async function call<T>(method: "GET" | "POST", path: string, options: { body?: unknown; token?: string; idempotencyKey?: string } = {}): Promise<T> {
@@ -128,46 +133,54 @@ export function createMercadoPagoClient(config: MercadoPagoConfig, fetchFn: type
       return { nickname: user.nickname ?? "", email: user.email ?? "" };
     },
 
-    /** Checkout Pro: one line with the order total (discounts and shipping already applied). */
-    async createPreference(accessToken: string, input: PreferenceInput): Promise<{ id: string; initPoint: string }> {
-      const preference = await call<{ id: string; init_point: string }>("POST", "/checkout/preferences", {
+    /**
+     * Checkout Pro via the Orders API: one line with the order total (discounts
+     * and shipping already applied). Notifications come from the application's
+     * webhook (event "Order (Mercado Pago)"), not from a per-order URL.
+     */
+    async createCheckoutOrder(accessToken: string, input: CheckoutOrderInput): Promise<{ id: string; checkoutUrl: string }> {
+      const amount = toAmount(input.amountMinor);
+      const order = await call<{ id: string; checkout_url: string }>("POST", "/v1/orders", {
         token: accessToken,
-        idempotencyKey: `pref-${input.orderId}-${input.expiresAt.getTime()}`,
+        // A new key per attempt (Mercado Pago's guidance): a retry after a failed checkout gets a fresh order.
+        idempotencyKey: randomUUID(),
         body: {
-          items: [{ id: input.orderId, title: input.title, quantity: 1, unit_price: input.amountMinor / 100, currency_id: "ARS" }],
-          payer: { email: input.payerEmail },
+          type: "online",
+          processing_mode: "manual",
           external_reference: input.orderId,
-          notification_url: input.notificationUrl,
-          back_urls: { success: input.returnUrl, pending: input.returnUrl, failure: input.returnUrl },
-          auto_return: "approved",
-          // Cash (Rapipago, Pago Fácil) settles in days; the stock reservation lasts minutes.
-          payment_methods: { excluded_payment_types: [{ id: "ticket" }, { id: "atm" }] },
-          expires: true,
-          expiration_date_to: input.expiresAt.toISOString(),
-          statement_descriptor: "SUBLIME",
+          description: input.title,
+          total_amount: amount,
+          payer: { email: input.payerEmail },
+          items: [{ title: input.title, quantity: 1, unit_price: amount, external_code: input.orderId }],
+          expiration_time: `PT${input.expiresInMinutes}M`,
+          config: {
+            statement_descriptor: "SUBLIME",
+            online: { success_url: input.returnUrl, failure_url: input.returnUrl, pending_url: input.returnUrl, auto_return: "approved" },
+            // Cash (Rapipago, Pago Fácil) settles in days; the stock reservation lasts minutes.
+            payment_method: { not_allowed_types: ["ticket", "atm"] },
+          },
         },
       });
-      return { id: preference.id, initPoint: preference.init_point };
+      if (!order.checkout_url) throw new MercadoPagoError(502, "missing_checkout_url");
+      return { id: order.id, checkoutUrl: order.checkout_url };
     },
 
-    async getPayment(accessToken: string, id: string): Promise<MercadoPagoPayment> {
-      const payment = await call<{
-        id: number;
+    async getOrder(accessToken: string, id: string): Promise<MercadoPagoOrder> {
+      const order = await call<{
+        id: string;
         status: string;
         status_detail?: string;
         external_reference?: string;
-        transaction_amount: number;
-        currency_id: string;
-        live_mode?: boolean;
-      }>("GET", `/v1/payments/${encodeURIComponent(id)}`, { token: accessToken });
+        total_paid_amount?: string;
+        currency?: string;
+      }>("GET", `/v1/orders/${encodeURIComponent(id)}`, { token: accessToken });
       return {
-        id: String(payment.id),
-        status: payment.status,
-        statusDetail: payment.status_detail ?? "",
-        externalReference: payment.external_reference ?? "",
-        amountMinor: Math.round(payment.transaction_amount * 100),
-        currency: payment.currency_id,
-        liveMode: Boolean(payment.live_mode),
+        id: order.id,
+        status: order.status,
+        statusDetail: order.status_detail ?? "",
+        externalReference: order.external_reference ?? "",
+        paidAmountMinor: toMinor(order.total_paid_amount),
+        currency: order.currency ?? "",
       };
     },
   };

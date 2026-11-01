@@ -32,6 +32,13 @@ describe("webhook signature", () => {
     assert.equal(verifyWebhookSignature({ signature: header(sign(`id:abc9;request-id:req-1;ts:${ts};`)), requestId: "req-1", dataId: "ABC9", secret }), true);
     assert.equal(verifyWebhookSignature({ signature: header(sign(`id:123456;ts:${ts};`)), requestId: null, dataId: "123456", secret }), true);
   });
+
+  it("accepts Orders API ids signed lowercase or as sent", () => {
+    const id = "ORD01JQ4S4KY8HWQ6NA5PXB65B3D3";
+    assert.equal(verifyWebhookSignature({ signature: header(sign(`id:${id.toLowerCase()};request-id:req-1;ts:${ts};`)), requestId: "req-1", dataId: id, secret }), true);
+    assert.equal(verifyWebhookSignature({ signature: header(sign(`id:${id};request-id:req-1;ts:${ts};`)), requestId: "req-1", dataId: id, secret }), true);
+    assert.equal(verifyWebhookSignature({ signature: header(sign(`id:ord999;request-id:req-1;ts:${ts};`)), requestId: "req-1", dataId: id, secret }), false);
+  });
 });
 
 describe("payment reconciliation (PGlite)", () => {
@@ -71,22 +78,22 @@ describe("payment reconciliation (PGlite)", () => {
     return id;
   };
 
+  // A Mercado Pago order (Orders API), as GET /v1/orders/{id} reports it.
   const paymentFor = (orderId, overrides = {}) => ({
-    id: String(5_000_000 + ++counter),
-    status: "approved",
+    id: `ORDTST01K${String(++counter).padStart(6, "0")}`,
+    status: "processed",
     statusDetail: "accredited",
     externalReference: orderId,
-    amountMinor: 890000,
+    paidAmountMinor: 890000,
     currency: "ARS",
-    liveMode: false,
     ...overrides,
   });
 
-  const run = (payment) => reconcilePayment({ getPayment: async () => payment, orders, payments }, payment.id);
+  const run = (payment) => reconcilePayment({ getOrder: async () => payment, orders, payments }, payment.id);
   const status = async (id) => (await orders.getOrder(id)).status;
   const recorded = async (paymentId) => (await db.query("SELECT status, order_id FROM payments WHERE external_id = $1", [paymentId])).rows[0];
 
-  it("aprobado: confirms the order with Mercado Pago as the actor", async () => {
+  it("aprobado (processed): confirms the order with Mercado Pago as the actor", async () => {
     const orderId = await placeOrder();
     const payment = paymentFor(orderId);
     assert.equal(await run(payment), "paid");
@@ -94,7 +101,7 @@ describe("payment reconciliation (PGlite)", () => {
     const [event] = (await db.query("SELECT actor, note FROM order_events WHERE order_id = $1 AND to_status = 'paid'", [orderId])).rows;
     assert.equal(event.actor, "mercadopago");
     assert.match(event.note, new RegExp(payment.id));
-    assert.deepEqual(await recorded(payment.id), { status: "approved", order_id: orderId });
+    assert.deepEqual(await recorded(payment.id), { status: "processed", order_id: orderId });
   });
 
   it("duplicado: the same notification twice confirms once", async () => {
@@ -115,20 +122,20 @@ describe("payment reconciliation (PGlite)", () => {
 
   it("rechazado and pendiente: recorded, the order stays pending", async () => {
     const orderId = await placeOrder();
-    const rejected = paymentFor(orderId, { status: "rejected", statusDetail: "cc_rejected_insufficient_amount" });
+    const rejected = paymentFor(orderId, { status: "failed", statusDetail: "rejected_by_issuer", paidAmountMinor: 0 });
     assert.equal(await run(rejected), "recorded");
-    const pending = paymentFor(orderId, { status: "in_process", statusDetail: "pending_review_manual" });
+    const pending = paymentFor(orderId, { status: "action_required", statusDetail: "waiting_payment", paidAmountMinor: 0 });
     assert.equal(await run(pending), "recorded");
     assert.equal(await status(orderId), "pending_payment");
-    assert.equal((await recorded(rejected.id)).status, "rejected");
+    assert.equal((await recorded(rejected.id)).status, "failed");
   });
 
   it("an update of the same payment overwrites its status", async () => {
     const orderId = await placeOrder();
-    const payment = paymentFor(orderId, { status: "in_process" });
+    const payment = paymentFor(orderId, { status: "action_required", paidAmountMinor: 0 });
     await run(payment);
-    assert.equal(await run({ ...payment, status: "approved" }), "paid");
-    assert.equal((await recorded(payment.id)).status, "approved");
+    assert.equal(await run({ ...payment, status: "processed", paidAmountMinor: 890000 }), "paid");
+    assert.equal((await recorded(payment.id)).status, "processed");
   });
 
   it("tardío: a payment after the reservation expired still sells when stock is free", async () => {
@@ -145,12 +152,12 @@ describe("payment reconciliation (PGlite)", () => {
     await db.query("UPDATE stock_reservations SET expires_at = now() - interval '1 minute' WHERE order_id = $1", [orderId]);
     await orders.releaseExpired();
     await placeOrder(5);
-    assert.equal(await run(paymentFor(orderId, { amountMinor: 5 * 890000 })), "needs_review");
+    assert.equal(await run(paymentFor(orderId, { paidAmountMinor: 5 * 890000 })), "needs_review");
   });
 
   it("inválido: wrong amount or currency never confirms", async () => {
     const orderId = await placeOrder();
-    assert.equal(await run(paymentFor(orderId, { amountMinor: 100 })), "mismatch");
+    assert.equal(await run(paymentFor(orderId, { paidAmountMinor: 100 })), "mismatch");
     assert.equal(await run(paymentFor(orderId, { currency: "USD" })), "mismatch");
     assert.equal(await status(orderId), "pending_payment");
   });

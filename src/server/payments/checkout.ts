@@ -19,29 +19,29 @@ export function canPayOnline(order: PayableOrder, now = new Date()): boolean {
 export type CheckoutStart = { ok: true; url: string } | { ok: false; reason: "not_payable" | "not_connected" | "unavailable" };
 
 /**
- * "Pagar con Mercado Pago": a Checkout Pro preference for the order total that
- * expires with the stock reservation. The order is confirmed later by the webhook.
+ * "Pagar con Mercado Pago": a Checkout Pro order (Orders API) for the order total
+ * that expires with the stock reservation. The order is confirmed later by the webhook.
  */
 export async function startMercadoPagoCheckout(
-  deps: { accessToken: () => Promise<string | null>; client: Pick<MercadoPagoClient, "createPreference"> },
+  deps: { accessToken: () => Promise<string | null>; client: Pick<MercadoPagoClient, "createCheckoutOrder"> },
   order: PayableOrder,
-  urls: { returnUrl: string; notificationUrl: string },
+  urls: { returnUrl: string },
   now = new Date(),
 ): Promise<CheckoutStart> {
   if (!canPayOnline(order, now)) return { ok: false, reason: "not_payable" };
   try {
     const token = await deps.accessToken();
     if (!token) return { ok: false, reason: "not_connected" };
-    const preference = await deps.client.createPreference(token, {
+    const checkout = await deps.client.createCheckoutOrder(token, {
       orderId: order.id,
       title: `Pedido ${orderNumber(order)} — Sublime`,
       amountMinor: orderTotalMinor(order),
       payerEmail: order.contactEmail,
       returnUrl: urls.returnUrl,
-      notificationUrl: urls.notificationUrl,
-      expiresAt: order.expiresAt,
+      // Rounded down: Mercado Pago must never accept a payment after the reservation ends.
+      expiresInMinutes: Math.floor((order.expiresAt.getTime() - now.getTime()) / 60_000),
     });
-    return { ok: true, url: preference.initPoint };
+    return { ok: true, url: checkout.checkoutUrl };
   } catch (error) {
     if (error instanceof MercadoPagoError) return { ok: false, reason: "unavailable" };
     throw error;

@@ -19,17 +19,18 @@ CREATE TABLE payment_accounts (
   updated_at        timestamptz NOT NULL DEFAULT now()
 );
 
--- One row per Mercado Pago payment, as last reported (webhooks may arrive
--- repeated or out of order: the latest fetch from the API wins).
+-- One row per Mercado Pago order (Checkout Pro via the Orders API: one per
+-- payment attempt), as last reported. Webhooks may arrive repeated or out of
+-- order: the latest fetch from the API wins.
 CREATE TABLE payments (
   provider       text NOT NULL CHECK (provider IN ('mercadopago')),
-  external_id    text NOT NULL CHECK (external_id ~ '^[0-9]{1,20}$'),
+  external_id    text NOT NULL CHECK (external_id ~ '^[A-Za-z0-9]{1,64}$'),
   order_id       uuid NOT NULL REFERENCES orders (id),
   status         text NOT NULL CHECK (status ~ '^[a-z_]{1,40}$'),
   status_detail  text NOT NULL DEFAULT '' CHECK (length(status_detail) <= 120),
+  -- Paid amount (total_paid_amount), in cents.
   amount_minor   bigint NOT NULL CHECK (amount_minor >= 0),
-  currency       char(3) NOT NULL,
-  live_mode      boolean NOT NULL,
+  currency       text NOT NULL CHECK (currency ~ '^[A-Z]{0,3}$'),
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (provider, external_id)

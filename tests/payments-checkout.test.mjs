@@ -1,4 +1,4 @@
-// "Pagar con Mercado Pago": which orders can pay and the preference sent to Mercado Pago.
+// "Pagar con Mercado Pago": which orders can pay and the Checkout Pro order (Orders API) sent to Mercado Pago.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { startMercadoPagoCheckout } from "../src/server/payments/checkout.ts";
@@ -16,30 +16,30 @@ const order = {
   subtotalMinor: 1_250_050,
   discountMinor: 50_000,
   shippingMinor: 0,
-  expiresAt: new Date("2026-11-01T15:12:00Z"),
+  expiresAt: new Date("2026-11-01T15:12:30Z"),
 };
-const urls = { returnUrl: "https://tienda.test/pedido/abc?t=tok", notificationUrl: "https://tienda.test/api/mercadopago/webhook?source_news=webhooks" };
+const urls = { returnUrl: "https://tienda.test/pedido/abc?t=tok" };
 
-function deps({ token = "APP_USR-seller", preference = { id: "pref-1", initPoint: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-1" }, fail } = {}) {
+function deps({ token = "APP_USR-seller", checkout = { id: "ORDTST01", checkoutUrl: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=1" }, fail } = {}) {
   const calls = [];
   return {
     calls,
     accessToken: async () => token,
     client: {
-      async createPreference(accessToken, input) {
+      async createCheckoutOrder(accessToken, input) {
         calls.push({ accessToken, input });
         if (fail) throw fail;
-        return preference;
+        return checkout;
       },
     },
   };
 }
 
 describe("start Mercado Pago checkout", () => {
-  it("creates a preference for the order total and returns the checkout URL", async () => {
+  it("creates a Mercado Pago order for the order total and returns the checkout URL", async () => {
     const d = deps();
     const result = await startMercadoPagoCheckout(d, order, urls, now);
-    assert.deepEqual(result, { ok: true, url: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-1" });
+    assert.deepEqual(result, { ok: true, url: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=1" });
     assert.equal(d.calls[0].accessToken, "APP_USR-seller");
     assert.deepEqual(d.calls[0].input, {
       orderId: order.id,
@@ -47,8 +47,8 @@ describe("start Mercado Pago checkout", () => {
       amountMinor: 1_200_050,
       payerEmail: "ana@example.com",
       returnUrl: urls.returnUrl,
-      notificationUrl: urls.notificationUrl,
-      expiresAt: order.expiresAt,
+      // 12.5 minutes left: rounded down so Mercado Pago never outlives the reservation.
+      expiresInMinutes: 12,
     });
   });
 
@@ -74,34 +74,67 @@ describe("start Mercado Pago checkout", () => {
   });
 });
 
-describe("preference request", () => {
-  it("sends pesos, the order reference, return URLs, expiry and no cash methods", async () => {
+describe("Checkout Pro order request (Orders API)", () => {
+  const config = { clientId: "1", clientSecret: "s", webhookSecret: "w", encryptionKey: Buffer.alloc(32), testMode: false };
+
+  it("sends an online order with string amounts, return URLs, expiry and no cash methods", async () => {
     const calls = [];
     const fetch = async (url, init) => {
       calls.push({ url, headers: init.headers, body: JSON.parse(init.body) });
-      return new Response(JSON.stringify({ id: "pref-1", init_point: "https://mp.test/pay" }), { status: 201 });
+      return new Response(JSON.stringify({ id: "ORDTST01", status: "created", checkout_url: "https://mp.test/pay" }), { status: 201 });
     };
-    const client = createMercadoPagoClient({ clientId: "1", clientSecret: "s", webhookSecret: "w", encryptionKey: Buffer.alloc(32), testMode: false }, fetch);
-    const result = await client.createPreference("APP_USR-seller", {
+    const result = await createMercadoPagoClient(config, fetch).createCheckoutOrder("APP_USR-seller", {
       orderId: order.id,
       title: "Pedido SUB-1042 — Sublime",
       amountMinor: 1_200_050,
       payerEmail: "ana@example.com",
-      ...urls,
-      expiresAt: order.expiresAt,
+      returnUrl: urls.returnUrl,
+      expiresInMinutes: 12,
     });
-    assert.deepEqual(result, { id: "pref-1", initPoint: "https://mp.test/pay" });
-    assert.equal(calls[0].url, "https://api.mercadopago.com/checkout/preferences");
+    assert.deepEqual(result, { id: "ORDTST01", checkoutUrl: "https://mp.test/pay" });
+    assert.equal(calls[0].url, "https://api.mercadopago.com/v1/orders");
     assert.equal(calls[0].headers.Authorization, "Bearer APP_USR-seller");
-    assert.ok(calls[0].headers["X-Idempotency-Key"]);
-    const body = calls[0].body;
-    assert.deepEqual(body.items, [{ id: order.id, title: "Pedido SUB-1042 — Sublime", quantity: 1, unit_price: 12000.5, currency_id: "ARS" }]);
-    assert.equal(body.external_reference, order.id);
-    assert.equal(body.notification_url, urls.notificationUrl);
-    assert.deepEqual(body.back_urls, { success: urls.returnUrl, pending: urls.returnUrl, failure: urls.returnUrl });
-    assert.equal(body.auto_return, "approved");
-    assert.equal(body.expires, true);
-    assert.equal(body.expiration_date_to, "2026-11-01T15:12:00.000Z");
-    assert.deepEqual(body.payment_methods.excluded_payment_types, [{ id: "ticket" }, { id: "atm" }]);
+    assert.match(calls[0].headers["X-Idempotency-Key"], /^[0-9a-f-]{36}$/);
+    assert.deepEqual(calls[0].body, {
+      type: "online",
+      processing_mode: "manual",
+      external_reference: order.id,
+      description: "Pedido SUB-1042 — Sublime",
+      total_amount: "12000.50",
+      payer: { email: "ana@example.com" },
+      items: [{ title: "Pedido SUB-1042 — Sublime", quantity: 1, unit_price: "12000.50", external_code: order.id }],
+      expiration_time: "PT12M",
+      config: {
+        statement_descriptor: "SUBLIME",
+        online: { success_url: urls.returnUrl, failure_url: urls.returnUrl, pending_url: urls.returnUrl, auto_return: "approved" },
+        payment_method: { not_allowed_types: ["ticket", "atm"] },
+      },
+    });
+  });
+
+  it("reads an order back with paid amount in cents", async () => {
+    const fetch = async (url) => {
+      assert.equal(url, "https://api.mercadopago.com/v1/orders/ORDTST01");
+      return new Response(
+        JSON.stringify({
+          id: "ORDTST01",
+          status: "processed",
+          status_detail: "accredited",
+          external_reference: order.id,
+          total_amount: "12000.50",
+          total_paid_amount: "12000.50",
+          currency: "ARS",
+        }),
+        { status: 200 },
+      );
+    };
+    assert.deepEqual(await createMercadoPagoClient(config, fetch).getOrder("APP_USR-seller", "ORDTST01"), {
+      id: "ORDTST01",
+      status: "processed",
+      statusDetail: "accredited",
+      externalReference: order.id,
+      paidAmountMinor: 1_200_050,
+      currency: "ARS",
+    });
   });
 });
