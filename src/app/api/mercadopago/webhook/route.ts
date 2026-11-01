@@ -8,7 +8,14 @@ import { getMercadoPago } from "@/server/payments/session";
 import { createPaymentRepository, reconcilePayment, verifyWebhookSignature } from "@/server/payments/webhook";
 import { CATALOG_TAG } from "@/server/storefront";
 
-const answer = (outcome: string, status = 200) => NextResponse.json({ outcome }, { status });
+/** Every notice leaves one log line (type, Mercado Pago id, outcome): never headers, body or tokens. */
+function answer(request: NextRequest, outcome: string, status = 200) {
+  const params = request.nextUrl.searchParams;
+  const id = (params.get("data.id") ?? "-").replace(/[^A-Za-z0-9]/g, "").slice(0, 64) || "-";
+  const type = (params.get("type") ?? params.get("topic") ?? "-").replace(/[^a-z_.]/g, "").slice(0, 40) || "-";
+  console.info(`[mercadopago] webhook type=${type} id=${id} → ${status} ${outcome}`);
+  return NextResponse.json({ outcome }, { status });
+}
 
 /**
  * Mercado Pago notifications (application webhook, event "Order (Mercado Pago)":
@@ -18,7 +25,7 @@ const answer = (outcome: string, status = 200) => NextResponse.json({ outcome },
  */
 export async function POST(request: NextRequest) {
   const mercadoPago = getMercadoPago();
-  if (!mercadoPago || !ordersAvailable()) return answer("disabled", 404);
+  if (!mercadoPago || !ordersAvailable()) return answer(request, "disabled", 404);
 
   const params = request.nextUrl.searchParams;
   const signedId = params.get("data.id");
@@ -28,26 +35,26 @@ export async function POST(request: NextRequest) {
     dataId: signedId,
     secret: mercadoPago.config.webhookSecret,
   });
-  if (!valid) return answer("invalid_signature", 401);
+  if (!valid) return answer(request, "invalid_signature", 401);
 
   const body = (await request.json().catch(() => ({}))) as { type?: string };
   const type = params.get("type") ?? body.type;
-  if (type !== "order" || !signedId || !/^[A-Za-z0-9]{1,64}$/.test(signedId)) return answer("ignored");
+  if (type !== "order" || !signedId || !/^[A-Za-z0-9]{1,64}$/.test(signedId)) return answer(request, "ignored");
 
   try {
     const token = await sellerAccessToken(mercadoPago.accounts, mercadoPago.client, mercadoPago.config.serverAccessToken);
-    if (!token) return answer("not_connected");
+    if (!token) return answer(request, "not_connected");
     const outcome = await reconcilePayment(
       { getOrder: (id) => mercadoPago.client.getOrder(token, id), orders: getOrderRepository(), payments: createPaymentRepository(getSql()) },
       signedId,
     );
     // A confirmed sale changes stock shown in the store.
     if (outcome === "paid" || outcome === "needs_review") revalidateTag(CATALOG_TAG, { expire: 0 });
-    return answer(outcome);
+    return answer(request, outcome);
   } catch (error) {
     // An order of another account (or deleted) will never resolve: stop the retries.
-    if (error instanceof MercadoPagoError && error.status === 404) return answer("ignored");
+    if (error instanceof MercadoPagoError && error.status === 404) return answer(request, "ignored");
     console.error("[mercadopago] webhook failed", error instanceof Error ? error.message : "unknown error");
-    return answer("retry", 503);
+    return answer(request, "retry", 503);
   }
 }
