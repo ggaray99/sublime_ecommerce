@@ -54,6 +54,15 @@ services:
       traefik.http.middlewares.sublime-staging-headers.headers.frameDeny: "true"
       traefik.http.middlewares.sublime-staging-headers.headers.referrerPolicy: strict-origin-when-cross-origin
       traefik.http.services.sublime-staging.loadbalancer.server.port: "3000"
+      # Mercado Pago's webhook cannot send the browser password. Only this POST
+      # skips it: the route rejects anything without the app's HMAC signature.
+      traefik.http.routers.sublime-staging-mp-webhook.rule: Host(`staging.sublime.consulte.app`) && Path(`/api/mercadopago/webhook`) && Method(`POST`)
+      traefik.http.routers.sublime-staging-mp-webhook.priority: "1000"
+      traefik.http.routers.sublime-staging-mp-webhook.entrypoints: websecure
+      traefik.http.routers.sublime-staging-mp-webhook.tls: "true"
+      traefik.http.routers.sublime-staging-mp-webhook.tls.certresolver: mytlschallenge
+      traefik.http.routers.sublime-staging-mp-webhook.middlewares: sublime-staging-headers
+      traefik.http.routers.sublime-staging-mp-webhook.service: sublime-staging
 
   # The store. Deployed by hand (deploy/deploy-production.sh), never by the staging
   # auto-deploy. SUBLIME_MAINTENANCE=1 in production.env shows only the
