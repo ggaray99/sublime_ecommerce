@@ -170,7 +170,8 @@ export function createMercadoPagoClient(config: MercadoPagoConfig, fetchFn: type
           // disallowed address (property_value) would block the whole checkout.
           description: input.title,
           total_amount: amount,
-          items: [{ title: input.title, quantity: 1, unit_price: amount, external_code: input.orderId }],
+          // external_code is capped at 30 characters (a UUID has 36): external_reference carries the id.
+          items: [{ title: input.title, quantity: 1, unit_price: amount }],
           expiration_time: `PT${input.expiresInMinutes}M`,
           config: {
             statement_descriptor: "SUBLIME",

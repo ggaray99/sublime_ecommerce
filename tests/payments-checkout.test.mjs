@@ -99,7 +99,8 @@ describe("Checkout Pro order request (Orders API)", () => {
       external_reference: order.id,
       description: "Pedido SUB-1042 — Sublime",
       total_amount: "12000.50",
-      items: [{ title: "Pedido SUB-1042 — Sublime", quantity: 1, unit_price: "12000.50", external_code: order.id }],
+      // No external_code: Mercado Pago caps it at 30 characters (a UUID has 36); external_reference carries the id.
+      items: [{ title: "Pedido SUB-1042 — Sublime", quantity: 1, unit_price: "12000.50" }],
       expiration_time: "PT12M",
       config: {
         statement_descriptor: "SUBLIME",
