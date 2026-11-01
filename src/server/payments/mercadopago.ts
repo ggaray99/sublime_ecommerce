@@ -13,11 +13,23 @@ const TIMEOUT_MS = 15_000;
 export class MercadoPagoError extends Error {
   readonly status: number;
   readonly code: string;
-  constructor(status: number, code: string) {
+  /** Mercado Pago's own explanation (for the server log), at most 300 characters. */
+  readonly detail: string;
+  constructor(status: number, code: string, detail = "") {
     super(`Mercado Pago respondió ${status} (${code}).`);
     this.status = status;
     this.code = code;
+    this.detail = detail.slice(0, 300);
   }
+}
+
+type ErrorBody = { error?: unknown; message?: unknown; errors?: { code?: unknown; message?: unknown }[] };
+const text = (value: unknown) => (typeof value === "string" ? value : "");
+
+/** Classic APIs answer { error, message }; the Orders API answers { errors: [{ code, message }] }. */
+function errorFrom(status: number, body: ErrorBody): MercadoPagoError {
+  const first = Array.isArray(body.errors) ? body.errors[0] : undefined;
+  return new MercadoPagoError(status, text(first?.code) || text(body.error) || "error", text(first?.message) || text(body.message));
 }
 
 export type LinkedTokens = {
@@ -110,9 +122,9 @@ export function createMercadoPagoClient(config: MercadoPagoConfig, fetchFn: type
     } catch {
       throw new MercadoPagoError(503, "unreachable");
     }
-    const data = (await response.json().catch(() => ({}))) as T & { error?: string };
-    // Only Mercado Pago's error code travels on: never the request (it may carry secrets).
-    if (!response.ok) throw new MercadoPagoError(response.status, typeof data.error === "string" ? data.error : "error");
+    const data = (await response.json().catch(() => ({}))) as T & ErrorBody;
+    // Only Mercado Pago's error code and message travel on: never the request (it may carry secrets).
+    if (!response.ok) throw errorFrom(response.status, data);
     return data;
   }
 

@@ -138,6 +138,31 @@ describe("Checkout Pro order request (Orders API)", () => {
     });
   });
 
+  it("keeps the Orders API error code and message (never the request)", async () => {
+    const fetch = async () =>
+      new Response(JSON.stringify({ errors: [{ code: "invalid_property_value", message: "expiration_time must be at least PT15M", details: [] }] }), {
+        status: 400,
+      });
+    await assert.rejects(
+      createMercadoPagoClient(config, fetch).createCheckoutOrder("APP_USR-seller", {
+        orderId: order.id,
+        title: "Pedido",
+        amountMinor: 100,
+        payerEmail: "ana@example.com",
+        returnUrl: urls.returnUrl,
+        expiresInMinutes: 12,
+      }),
+      (error) => {
+        assert.ok(error instanceof MercadoPagoError);
+        assert.equal(error.status, 400);
+        assert.equal(error.code, "invalid_property_value");
+        assert.equal(error.detail, "expiration_time must be at least PT15M");
+        assert.ok(!error.message.includes("APP_USR"));
+        return true;
+      },
+    );
+  });
+
   it("reads a non-numeric paid amount as zero (never confirmed, no endless retries)", async () => {
     const fetch = async () => new Response(JSON.stringify({ id: "ORDTST02", status: "processed", total_paid_amount: "abc" }), { status: 200 });
     assert.equal((await createMercadoPagoClient(config, fetch).getOrder("APP_USR-seller", "ORDTST02")).paidAmountMinor, 0);

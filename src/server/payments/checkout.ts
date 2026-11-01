@@ -43,7 +43,10 @@ export async function startMercadoPagoCheckout(
     });
     return { ok: true, url: checkout.checkoutUrl };
   } catch (error) {
-    if (error instanceof MercadoPagoError) return { ok: false, reason: "unavailable" };
+    if (error instanceof MercadoPagoError) {
+      console.error(`[mercadopago] checkout for order ${order.id} failed: ${error.status} ${error.code} ${error.detail}`.trim());
+      return { ok: false, reason: "unavailable" };
+    }
     throw error;
   }
 }
