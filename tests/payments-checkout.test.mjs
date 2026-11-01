@@ -137,4 +137,9 @@ describe("Checkout Pro order request (Orders API)", () => {
       currency: "ARS",
     });
   });
+
+  it("reads a non-numeric paid amount as zero (never confirmed, no endless retries)", async () => {
+    const fetch = async () => new Response(JSON.stringify({ id: "ORDTST02", status: "processed", total_paid_amount: "abc" }), { status: 200 });
+    assert.equal((await createMercadoPagoClient(config, fetch).getOrder("APP_USR-seller", "ORDTST02")).paidAmountMinor, 0);
+  });
 });

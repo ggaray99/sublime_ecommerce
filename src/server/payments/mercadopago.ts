@@ -87,7 +87,11 @@ export type MercadoPagoOrder = {
 
 /** "12000.50" ⇄ 1200050: the Orders API takes and returns amounts as decimal strings. */
 const toAmount = (minor: number) => (minor / 100).toFixed(2);
-const toMinor = (amount: string | number | undefined) => Math.round(Number(amount ?? 0) * 100);
+// A non-numeric amount counts as nothing paid: never confirmed, and no endless webhook retries.
+const toMinor = (amount: string | number | undefined) => {
+  const value = Math.round(Number(amount ?? 0) * 100);
+  return Number.isFinite(value) ? value : 0;
+};
 
 export function createMercadoPagoClient(config: MercadoPagoConfig, fetchFn: typeof fetch = fetch) {
   async function call<T>(method: "GET" | "POST", path: string, options: { body?: unknown; token?: string; idempotencyKey?: string } = {}): Promise<T> {
