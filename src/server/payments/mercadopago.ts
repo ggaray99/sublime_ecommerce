@@ -23,13 +23,16 @@ export class MercadoPagoError extends Error {
   }
 }
 
-type ErrorBody = { error?: unknown; message?: unknown; errors?: { code?: unknown; message?: unknown }[] };
+type ErrorBody = { error?: unknown; message?: unknown; errors?: { code?: unknown; message?: unknown; details?: unknown }[] };
 const text = (value: unknown) => (typeof value === "string" ? value : "");
 
 /** Classic APIs answer { error, message }; the Orders API answers { errors: [{ code, message }] }. */
 function errorFrom(status: number, body: ErrorBody): MercadoPagoError {
   const first = Array.isArray(body.errors) ? body.errors[0] : undefined;
-  return new MercadoPagoError(status, text(first?.code) || text(body.error) || "error", text(first?.message) || text(body.message));
+  // The Orders API names the refused field only in details (e.g. "expiration_time: invalid duration").
+  const details = Array.isArray(first?.details) ? first.details.filter((item) => typeof item === "string") : [];
+  const detail = [text(first?.message) || text(body.message), ...details].filter(Boolean).join(" · ");
+  return new MercadoPagoError(status, text(first?.code) || text(body.error) || "error", detail);
 }
 
 export type LinkedTokens = {
@@ -80,7 +83,6 @@ export type CheckoutOrderInput = {
   orderId: string;
   title: string;
   amountMinor: number;
-  payerEmail: string;
   returnUrl: string;
   /** Whole minutes left in the stock reservation. */
   expiresInMinutes: number;
@@ -164,9 +166,10 @@ export function createMercadoPagoClient(config: MercadoPagoConfig, fetchFn: type
           type: "online",
           processing_mode: "manual",
           external_reference: input.orderId,
+          // No payer email: the buyer signs in at Mercado Pago, and a mistyped or
+          // disallowed address (property_value) would block the whole checkout.
           description: input.title,
           total_amount: amount,
-          payer: { email: input.payerEmail },
           items: [{ title: input.title, quantity: 1, unit_price: amount, external_code: input.orderId }],
           expiration_time: `PT${input.expiresInMinutes}M`,
           config: {

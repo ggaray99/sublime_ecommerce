@@ -6,7 +6,7 @@ const MIN_REMAINING_MS = 60_000;
 
 type PayableOrder = Pick<
   Order,
-  "id" | "number" | "contactEmail" | "status" | "paymentPreference" | "delivery" | "subtotalMinor" | "discountMinor" | "shippingMinor" | "expiresAt"
+  "id" | "number" | "status" | "paymentPreference" | "delivery" | "subtotalMinor" | "discountMinor" | "shippingMinor" | "expiresAt"
 >;
 
 /** Pending, not reserved for transfer, with time left and a known total (shipping priced). */
@@ -36,7 +36,6 @@ export async function startMercadoPagoCheckout(
       orderId: order.id,
       title: `Pedido ${orderNumber(order)} — Sublime`,
       amountMinor: orderTotalMinor(order),
-      payerEmail: order.contactEmail,
       returnUrl: urls.returnUrl,
       // Rounded down: Mercado Pago must never accept a payment after the reservation ends.
       expiresInMinutes: Math.floor((order.expiresAt.getTime() - now.getTime()) / 60_000),

@@ -45,7 +45,6 @@ describe("start Mercado Pago checkout", () => {
       orderId: order.id,
       title: "Pedido SUB-1042 — Sublime",
       amountMinor: 1_200_050,
-      payerEmail: "ana@example.com",
       returnUrl: urls.returnUrl,
       // 12.5 minutes left: rounded down so Mercado Pago never outlives the reservation.
       expiresInMinutes: 12,
@@ -77,7 +76,7 @@ describe("start Mercado Pago checkout", () => {
 describe("Checkout Pro order request (Orders API)", () => {
   const config = { clientId: "1", clientSecret: "s", webhookSecret: "w", encryptionKey: Buffer.alloc(32), testMode: false };
 
-  it("sends an online order with string amounts, return URLs, expiry and no cash methods", async () => {
+  it("sends an online order with string amounts, return URLs, expiry, no cash methods and no payer email", async () => {
     const calls = [];
     const fetch = async (url, init) => {
       calls.push({ url, headers: init.headers, body: JSON.parse(init.body) });
@@ -87,7 +86,6 @@ describe("Checkout Pro order request (Orders API)", () => {
       orderId: order.id,
       title: "Pedido SUB-1042 — Sublime",
       amountMinor: 1_200_050,
-      payerEmail: "ana@example.com",
       returnUrl: urls.returnUrl,
       expiresInMinutes: 12,
     });
@@ -101,7 +99,6 @@ describe("Checkout Pro order request (Orders API)", () => {
       external_reference: order.id,
       description: "Pedido SUB-1042 — Sublime",
       total_amount: "12000.50",
-      payer: { email: "ana@example.com" },
       items: [{ title: "Pedido SUB-1042 — Sublime", quantity: 1, unit_price: "12000.50", external_code: order.id }],
       expiration_time: "PT12M",
       config: {
@@ -140,7 +137,7 @@ describe("Checkout Pro order request (Orders API)", () => {
 
   it("keeps the Orders API error code and message (never the request)", async () => {
     const fetch = async () =>
-      new Response(JSON.stringify({ errors: [{ code: "invalid_property_value", message: "expiration_time must be at least PT15M", details: [] }] }), {
+      new Response(JSON.stringify({ errors: [{ code: "invalid_property_value", message: "expiration_time must be at least PT15M", details: ["expiration_time: invalid duration"] }] }), {
         status: 400,
       });
     await assert.rejects(
@@ -148,15 +145,14 @@ describe("Checkout Pro order request (Orders API)", () => {
         orderId: order.id,
         title: "Pedido",
         amountMinor: 100,
-        payerEmail: "ana@example.com",
-        returnUrl: urls.returnUrl,
+          returnUrl: urls.returnUrl,
         expiresInMinutes: 12,
       }),
       (error) => {
         assert.ok(error instanceof MercadoPagoError);
         assert.equal(error.status, 400);
         assert.equal(error.code, "invalid_property_value");
-        assert.equal(error.detail, "expiration_time must be at least PT15M");
+        assert.equal(error.detail, "expiration_time must be at least PT15M · expiration_time: invalid duration");
         assert.ok(!error.message.includes("APP_USR"));
         return true;
       },
