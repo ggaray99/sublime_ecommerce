@@ -45,7 +45,7 @@ describe("payments configuration", () => {
   });
 
   it("flags a client id that is not the numeric application number (e.g. a public key)", () => {
-    const publicKey = { ...full, MERCADOPAGO_CLIENT_ID: "APP_USR-2ce35105-b5fc-412f-88c4-35c7dc25c4a8" };
+    const publicKey = { ...full, MERCADOPAGO_CLIENT_ID: "APP_USR-00000000-0000-0000-0000-000000000000" };
     assert.deepEqual(missingPaymentSettings(publicKey), ["MERCADOPAGO_CLIENT_ID"]);
     assert.equal(mercadoPagoConfig(publicKey), null);
   });
