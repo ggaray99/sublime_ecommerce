@@ -73,4 +73,10 @@ describe("token encryption", () => {
     assert.throws(() => decryptSecret(sealed, randomBytes(32)));
     assert.throws(() => decryptSecret("garbage", secretKey));
   });
+
+  it("rejects a truncated authentication tag", () => {
+    const [version, iv, tag, data] = encryptSecret("APP_USR-token", secretKey).split(".");
+    const short = Buffer.from(tag, "base64url").subarray(0, 4).toString("base64url");
+    assert.throws(() => decryptSecret([version, iv, short, data].join("."), secretKey));
+  });
 });

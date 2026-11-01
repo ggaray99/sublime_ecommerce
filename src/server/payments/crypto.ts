@@ -6,10 +6,12 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
  * or the wrong key throws instead of returning garbage.
  */
 const VERSION = "v1";
+// Full 16-byte tag: without it Node also accepts truncated (weaker) tags.
+const TAG = { authTagLength: 16 } as const;
 
 export function encryptSecret(plain: string, key: Buffer): string {
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const cipher = createCipheriv("aes-256-gcm", key, iv, TAG);
   const data = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
   return [VERSION, iv, cipher.getAuthTag(), data].map((part) => (typeof part === "string" ? part : part.toString("base64url"))).join(".");
 }
@@ -17,7 +19,7 @@ export function encryptSecret(plain: string, key: Buffer): string {
 export function decryptSecret(sealed: string, key: Buffer): string {
   const [version, iv, tag, data] = sealed.split(".");
   if (version !== VERSION || !iv || !tag || data === undefined) throw new Error("Unsupported secret format.");
-  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "base64url"));
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "base64url"), TAG);
   decipher.setAuthTag(Buffer.from(tag, "base64url"));
   return Buffer.concat([decipher.update(Buffer.from(data, "base64url")), decipher.final()]).toString("utf8");
 }

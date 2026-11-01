@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { connection, NextResponse } from "next/server";
+import { site } from "@/data/site";
 import { getCurrentAdmin } from "@/server/admin/session";
 import { authorizationUrl, pkcePair } from "@/server/payments/mercadopago";
 import { getMercadoPago, mercadoPagoRedirectUri, OAUTH_COOKIE } from "@/server/payments/session";
@@ -27,7 +28,8 @@ export async function GET(request: Request) {
   // Lax: the callback is a top-level navigation back from Mercado Pago.
   response.cookies.set(OAUTH_COOKIE, `${state}.${verifier}`, {
     httpOnly: true,
-    secure: new URL(request.url).protocol === "https:",
+    // The public address, not request.url: behind the VPS proxy the app itself sees http.
+    secure: site.url.startsWith("https://"),
     sameSite: "lax",
     path: "/api/mercadopago",
     maxAge: 600,

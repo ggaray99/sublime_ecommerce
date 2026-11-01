@@ -37,6 +37,15 @@ export function createPaymentRepository(sql: QueryFn) {
         [payment.id, orderId, payment.status, payment.statusDetail.slice(0, 120), payment.amountMinor, payment.currency, payment.liveMode],
       );
     },
+
+    /** Another approved payment for the same order: the customer was charged twice. */
+    async hasOtherApproved(orderId: string, paymentId: string): Promise<boolean> {
+      const rows = await sql.query(
+        "SELECT 1 FROM payments WHERE provider = 'mercadopago' AND order_id = $1 AND external_id <> $2 AND status = 'approved' LIMIT 1",
+        [orderId, paymentId],
+      );
+      return rows.length > 0;
+    },
   };
 }
 
@@ -47,7 +56,8 @@ export type PaymentRepository = ReturnType<typeof createPaymentRepository>;
  * - duplicate: already confirmed (repeated webhook or two at once).
  * - recorded: not approved yet (pending, in process, rejected…): the order waits.
  * - mismatch: approved but the amount or currency differs from the order. Never applied.
- * - conflict: approved for a cancelled or under-review order: needs a person (refund?).
+ * - conflict: approved for a cancelled or under-review order, or a second approved payment
+ *   for an order already paid (double charge): needs a person (refund?).
  * - ignored: the reference is not one of our orders.
  */
 export type ReconcileOutcome = "paid" | "needs_review" | "duplicate" | "recorded" | "mismatch" | "conflict" | "ignored";
@@ -74,6 +84,10 @@ export async function reconcilePayment(
   if (order.status !== "pending_payment" && order.status !== "expired") {
     if (order.status === "cancelled" || order.status === "needs_review") {
       console.error(`[mercadopago] approved payment ${payment.id} for ${order.status} order ${order.id}: review and refund if needed`);
+      return "conflict";
+    }
+    if (await deps.payments.hasOtherApproved(order.id, payment.id)) {
+      console.error(`[mercadopago] second approved payment ${payment.id} for paid order ${order.id}: refund one of them`);
       return "conflict";
     }
     return "duplicate";

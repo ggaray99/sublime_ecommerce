@@ -17,7 +17,8 @@ export function getMercadoPago() {
 
 /** Must match a redirect URL registered in the Mercado Pago application. */
 export const mercadoPagoRedirectUri = () => `${site.url}/api/mercadopago/callback`;
-export const mercadoPagoWebhookUrl = () => `${site.url}/api/mercadopago/webhook`;
+// source_news=webhooks: only signed webhooks, not the legacy unsigned IPN calls.
+export const mercadoPagoWebhookUrl = () => `${site.url}/api/mercadopago/webhook?source_news=webhooks`;
 
 /** Short-lived cookie holding the OAuth state and PKCE verifier between connect and callback. */
 export const OAUTH_COOKIE = "mp_oauth";

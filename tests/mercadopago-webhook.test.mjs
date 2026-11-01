@@ -106,6 +106,13 @@ describe("payment reconciliation (PGlite)", () => {
     assert.equal(n, 1);
   });
 
+  it("a second, different approved payment for a paid order is flagged (double charge)", async () => {
+    const orderId = await placeOrder();
+    assert.equal(await run(paymentFor(orderId)), "paid");
+    assert.equal(await run(paymentFor(orderId)), "conflict");
+    assert.equal(await status(orderId), "paid");
+  });
+
   it("rechazado and pendiente: recorded, the order stays pending", async () => {
     const orderId = await placeOrder();
     const rejected = paymentFor(orderId, { status: "rejected", statusDetail: "cc_rejected_insufficient_amount" });

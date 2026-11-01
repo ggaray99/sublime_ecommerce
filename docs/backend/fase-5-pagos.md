@@ -16,6 +16,7 @@ Los clientes pagan sus pedidos con Mercado Pago (Checkout Pro) y el pedido pasa 
 | Tardío (la reserva ya venció) | Si hay stock, se vende; si no, el pedido queda **En revisión** para decidir reposición, demora o devolución. |
 | Monto o moneda distintos | **No se aplica.** Queda registrado en el log del servidor. |
 | Pedido cancelado o en revisión | **No se aplica.** Queda en el log: revisar y devolver si corresponde. |
+| Segundo pago aprobado para un pedido ya pagado (cobro doble) | **No se aplica.** Queda en el log: devolver uno desde Mercado Pago. |
 | Firma inválida | Se rechaza (401) sin consultar nada. |
 
 **Detalles de diseño:**

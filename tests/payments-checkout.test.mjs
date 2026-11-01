@@ -18,7 +18,7 @@ const order = {
   shippingMinor: 0,
   expiresAt: new Date("2026-11-01T15:12:00Z"),
 };
-const urls = { returnUrl: "https://tienda.test/pedido/abc?t=tok", notificationUrl: "https://tienda.test/api/mercadopago/webhook" };
+const urls = { returnUrl: "https://tienda.test/pedido/abc?t=tok", notificationUrl: "https://tienda.test/api/mercadopago/webhook?source_news=webhooks" };
 
 function deps({ token = "APP_USR-seller", preference = { id: "pref-1", initPoint: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-1" }, fail } = {}) {
   const calls = [];
