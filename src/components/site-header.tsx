@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { mainNav } from "@/data/site";
 import { accountsAvailable } from "@/server/customers/session";
+import { AdminLink } from "./admin-link";
 import { BrandLogo } from "./brand-logo";
 import { CartLink } from "./cart/cart-link";
 import { MobileNav } from "./mobile-nav";
@@ -29,6 +31,10 @@ export function SiteHeader() {
           </ul>
         </nav>
         <div className="site-header__actions">
+          {/* Only admins see it; the rest of the header stays static. */}
+          <Suspense fallback={null}>
+            <AdminLink />
+          </Suspense>
           <CartLink />
           <MobileNav links={links} />
         </div>

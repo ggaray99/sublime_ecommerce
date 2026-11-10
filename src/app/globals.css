@@ -543,6 +543,38 @@ textarea {
   text-transform: uppercase;
 }
 
+.admin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 8px 12px;
+  border: 2px solid var(--cyan);
+  color: var(--cyan);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-link:hover,
+.admin-link:focus-visible {
+  background: var(--cyan);
+  color: var(--black);
+}
+
+.admin-link__icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Phones: icon only, so cart and menu keep their room. */
+@media (max-width: 560px) {
+  .admin-link span {
+    display: none;
+  }
+}
+
 .cart-link__icon {
   width: 20px;
   height: 20px;

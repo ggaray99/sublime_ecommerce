@@ -20,7 +20,6 @@ Referencia: capturas de Mercado Libre (nuevo domicilio, direcciones de la cuenta
 
 | # | Pendiente | Estado actual | Qué hace falta |
 | --- | --- | --- | --- |
-| C.1 | **Acceso al admin sin escribir la URL**: un botón que solo vean los usuarios con acceso al panel | No hay enlace a `/admin` en la tienda | Mostrarlo en el encabezado solo si la sesión tiene acceso al panel |
 | C.3 | **Domicilio de entrega como Mercado Libre**: dirección, "La calle no tiene número", provincia, localidad/barrio, código postal ("No sé mi CP"), departamento (opcional), nombre y apellido, teléfono, "Elegir como predeterminada". Hasta **5** direcciones de entrega por cliente, con una predeterminada | Ya existe la libreta con predeterminada, con límite de 10 | Bajar el límite a 5 (decidir qué pasa con quien ya tenga más), sumar los campos que faltan y ajustar el formulario |
 | C.4 | **Pago**: solo la transferencia se coordina después; el resto debe ofrecer pagar con Mercado Pago | Los textos del checkout y del admin dicen que el pago se coordina después | Ajustar textos y flujo (prueba guiada paso a paso con el usuario) |
 | C.5 | **Dirección de facturación y de envío**: cada cliente tiene ambas. Datos de facturación: CUIT, razón social, dirección y condición de IVA ("Factura B - DNI …"), con opción de elegir con cuáles facturar en el checkout | No existe | Definir los datos a pedir (DNI o CUIT según la condición de IVA). Solo se guardan los datos: emitir facturas sigue fuera de alcance (5.2) |
