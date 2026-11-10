@@ -15,6 +15,14 @@ export function getMercadoPago() {
   };
 }
 
+/** Customers can pay with Mercado Pago here: configured and with an account (connected or the server's token). */
+export async function onlinePaymentsAvailable(): Promise<boolean> {
+  const mercadoPago = getMercadoPago();
+  if (!mercadoPago) return false;
+  if (mercadoPago.config.serverAccessToken) return true;
+  return Boolean(await mercadoPago.accounts.get().catch(() => null));
+}
+
 /** Must match a redirect URL registered in the Mercado Pago application. */
 export const mercadoPagoRedirectUri = () => `${site.url}/api/mercadopago/callback`;
 /** Registered in the Mercado Pago application (Webhooks, event "Order (Mercado Pago)"). */

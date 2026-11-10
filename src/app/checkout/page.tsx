@@ -7,6 +7,7 @@ import { PageIntro } from "@/components/page-intro";
 import { getCurrentCustomer, getCustomerRepository } from "@/server/customers/session";
 import { PROVINCES } from "@/server/customers/validation";
 import { getShippingRepository, ordersAvailable } from "@/server/orders/session";
+import { onlinePaymentsAvailable } from "@/server/payments/session";
 import { getStorefrontProducts } from "@/server/storefront";
 import { forClient } from "@/lib/catalog";
 
@@ -23,14 +24,16 @@ async function RealCheckout() {
   const catalog = (await getStorefrontProducts()).map((product) => forClient(product));
   const customer = await getCurrentCustomer().catch(() => null);
   const shipping = getShippingRepository();
-  const [addresses, shippingRules, pickup] = await Promise.all([
+  const [addresses, shippingRules, pickup, onlinePayment] = await Promise.all([
     customer ? getCustomerRepository().listAddresses(customer.id) : Promise.resolve([]),
     shipping.listRules({ activeOnly: true }),
     shipping.getPickup(),
+    onlinePaymentsAvailable(),
   ]);
   return (
     <CheckoutForm
       catalog={catalog}
+      onlinePayment={onlinePayment}
       signedIn={Boolean(customer)}
       prefill={{ name: customer?.fullName ?? "", email: customer?.email ?? "", phone: customer?.phone ?? "" }}
       // The default address comes first and is pre-selected.
@@ -75,7 +78,7 @@ export default async function CheckoutPage() {
           </>
         }
       >
-        <p>Completá tus datos y elegí la entrega. El pago se coordina después de confirmar el pedido.</p>
+        <p>Completá tus datos y elegí la entrega y cómo pagar.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando el checkout…</p>}>
         <RealCheckout />

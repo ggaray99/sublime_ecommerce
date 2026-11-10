@@ -97,7 +97,7 @@ export default function AdminOrdersPage({ searchParams }: PageProps<"/admin/pedi
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="PEDIDOS." tone="light">
-        <p>No hay cobros online: el pago se confirma acá.</p>
+        <p>Los pagos con Mercado Pago se confirman solos. Las transferencias se confirman acá.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
         <Orders searchParams={searchParams} />

@@ -31,10 +31,12 @@ type Props = {
   /** Active rules, to show an estimate while typing; the server quotes again when placing the order. */
   shippingRules: ShippingRule[];
   pickup: PickupSettings;
+  /** Mercado Pago is set up: the non-transfer choice pays online from the order page. */
+  onlinePayment: boolean;
 };
 
-/** Real checkout (staging): reserves stock for 15 minutes; payment is arranged afterwards. */
-export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn, shippingRules, pickup }: Props) {
+/** Real checkout (staging): reserves stock for 15 minutes; then Mercado Pago, or a transfer arranged with the shop. */
+export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn, shippingRules, pickup, onlinePayment }: Props) {
   const hydrated = useHydrated();
   const lines = useCartLines();
   const { items, count, subtotal } = useCartSummary(catalog);
@@ -191,7 +193,9 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
           <legend>Pago</legend>
           <div className="delivery-choice">
             {[
-              { value: "any" as const, label: "Lo coordinamos después", hint: "Te escribimos con los medios disponibles." },
+              onlinePayment
+                ? { value: "any" as const, label: "Mercado Pago", hint: "Tarjeta, dinero en cuenta o Mercado Crédito. Pagás al confirmar el pedido." }
+                : { value: "any" as const, label: "Lo coordinamos después", hint: "Te escribimos con los medios disponibles." },
               {
                 value: "transfer" as const,
                 label: preview?.transferPercent ? `Transferencia o efectivo (−${preview.transferPercent} %)` : "Transferencia o efectivo",
@@ -321,8 +325,12 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
           {pending ? "Confirmando…" : "Confirmar pedido"}
         </button>
         <p className="fine-print">
-          Al confirmar reservamos el stock por 15 minutos y te escribimos para coordinar el pago. Precios, descuentos y
-          envío se recalculan al confirmar.
+          {onlinePayment && payment === "any"
+            ? "Al confirmar reservamos el stock por 15 minutos y te mostramos el botón para pagar con Mercado Pago."
+            : payment === "transfer"
+              ? "Al confirmar reservamos el stock por 15 minutos y te escribimos con los datos para la transferencia."
+              : "Al confirmar reservamos el stock por 15 minutos y te escribimos para coordinar el pago."}{" "}
+          Precios, descuentos y envío se recalculan al confirmar.
         </p>
         {state.issues && (
           <Link className="link-button" href="/carrito">

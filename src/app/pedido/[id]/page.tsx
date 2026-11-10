@@ -11,7 +11,7 @@ import { orderNumber, type OrderDetail } from "@/server/orders/repository";
 import { getOrderRepository, ordersAvailable } from "@/server/orders/session";
 import { SubmitButton } from "@/components/submit-button";
 import { canPayOnline } from "@/server/payments/checkout";
-import { getMercadoPago } from "@/server/payments/session";
+import { onlinePaymentsAvailable } from "@/server/payments/session";
 import { payWithMercadoPagoAction } from "./actions";
 
 export const metadata: Metadata = {
@@ -59,8 +59,7 @@ async function OrderPage({ params, searchParams }: Pick<Props, "params" | "searc
   }
   if (!order) notFound();
 
-  const mercadoPago = canPayOnline(order) ? getMercadoPago() : null;
-  const payOnline = Boolean(mercadoPago && (mercadoPago.config.serverAccessToken || (await mercadoPago.accounts.get())));
+  const payOnline = canPayOnline(order) && (await onlinePaymentsAvailable());
   // ?pago= from the pay action; ?status= when Mercado Pago sends the customer back.
   const paymentNotice = PAYMENT_NOTICES[String(query.pago ?? "")] ?? (order.status === "pending_payment" ? RETURN_NOTICES[String(query.status ?? "")] : undefined);
 
@@ -78,7 +77,11 @@ async function OrderPage({ params, searchParams }: Pick<Props, "params" | "searc
           <div className="panel panel--muted" role="status">
             <p>
               <strong>Reservamos el stock hasta las {argentinaTime(order.expiresAt).split(" ")[1]} (hora de Argentina).</strong>{" "}
-              {payOnline ? "Pagalo ahora con Mercado Pago: tarjeta, dinero en cuenta o Mercado Crédito." : `Te vamos a escribir a ${order.contactEmail} para coordinar el pago.`}
+              {payOnline
+                ? "Pagalo ahora con Mercado Pago: tarjeta, dinero en cuenta o Mercado Crédito."
+                : order.paymentPreference === "transfer"
+                  ? `Te vamos a escribir a ${order.contactEmail} con los datos para la transferencia.`
+                  : `Te vamos a escribir a ${order.contactEmail} para coordinar el pago.`}
             </p>
             {payOnline && (
               <form action={payWithMercadoPagoAction}>

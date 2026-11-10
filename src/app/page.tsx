@@ -20,7 +20,7 @@ const processTracks = [
   {
     title: "Productos estándar",
     note: "Calcos, packs, remeras, DTF y vinilos del catálogo.",
-    steps: ["Elegí tus diseños en la tienda.", "Sumalos al carrito y ajustá cantidades.", "Confirmá el pedido: coordinamos el pago y la entrega."],
+    steps: ["Elegí tus diseños en la tienda.", "Sumalos al carrito y ajustá cantidades.", "Confirmá el pedido, elegí cómo pagar y coordinamos la entrega."],
   },
   {
     title: "Personalizados",

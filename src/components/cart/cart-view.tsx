@@ -104,7 +104,7 @@ export function CartView({ catalog, realCheckout = false }: { catalog: Product[]
           Ir al checkout
         </Link>
         <p className="fine-print">
-          {realCheckout ? "Al confirmar reservamos el stock por 15 minutos. El pago se coordina después." : "Las compras online todavía no están habilitadas: el checkout es una simulación y no genera un pedido."}
+          {realCheckout ? "Al confirmar reservamos el stock por 15 minutos. En el checkout elegís cómo pagar." : "Las compras online todavía no están habilitadas: el checkout es una simulación y no genera un pedido."}
         </p>
         <button type="button" className="link-button" onClick={cartActions.clear}>
           Vaciar carrito
