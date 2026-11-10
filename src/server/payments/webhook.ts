@@ -5,6 +5,8 @@ import type { MercadoPagoOrder } from "./mercadopago.ts";
 
 /** Orders API: every transaction processed, i.e. the order is paid. */
 const PAID = "processed";
+/** Mercado Pago order states that never change into a payment. */
+const FINAL = [PAID, "canceled", "expired", "refunded", "charged_back", "not_found"];
 
 /**
  * Mercado Pago's x-signature ("ts=…,v1=…"): HMAC-SHA256 (hex) with the
@@ -42,6 +44,44 @@ export function createPaymentRepository(sql: QueryFn) {
            status = EXCLUDED.status, status_detail = EXCLUDED.status_detail, amount_minor = EXCLUDED.amount_minor,
            currency = EXCLUDED.currency, updated_at = now()`,
         [payment.id, orderId, payment.status.slice(0, 40), payment.statusDetail.slice(0, 120), payment.paidAmountMinor, payment.currency.slice(0, 3)],
+      );
+    },
+
+    /** A checkout just started (status "created"): never overwrites what a notice already reported. */
+    async recordStarted(externalId: string, orderId: string): Promise<void> {
+      await sql.query(
+        `INSERT INTO payments (provider, external_id, order_id, status, amount_minor, currency)
+         VALUES ('mercadopago', $1, $2, 'created', 0, '')
+         ON CONFLICT (provider, external_id) DO NOTHING`,
+        [externalId, orderId],
+      );
+    },
+
+    /**
+     * Checkouts to ask Mercado Pago about because no notice settled them: unfinished,
+     * quiet for a few minutes (a notice normally arrives in seconds), started in the
+     * last day, and for an order still awaiting payment (an expired one may pay late).
+     */
+    async awaitingCheck(limit: number): Promise<string[]> {
+      const rows = await sql.query(
+        `SELECT p.external_id FROM payments p JOIN orders o ON o.id = p.order_id
+         WHERE p.provider = 'mercadopago'
+           AND p.status NOT IN (${FINAL.map((_, index) => `$${index + 2}`).join(", ")})
+           AND o.status IN ('pending_payment', 'expired')
+           AND p.updated_at < now() - interval '2 minutes'
+           AND p.created_at > now() - interval '24 hours'
+         ORDER BY p.updated_at
+         LIMIT $1`,
+        [limit, ...FINAL],
+      );
+      return (rows as { external_id: string }[]).map((row) => row.external_id);
+    },
+
+    /** A check that failed: waits for the next quiet window; "not_found" stops the checks. */
+    async markChecked(externalId: string, status?: "not_found"): Promise<void> {
+      await sql.query(
+        "UPDATE payments SET status = coalesce($2, status), updated_at = now() WHERE provider = 'mercadopago' AND external_id = $1",
+        [externalId, status ?? null],
       );
     },
 

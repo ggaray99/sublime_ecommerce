@@ -7,6 +7,8 @@ import { getOrderRepository, ordersAvailable } from "@/server/orders/session";
 import { sellerAccessToken } from "@/server/payments/accounts";
 import { startMercadoPagoCheckout } from "@/server/payments/checkout";
 import { getMercadoPago } from "@/server/payments/session";
+import { createPaymentRepository } from "@/server/payments/webhook";
+import { getSql } from "@/server/db/client";
 
 /** Same access rule as the page: the private link, or the signed-in customer who placed it. */
 async function findOrder(id: string, token: string) {
@@ -36,6 +38,7 @@ export async function payWithMercadoPagoAction(form: FormData): Promise<void> {
     {
       accessToken: () => sellerAccessToken(mercadoPago.accounts, mercadoPago.client, mercadoPago.config.serverAccessToken),
       client: mercadoPago.client,
+      recordStarted: async (mercadoPagoOrderId, orderId) => createPaymentRepository(getSql()).recordStarted(mercadoPagoOrderId, orderId),
     },
     order,
     { returnUrl: `${site.url}${back}` },

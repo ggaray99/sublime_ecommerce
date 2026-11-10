@@ -7,6 +7,8 @@ import { join } from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { createOrderRepository } from "../src/server/orders/repository.ts";
+import { MercadoPagoError } from "../src/server/payments/mercadopago.ts";
+import { reconcilePendingPayments } from "../src/server/payments/reconcile.ts";
 import { createPaymentRepository, reconcilePayment, verifyWebhookSignature } from "../src/server/payments/webhook.ts";
 
 const secret = "webhook-secret";
@@ -172,5 +174,101 @@ describe("payment reconciliation (PGlite)", () => {
     await orders.cancelOrder("admin@example.com", orderId, "Cliente desistió");
     assert.equal(await run(paymentFor(orderId)), "conflict");
     assert.equal(await status(orderId), "cancelled");
+  });
+
+  describe("periodic check when a notice is lost", () => {
+    const age = (paymentId, interval, column = "updated_at") =>
+      db.query(`UPDATE payments SET ${column} = now() - $2::interval WHERE external_id = $1`, [paymentId, interval]);
+    // A started checkout nobody heard from for a few minutes.
+    const started = async (orderId, quiet = "5 minutes") => {
+      const id = `ORDTST02K${String(++counter).padStart(6, "0")}`;
+      await payments.recordStarted(id, orderId);
+      await age(id, quiet);
+      return id;
+    };
+    const check = (states, calls = []) =>
+      reconcilePendingPayments(
+        {
+          getOrder: async (id) => {
+            calls.push(id);
+            const state = states[id];
+            if (state instanceof Error) throw state;
+            if (!state) throw new Error(`unexpected check of ${id}`);
+            return state;
+          },
+          orders,
+          payments,
+        },
+        50,
+      );
+
+    it("a started checkout is recorded without overwriting what a notice already reported", async () => {
+      const orderId = await placeOrder();
+      await payments.recordStarted("ORDTST03A", orderId);
+      assert.deepEqual(await recorded("ORDTST03A"), { status: "created", order_id: orderId });
+      await run({ ...paymentFor(orderId), id: "ORDTST03B", status: "action_required", paidAmountMinor: 0 });
+      await payments.recordStarted("ORDTST03B", orderId);
+      assert.equal((await recorded("ORDTST03B")).status, "action_required");
+    });
+
+    it("confirms a paid checkout whose notice never arrived (SUB-1005)", async () => {
+      const orderId = await placeOrder();
+      const id = await started(orderId);
+      const summary = await check({ [id]: { ...paymentFor(orderId), id } });
+      assert.deepEqual(summary, { checked: 1, confirmed: 1, failed: 0 });
+      assert.equal(await status(orderId), "paid");
+      assert.deepEqual(await recorded(id), { status: "processed", order_id: orderId });
+    });
+
+    it("a lost notice after the reservation expired still confirms (tardío)", async () => {
+      const orderId = await placeOrder();
+      const id = await started(orderId);
+      await db.query("UPDATE stock_reservations SET expires_at = now() - interval '1 minute' WHERE order_id = $1", [orderId]);
+      await orders.releaseExpired();
+      assert.deepEqual(await check({ [id]: { ...paymentFor(orderId), id } }), { checked: 1, confirmed: 1, failed: 0 });
+      assert.equal(await status(orderId), "paid");
+    });
+
+    it("checks only quiet, recent, unfinished checkouts of orders still awaiting payment", async () => {
+      const waiting = await placeOrder();
+      const due = await started(waiting);
+      const tooRecent = await started(waiting, "30 seconds");
+      const tooOld = await started(waiting);
+      await age(tooOld, "25 hours", "created_at");
+      const finished = await started(waiting);
+      await run({ ...paymentFor(waiting), id: finished, status: "expired", paidAmountMinor: 0 });
+      await age(finished, "5 minutes");
+      const cancelledOrder = await placeOrder();
+      const ofCancelled = await started(cancelledOrder);
+      await orders.cancelOrder("admin@example.com", cancelledOrder, "Cliente desistió");
+
+      const calls = [];
+      const summary = await check({ [due]: { ...paymentFor(waiting), id: due, status: "action_required", paidAmountMinor: 0 } }, calls);
+      assert.deepEqual(calls, [due]);
+      assert.deepEqual(summary, { checked: 1, confirmed: 0, failed: 0 });
+      assert.equal(await status(waiting), "pending_payment");
+      // Just checked: it waits for the next quiet window.
+      assert.deepEqual(await check({}), { checked: 0, confirmed: 0, failed: 0 });
+      assert.ok(ofCancelled && tooRecent);
+    });
+
+    it("an unreachable Mercado Pago never stops the others and waits before retrying; an unknown order stops being checked", async () => {
+      const first = await placeOrder();
+      const down = await started(first, "7 minutes");
+      const second = await placeOrder();
+      const missing = await started(second, "6 minutes");
+      const third = await placeOrder();
+      const paid = await started(third);
+      const summary = await check({
+        [down]: new MercadoPagoError(503, "unreachable"),
+        [missing]: new MercadoPagoError(404, "not_found"),
+        [paid]: { ...paymentFor(third), id: paid },
+      });
+      assert.deepEqual(summary, { checked: 3, confirmed: 1, failed: 2 });
+      assert.equal(await status(third), "paid");
+      assert.equal((await recorded(missing)).status, "not_found");
+      assert.equal((await recorded(down)).status, "created");
+      assert.deepEqual(await check({}), { checked: 0, confirmed: 0, failed: 0 });
+    });
   });
 });

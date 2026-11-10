@@ -20,10 +20,16 @@ const order = {
 };
 const urls = { returnUrl: "https://tienda.test/pedido/abc?t=tok" };
 
-function deps({ token = "APP_USR-seller", checkout = { id: "ORDTST01", checkoutUrl: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=1" }, fail } = {}) {
+function deps({ token = "APP_USR-seller", checkout = { id: "ORDTST01", checkoutUrl: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=1" }, fail, recordFails } = {}) {
   const calls = [];
+  const started = [];
   return {
     calls,
+    started,
+    recordStarted: async (mercadoPagoOrderId, orderId) => {
+      if (recordFails) throw new Error("database down");
+      started.push([mercadoPagoOrderId, orderId]);
+    },
     accessToken: async () => token,
     client: {
       async createCheckoutOrder(accessToken, input) {
@@ -49,6 +55,13 @@ describe("start Mercado Pago checkout", () => {
       // 12.5 minutes left: rounded down so Mercado Pago never outlives the reservation.
       expiresInMinutes: 12,
     });
+    // Remembered so a periodic check can confirm it if the notice is lost.
+    assert.deepEqual(d.started, [["ORDTST01", order.id]]);
+  });
+
+  it("still sends the customer to pay when the started checkout cannot be recorded", async () => {
+    const d = deps({ recordFails: true });
+    assert.deepEqual(await startMercadoPagoCheckout(d, order, urls, now), { ok: true, url: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=1" });
   });
 
   it("refuses orders that are not payable online", async () => {

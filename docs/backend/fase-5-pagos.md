@@ -7,6 +7,7 @@ Los clientes pagan sus pedidos con Mercado Pago (Checkout Pro, **API de Orders**
 1. **Conectar (una vez).** El dueño toca "Conectar Mercado Pago", inicia sesión con la cuenta que va a recibir el dinero y autoriza. El servidor recibe las credenciales de esa cuenta y las guarda **cifradas** (AES-256-GCM). Se renuevan solas antes de vencer (duran 180 días).
 2. **Pagar.** En la página del pedido pendiente aparece "Pagar con Mercado Pago". El cliente paga en Mercado Pago (tarjeta, dinero en cuenta, Mercado Crédito) y vuelve a su pedido. Los datos de la tarjeta nunca pasan por Sublime.
 3. **Confirmar.** Mercado Pago avisa al webhook. El servidor verifica la firma, consulta la order de Mercado Pago y, si está pagada (`processed`) por el total exacto del pedido, lo confirma con las mismas reglas que el botón del admin.
+4. **Si el aviso se pierde.** Al iniciar el pago se guarda el id de la order de Mercado Pago. El cron que ya corre cada minuto (`deploy/outbox.sh`) consulta las orders que siguen sin resolver y las aplica con las mismas reglas que el webhook. Solo consulta orders sin novedades hace más de 2 minutos, iniciadas en las últimas 24 horas y de pedidos pendientes o vencidos. Consulta hasta 10 por minuto. Si Mercado Pago no responde, la order se vuelve a consultar en la próxima ventana. Si Mercado Pago no la encuentra (404), deja de consultarse.
 
 | Caso | Qué pasa |
 | --- | --- |
@@ -72,7 +73,7 @@ Si falta algo, Admin → Integraciones lista qué variables faltan, y los pedido
 - **Configuración y cifrado:** `src/server/payments/config.ts` y `crypto.ts`.
 - **Cliente REST:** `mercadopago.ts` (OAuth, `POST /v1/orders`, `GET /v1/orders/{id}`; sin SDK).
 - **Cuenta conectada:** `accounts.ts` (tokens cifrados, renovación con control de concurrencia).
-- **Inicio del pago:** `checkout.ts`. **Webhook:** `webhook.ts` (firma y conciliación).
+- **Inicio del pago:** `checkout.ts`. **Webhook:** `webhook.ts` (firma y conciliación). **Consulta periódica:** `reconcile.ts`, llamada desde `/api/internal/outbox`.
 - **Rutas:**
   - `/api/mercadopago/connect` y `/api/mercadopago/callback`: solo el dueño.
   - `/api/mercadopago/webhook`: público, con firma.

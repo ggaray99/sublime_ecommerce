@@ -23,7 +23,12 @@ export type CheckoutStart = { ok: true; url: string } | { ok: false; reason: "no
  * that expires with the stock reservation. The order is confirmed later by the webhook.
  */
 export async function startMercadoPagoCheckout(
-  deps: { accessToken: () => Promise<string | null>; client: Pick<MercadoPagoClient, "createCheckoutOrder"> },
+  deps: {
+    accessToken: () => Promise<string | null>;
+    client: Pick<MercadoPagoClient, "createCheckoutOrder">;
+    /** Remembers the Mercado Pago order so a periodic check can confirm it if the notice is lost. */
+    recordStarted: (mercadoPagoOrderId: string, orderId: string) => Promise<void>;
+  },
   order: PayableOrder,
   urls: { returnUrl: string },
   now = new Date(),
@@ -39,6 +44,10 @@ export async function startMercadoPagoCheckout(
       returnUrl: urls.returnUrl,
       // Rounded down: Mercado Pago must never accept a payment after the reservation ends.
       expiresInMinutes: Math.floor((order.expiresAt.getTime() - now.getTime()) / 60_000),
+    });
+    // The webhook still confirms it: a failed record only loses the fallback check.
+    await deps.recordStarted(checkout.id, order.id).catch((error: unknown) => {
+      console.error(`[mercadopago] could not record checkout ${checkout.id} for order ${order.id}`, error instanceof Error ? error.message : "unknown error");
     });
     return { ok: true, url: checkout.checkoutUrl };
   } catch (error) {
