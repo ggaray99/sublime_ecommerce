@@ -59,6 +59,8 @@ Si falta algo, Admin → Integraciones lista qué variables faltan, y los pedido
 1. En Tus integraciones → **Cuentas de prueba**, crear un **vendedor** y un **comprador**.
 2. Con `MERCADOPAGO_TEST_MODE=true`, conectar la cuenta **vendedor de prueba** desde Admin → Integraciones. Conviene hacerlo en una ventana privada, para no usar tu sesión real de Mercado Pago.
 3. Hacer un pedido y pagarlo con el **comprador de prueba**, usando las [tarjetas de prueba](https://www.mercadopago.com.ar/developers/es/docs/checkout-pro/additional-content/your-integrations/test/cards). El nombre del titular define el resultado: `APRO` aprueba, `OTHE` rechaza, `CONT` queda pendiente.
+   - Pagar en una ventana privada, sin sesión de una cuenta real de Mercado Pago. Si no, falla con "Una de las partes con la que intentás hacer el pago es de prueba".
+   - Como email del pagador, usar el del **comprador de prueba** (`test_user_…@testuser.com`). Con otro email el pago se rechaza: por ejemplo "No podés pagar con un e-mail corporativo de Mercado Libre" (probado el 10/11/2026 con `admin@sublime.com`).
 4. Revisar cada caso de la tabla de arriba. El pedido tiene que pasar a Pagado solo, y el historial tiene que decir "mercadopago".
 
 ### 4. Pasar a cobros reales
