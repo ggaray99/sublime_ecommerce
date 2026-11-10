@@ -65,10 +65,10 @@ Si falta algo, Admin → Integraciones lista qué variables faltan, y los pedido
 
 ### 4. Pasar a cobros reales
 - [ ] Todos los casos probados en staging.
-- [ ] Aplicación definitiva (cuenta del negocio) con URLs de producción.
-- [ ] `production.env`: variables de la aplicación, `SUBLIME_PAYMENTS_IN_PRODUCTION=enabled`, **sin** `MERCADOPAGO_TEST_MODE`.
-- [ ] Reconstruir producción y conectar la **cuenta real** del negocio desde Admin → Integraciones.
-- [ ] Un pago real chico de punta a punta, y devolverlo desde Mercado Pago.
+- [ ] Aplicación definitiva **en la cuenta del negocio** (la que cobra), con credenciales de producción activadas y el webhook de producción (`https://sublimestudio.com.ar/api/mercadopago/webhook`, evento Order).
+- [ ] `production.env` (`setup-production.sh` ya genera `PAYMENTS_ENCRYPTION_KEY` y `OUTBOX_TOKEN`): `MERCADOPAGO_CLIENT_ID`, `MERCADOPAGO_CLIENT_SECRET`, `MERCADOPAGO_WEBHOOK_SECRET`, `MERCADOPAGO_ACCESS_TOKEN` (Access Token de **producción** de esa aplicación: modo directo, mientras OAuth siga bloqueado), `SUBLIME_PAYMENTS_IN_PRODUCTION=enabled`, **sin** `MERCADOPAGO_TEST_MODE`. Las claves se pegan directo en el servidor: nunca por chat ni email.
+- [ ] Reconstruir producción (`deploy-production.sh`). Admin → Integraciones tiene que decir "Conectada con credenciales del servidor".
+- [ ] Un pago real chico de punta a punta con la tarjeta de **otra persona** (Mercado Pago no deja que el vendedor se pague a sí mismo), y devolverlo desde Mercado Pago.
 
 ## Código
 

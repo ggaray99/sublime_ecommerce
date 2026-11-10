@@ -37,6 +37,13 @@ EOF
   echo "✔ production.env creado (en modo mantenimiento)"
 fi
 
+# Secrets added later to the store (also on an existing production.env); never overwritten.
+add_secret() { grep -q "^$1=" production.env || { echo "$1=$2" >> production.env; echo "✔ $1 agregado"; }; }
+# The every-minute cron (deploy/outbox.sh): notifications, low stock, lost Mercado Pago notices.
+add_secret OUTBOX_TOKEN "$(openssl rand -hex 32)"
+# Encrypts the Mercado Pago tokens stored by the OAuth connection. Changing it means connecting again.
+add_secret PAYMENTS_ENCRYPTION_KEY "$(openssl rand -base64 32)"
+
 chown "$OWNER:$OWNER" production.env .production-db-password
 chmod 600 production.env .production-db-password
 
