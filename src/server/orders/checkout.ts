@@ -40,7 +40,10 @@ export function parseCheckout(data: Data): { ok: true; value: CheckoutInput } | 
   const contactEmail = text(data, "contactEmail").toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(contactEmail) || contactEmail.length > 200) errors.contactEmail = "Ingresá un email válido.";
   const contactPhone = text(data, "contactPhone");
-  if (contactPhone && !/^[+()\d\s-]{6,40}$/.test(contactPhone)) errors.contactPhone = "Ingresá un teléfono válido o dejalo vacío.";
+  // Required: the shop coordinates delivery (and transfers) by phone or WhatsApp.
+  if (!contactPhone) errors.contactPhone = "Ingresá un teléfono para coordinar la entrega.";
+  else if (!/^[+()\d\s-]{6,40}$/.test(contactPhone) || contactPhone.replace(/\D/g, "").length < 8)
+    errors.contactPhone = "Ingresá un teléfono válido, con código de área (ej.: 261 555-1234).";
 
   let delivery: Delivery = { method: "pickup" };
   const method = text(data, "deliveryMethod");

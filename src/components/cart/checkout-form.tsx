@@ -129,7 +129,7 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
           <div className="form-grid">
             <Field name="contactName" label="Nombre y apellido" state={state} defaultValue={value("contactName", prefill.name)} required />
             <Field name="contactEmail" label="Email" state={state} defaultValue={value("contactEmail", prefill.email)} required />
-            <Field name="contactPhone" label="Teléfono" state={state} defaultValue={value("contactPhone", prefill.phone)} hint="Opcional, para coordinar." />
+            <Field name="contactPhone" label="Teléfono" state={state} defaultValue={value("contactPhone", prefill.phone)} hint="Con código de área. Ej.: 261 555-1234" required />
           </div>
         </fieldset>
 

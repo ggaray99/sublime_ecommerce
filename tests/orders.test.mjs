@@ -25,13 +25,30 @@ const pickup = { shipping: { method: "pickup", costMinor: 0, label: "Retiro", ru
 const contact = { contactName: "Ana Pérez", contactEmail: "ana@example.com", contactPhone: "", delivery: { method: "pickup" }, notes: "" };
 
 describe("checkout form", () => {
-  const base = { idempotencyKey: "abc12345-def", contactName: "Ana", contactEmail: "ANA@example.com", deliveryMethod: "pickup", cart: '[{"productId":"p08","quantity":2}]' };
+  const base = {
+    idempotencyKey: "abc12345-def",
+    contactName: "Ana",
+    contactEmail: "ANA@example.com",
+    contactPhone: "+54 261 555-1234",
+    deliveryMethod: "pickup",
+    cart: '[{"productId":"p08","quantity":2}]',
+  };
 
   it("accepts pickup and normalizes the email", () => {
     const result = parseCheckout(base);
     assert.equal(result.ok, true);
     assert.equal(result.value.contactEmail, "ana@example.com");
+    assert.equal(result.value.contactPhone, "+54 261 555-1234");
     assert.deepEqual(result.value.lines, [{ productId: "p08", quantity: 2 }]);
+  });
+
+  it("requires a phone with at least 8 digits", () => {
+    assert.deepEqual(parseCheckout({ ...base, contactPhone: "" }).errors, { contactPhone: "Ingresá un teléfono para coordinar la entrega." });
+    assert.deepEqual(parseCheckout({ ...base, contactPhone: "   " }).errors, { contactPhone: "Ingresá un teléfono para coordinar la entrega." });
+    const invalid = { contactPhone: "Ingresá un teléfono válido, con código de área (ej.: 261 555-1234)." };
+    assert.deepEqual(parseCheckout({ ...base, contactPhone: "555-12" }).errors, invalid);
+    assert.deepEqual(parseCheckout({ ...base, contactPhone: "llamame al 2615551234" }).errors, invalid);
+    assert.equal(parseCheckout({ ...base, contactPhone: "2615551234" }).ok, true);
   });
 
   it("requires a full Argentine address for shipping, with its own delivery notes", () => {
