@@ -2,9 +2,10 @@
 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { categories } from "@/data/categories";
-import { products, themes } from "@/data/products";
+import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { Category } from "@/data/categories";
+import type { Product } from "@/data/products";
+import { themes } from "@/data/themes";
 import {
   defaultFilters,
   filterProducts,
@@ -16,11 +17,12 @@ import {
 } from "@/lib/catalog";
 import { ProductCard } from "./product-card";
 
-const valid = { categories: categories.map((category) => category.id), themes: Object.keys(themes) };
 
-export function Shop() {
+/** `products` and `categories` come from the server (database where connected). */
+export function Shop({ products, categories }: { products: Product[]; categories: Category[] }) {
+  const valid = useMemo(() => ({ categories: categories.map((category) => category.id), themes: Object.keys(themes) }), [categories]);
   const searchParams = useSearchParams();
-  const filters = useMemo(() => parseFilters(searchParams, valid), [searchParams]);
+  const filters = useMemo(() => parseFilters(searchParams, valid), [searchParams, valid]);
   const id = useId();
 
   // The search box keeps a local draft so typing never waits for the URL.
@@ -32,8 +34,11 @@ export function Shop() {
     setDraft(filters.query);
   }
 
-  const view = useMemo(() => ({ ...filters, query: draft }), [filters, draft]);
-  const results = useMemo(() => filterProducts(products, view), [view]);
+  // The input updates at once; the grid follows as a lower-priority render that
+  // React can drop when the next key arrives.
+  const query = useDeferredValue(draft);
+  const view = useMemo(() => ({ ...filters, query }), [filters, query]);
+  const results = useMemo(() => filterProducts(products, view), [products, view]);
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
@@ -159,7 +164,7 @@ export function Shop() {
 
       <div className="results-bar">
         <p role="status" aria-live="polite">
-          {results.length === 1 ? "1 producto demo" : `${results.length} productos demo`}
+          {results.length === 1 ? "1 producto" : `${results.length} productos`}
         </p>
         {active && (
           <button type="button" className="link-button" onClick={() => update({ ...defaultFilters, sort: filters.sort })}>
@@ -179,7 +184,7 @@ export function Shop() {
       ) : (
         <div className="empty-state">
           <h2>No encontramos coincidencias.</h2>
-          <p>Probá con otra palabra o quitá algún filtro. Si no existe lo que buscás, podemos simular un encargo a medida.</p>
+          <p>Probá con otra palabra o quitá algún filtro. Si no existe lo que buscás, pedinos un encargo a medida.</p>
           <div className="actions">
             <button type="button" className="btn btn--acid" onClick={() => update(defaultFilters)}>
               Ver todo el catálogo

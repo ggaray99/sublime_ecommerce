@@ -2,7 +2,7 @@
 // to validate the SQL, its constraints and the Postgres repositories locally,
 // without provisioning any database.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
@@ -14,7 +14,11 @@ import { createPostgresCatalogRepository } from "../src/server/catalog/postgres-
 import { createStaticCatalogRepository } from "../src/server/catalog/repository.ts";
 import { createPostgresInventoryRepository } from "../src/server/inventory/postgres-repository.ts";
 
-const migration = readFileSync(join(import.meta.dirname, "..", "db", "migrations", "0001_catalog_inventory.sql"), "utf8");
+const migrationsDir = join(import.meta.dirname, "..", "db", "migrations");
+const migrations = readdirSync(migrationsDir)
+  .filter((name) => name.endsWith(".sql"))
+  .sort()
+  .map((name) => readFileSync(join(migrationsDir, name), "utf8"));
 
 let db;
 /** Adapts PGlite to the subset of the Neon query function the repositories use. */
@@ -22,10 +26,10 @@ const sql = { query: async (text, params) => (await db.query(text, params)).rows
 
 const rejects = (statement) => assert.rejects(db.exec(statement), undefined, statement);
 
-describe("0001 migration on PostgreSQL (PGlite)", () => {
+describe("migrations and catalog seed on PostgreSQL (PGlite)", () => {
   before(async () => {
     db = new PGlite();
-    await db.exec(migration);
+    for (const sql of migrations) await db.exec(sql);
     await db.exec(renderSeedSql(buildImportPlan(categories, products)));
   });
   after(() => db.close());

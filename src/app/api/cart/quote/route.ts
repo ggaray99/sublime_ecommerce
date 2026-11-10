@@ -1,4 +1,5 @@
 import { handleCartQuote } from "@/server/cart/handler";
+import { getOrderRepository, ordersAvailable } from "@/server/orders/session";
 import { getRepositories } from "@/server/repositories";
 
 /**
@@ -6,5 +7,7 @@ import { getRepositories } from "@/server/repositories";
  * Uses Postgres when DATABASE_URL is configured, the static catalog otherwise.
  */
 export async function POST(request: Request) {
+  // Expired holds are released before reading availability (no scheduled job needed).
+  if (ordersAvailable()) await getOrderRepository().releaseExpired();
   return handleCartQuote(request, getRepositories());
 }

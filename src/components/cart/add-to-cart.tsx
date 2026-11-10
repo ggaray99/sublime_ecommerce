@@ -10,7 +10,7 @@ type Props = { productId: string; productName: string };
 
 function add(productId: string, productName: string, quantity: number) {
   cartActions.add(productId, quantity);
-  showToast(`${quantity > 1 ? `${quantity} × ` : ""}${productName} se sumó al carrito demo.`);
+  showToast(`${quantity > 1 ? `${quantity} × ` : ""}${productName} se sumó al carrito.`);
 }
 
 /** Compact button used on product cards. */
@@ -20,7 +20,7 @@ export function AddToCartButton({ productId, productName }: Props) {
       type="button"
       className="btn btn--acid btn--block"
       onClick={() => add(productId, productName, 1)}
-      aria-label={`Agregar ${productName} al carrito demo`}
+      aria-label={`Agregar ${productName} al carrito`}
     >
       Agregar al carrito
     </button>
@@ -40,7 +40,7 @@ export function AddToCartPanel({ productId, productName }: Props) {
         onChange={setQuantity}
       />
       <button type="button" className="btn btn--acid btn--lg" onClick={() => add(productId, productName, quantity)}>
-        Agregar al carrito demo
+        Agregar al carrito
       </button>
     </div>
   );

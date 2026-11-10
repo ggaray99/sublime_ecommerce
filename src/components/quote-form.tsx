@@ -1,8 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useId, useRef, useState, type FormEvent } from "react";
-import { productBySlug } from "@/data/products";
+import { useActionState, useId, useRef, useState, type FormEvent } from "react";
+import { submitCustomRequestAction, type RequestFormState } from "@/app/encargos/actions";
+import type { Product } from "@/data/products";
 import {
   ACCEPTED_FILE_TYPES,
   quoteProductTypes,
@@ -22,9 +23,18 @@ const suggestedType: Record<string, (typeof quoteProductTypes)[number]> = {
   vinilos: "Vinilos",
 };
 
-export function QuoteForm() {
+/**
+ * `live` (staging/previews): the request is saved and the customer gets a private
+ * page to follow it. Otherwise it is the original local simulation.
+ * `uploads`: private file storage is configured.
+ */
+export type QuoteReference = Pick<Product, "slug" | "name" | "category">;
+
+/** `references`: products a request can start from (?producto=slug), names only. */
+export function QuoteForm({ live = false, uploads = false, references = [] }: { live?: boolean; uploads?: boolean; references?: QuoteReference[] }) {
   const searchParams = useSearchParams();
-  const product = productBySlug(searchParams.get("producto") ?? "");
+  const slug = searchParams.get("producto") ?? "";
+  const product = slug ? references.find((candidate) => candidate.slug === slug) : undefined;
   const defaultType =
     product?.slug === "etiquetas-para-tu-marca"
       ? "Etiquetas para marca"
@@ -37,14 +47,18 @@ export function QuoteForm() {
   const [errors, setErrors] = useState<QuoteErrors>({});
   const [submitted, setSubmitted] = useState<QuoteInput | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+  const [serverState, formAction, pending] = useActionState<RequestFormState, FormData>(submitCustomRequestAction, {});
+  // One key per form: a double click returns the same request.
+  const [idempotencyKey] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `k-${Date.now()}`));
+  const shownErrors: QuoteErrors = { ...(serverState.fields as QuoteErrors | undefined), ...errors };
+  const value = (name: string) => serverState.values?.[name];
 
   const fieldId = (field: QuoteField) => `${id}-${field}`;
   const describedBy = (field: QuoteField, hint?: boolean) =>
-    [hint ? `${fieldId(field)}-hint` : "", errors[field] ? `${fieldId(field)}-error` : ""].filter(Boolean).join(" ") ||
+    [hint ? `${fieldId(field)}-hint` : "", shownErrors[field] ? `${fieldId(field)}-error` : ""].filter(Boolean).join(" ") ||
     undefined;
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
     const data = new FormData(event.currentTarget);
     const file = data.get("file");
     const input: QuoteInput = {
@@ -61,9 +75,13 @@ export function QuoteForm() {
 
     const firstInvalid = fieldOrder.find((field) => nextErrors[field]);
     if (firstInvalid) {
+      event.preventDefault();
       formRef.current?.querySelector<HTMLElement>(`#${CSS.escape(fieldId(firstInvalid))}`)?.focus();
       return;
     }
+    // Live: the form action sends it to the server.
+    if (live) return;
+    event.preventDefault();
     // Nothing leaves the browser: the "submission" only lives in component state.
     setSubmitted(input);
     requestAnimationFrame(() => resultRef.current?.focus());
@@ -107,16 +125,32 @@ export function QuoteForm() {
   }
 
   const errorText = (field: QuoteField) =>
-    errors[field] && (
+    shownErrors[field] && (
       <p className="field__error" id={`${fieldId(field)}-error`}>
-        {errors[field]}
+        {shownErrors[field]}
       </p>
     );
 
-  const errorCount = Object.keys(errors).length;
+  const errorCount = Object.keys(shownErrors).length;
 
   return (
-    <form ref={formRef} className="quote-form" noValidate onSubmit={onSubmit}>
+    <form ref={formRef} className="quote-form" noValidate onSubmit={onSubmit} action={live ? formAction : undefined}>
+      {live && (
+        <>
+          <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+          <input type="hidden" name="productSlug" value={product?.slug ?? ""} />
+          {/* Honeypot: invisible to people, filled in by simple bots. */}
+          <div className="visually-hidden" aria-hidden="true">
+            <label htmlFor={fieldId("name") + "-w"}>No completar</label>
+            <input id={fieldId("name") + "-w"} name="website" tabIndex={-1} autoComplete="off" />
+          </div>
+        </>
+      )}
+      {serverState.error && (
+        <p className="form-alert" role="alert">
+          {serverState.error}
+        </p>
+      )}
       {errorCount > 0 && (
         <p className="form-alert" role="alert">
           Revisá {errorCount === 1 ? "1 campo marcado" : `${errorCount} campos marcados`} antes de continuar.
@@ -134,6 +168,7 @@ export function QuoteForm() {
           <input
             id={fieldId("name")}
             name="name"
+            defaultValue={value("name")}
             autoComplete="name"
             aria-invalid={Boolean(errors.name)}
             aria-describedby={describedBy("name")}
@@ -145,6 +180,7 @@ export function QuoteForm() {
           <input
             id={fieldId("email")}
             name="email"
+            defaultValue={value("email")}
             type="email"
             autoComplete="email"
             aria-invalid={Boolean(errors.email)}
@@ -157,7 +193,7 @@ export function QuoteForm() {
           <select
             id={fieldId("productType")}
             name="productType"
-            defaultValue={defaultType}
+            defaultValue={value("productType") ?? defaultType}
             aria-invalid={Boolean(errors.productType)}
             aria-describedby={describedBy("productType")}
           >
@@ -173,6 +209,7 @@ export function QuoteForm() {
           <input
             id={fieldId("quantity")}
             name="quantity"
+            defaultValue={value("quantity")}
             type="number"
             inputMode="numeric"
             min={1}
@@ -194,7 +231,7 @@ export function QuoteForm() {
           name="idea"
           rows={6}
           maxLength={1500}
-          defaultValue={product ? `Me interesa algo similar a "${product.name}". ` : ""}
+          defaultValue={value("idea") ?? (product ? `Me interesa algo similar a "${product.name}". ` : "")}
           aria-invalid={Boolean(errors.idea)}
           aria-describedby={describedBy("idea", true)}
         />
@@ -207,6 +244,7 @@ export function QuoteForm() {
           <input
             id={fieldId("reference")}
             name="reference"
+            defaultValue={value("reference")}
             maxLength={300}
             placeholder="Ej.: estilo de una ilustración, una paleta, un link"
             aria-invalid={Boolean(errors.reference)}
@@ -214,10 +252,13 @@ export function QuoteForm() {
           />
           {errorText("reference")}
         </div>
+        {(!live || uploads) && (
         <div className="field">
           <label htmlFor={fieldId("file")}>Archivo de referencia (opcional)</label>
           <p className="field__hint" id={`${fieldId("file")}-hint`}>
-            PNG, JPG, WEBP o PDF hasta 5 MB. Solo se valida en tu navegador: no se sube.
+            {live
+              ? "PNG, JPG, WEBP o PDF hasta 4 MB. Es privado: solo lo ven vos y el equipo."
+              : "PNG, JPG, WEBP o PDF hasta 4 MB. Solo se valida en tu navegador: no se sube."}
           </p>
           <input
             id={fieldId("file")}
@@ -229,14 +270,17 @@ export function QuoteForm() {
           />
           {errorText("file")}
         </div>
+        )}
       </div>
 
       <div className="quote-form__footer">
-        <button type="submit" className="btn btn--acid btn--lg">
-          Simular envío
+        <button type="submit" className="btn btn--acid btn--lg" disabled={pending}>
+          {live ? (pending ? "Enviando…" : "Enviar solicitud") : "Simular envío"}
         </button>
         <p className="fine-print">
-          * Campos obligatorios. Este formulario es una simulación local: no envía ni almacena datos.
+          {live
+            ? "* Campos obligatorios. Te respondemos con un presupuesto por email."
+            : "* Campos obligatorios. Este formulario es una simulación local: no envía ni almacena datos."}
         </p>
       </div>
     </form>

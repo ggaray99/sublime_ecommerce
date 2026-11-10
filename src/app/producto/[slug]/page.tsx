@@ -1,43 +1,65 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { AddToCartPanel } from "@/components/cart/add-to-cart";
+import { VariantPurchase } from "@/components/cart/variant-purchase";
+import { JsonLd } from "@/components/json-ld";
 import { ProductCard } from "@/components/product-card";
-import { ProductAvailability } from "@/components/product-availability";
 import { ProductGallery } from "@/components/product-gallery";
-import { categoryById } from "@/data/categories";
-import { productBySlug, products, themes } from "@/data/products";
-import { relatedProducts } from "@/lib/catalog";
+import { themes, type Product } from "@/data/products";
+import { categoryLabelOf, hasPriceRange, isOutOfStock, relatedProducts } from "@/lib/catalog";
 import { priceLabel } from "@/lib/format";
+import { breadcrumbJsonLd, productJsonLd } from "@/lib/structured-data";
+import { site } from "@/data/site";
+import { getStorefrontProduct, getStorefrontProducts } from "@/server/storefront";
 
-export function generateStaticParams() {
-  return products.map((product) => ({ slug: product.slug }));
+export async function generateStaticParams() {
+  const slugs = (await getStorefrontProducts()).map((product) => ({ slug: product.slug }));
+  // Cache Components needs at least one entry. A new store has no products yet:
+  // this placeholder prerenders as "not found", and real products render on request.
+  return slugs.length ? slugs : [{ slug: "sin-productos" }];
 }
 
 export async function generateMetadata({ params }: PageProps<"/producto/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const product = productBySlug(slug);
+  const product = await getStorefrontProduct(slug);
   if (!product) return { title: "Producto no encontrado" };
   return {
     title: product.name,
-    description: `${product.description} Producto de demostración con precio ilustrativo.`,
+    description: product.description,
     alternates: { canonical: `/producto/${product.slug}` },
     openGraph: {
-      title: `${product.name} — Sublime (demo)`,
+      title: `${product.name} — Sublime`,
       description: product.description,
       url: `/producto/${product.slug}`,
+      // Shared links (WhatsApp, redes) show the product photo instead of the generic store image.
+      ...(product.images[0] && { images: [{ url: product.images[0].src, alt: product.images[0].alt || product.name }] }),
     },
   };
 }
 
+/** Stock line, only where the database provides it (staging/previews). */
+function StockNote({ product }: { product: Product }) {
+  if (product.stock === undefined || product.requiresQuote) return null;
+  if (product.stock === null) return <p className="stock-note">Se fabrica a pedido.</p>;
+  if (product.stock === 0) return <p className="stock-note stock-note--out">Sin stock por ahora.</p>;
+  return (
+    <p className="stock-note stock-note--in">
+      Stock disponible: {product.stock} {product.stock === 1 ? "unidad" : "unidades"}
+    </p>
+  );
+}
+
 export default async function ProductPage({ params }: PageProps<"/producto/[slug]">) {
   const { slug } = await params;
-  const product = productBySlug(slug);
+  // Hidden (draft/archived) products disappear from the store as well.
+  const product = await getStorefrontProduct(slug);
   if (!product) notFound();
 
-  const category = categoryById(product.category);
-  const related = relatedProducts(products, product);
+  const categoryLabel = categoryLabelOf(product);
+  // Products with options (talle, color…) pick a variant; made-to-order ones keep the quote flow.
+  const withVariants = Boolean(product.variants?.length) && product.availableForDirectPurchase;
+  const related = relatedProducts(await getStorefrontProducts(), product);
 
   return (
     <main id="contenido" className="page page--light">
@@ -47,7 +69,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             <Link href="/tienda">Tienda</Link>
           </li>
           <li>
-            <Link href={`/tienda?categoria=${product.category}`}>{category?.label}</Link>
+            <Link href={`/categorias/${product.category}`}>{categoryLabel}</Link>
           </li>
           <li aria-current="page">{product.name}</li>
         </ol>
@@ -58,16 +80,27 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
 
         <div className="product-detail__info">
           <p className="kicker">
-            {category?.label} · {themes[product.theme]}
+            {categoryLabel} · {themes[product.theme]}
           </p>
           <h1>{product.name}</h1>
-          <p className="product-detail__price">
-            {priceLabel(product.price)}
-            <span className="badge badge--violet">{product.price === null ? "Se cotiza a pedido" : "Precio demo"}</span>
-          </p>
-          <Suspense fallback={null}>
-            <ProductAvailability productId={product.id} staticPriceMinor={product.price === null ? null : product.price * 100} />
-          </Suspense>
+          {withVariants ? (
+            hasPriceRange(product) && <p className="muted">Desde {priceLabel(product.price)} según la opción.</p>
+          ) : (
+            <>
+              <p className="product-detail__price">
+                {product.regularPrice && (
+                  <s className="price-was">
+                    <span className="visually-hidden">Antes </span>
+                    {priceLabel(product.regularPrice)}
+                  </s>
+                )}
+                {priceLabel(product.price)}
+                {product.regularPrice && <span className="badge badge--sale">Oferta</span>}
+                {product.price === null && <span className="badge badge--violet">Se cotiza a pedido</span>}
+              </p>
+              <StockNote product={product} />
+            </>
+          )}
           <p className="product-detail__description">{product.description}</p>
           {product.code && (
             <p className="product-detail__code">
@@ -75,13 +108,19 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             </p>
           )}
 
-          {product.availableForDirectPurchase ? (
+          {withVariants && product.variants && product.optionNames ? (
+            <VariantPurchase productId={product.id} productName={product.name} optionNames={product.optionNames} variants={product.variants} />
+          ) : isOutOfStock(product) ? (
+            <div className="purchase purchase--quote">
+              <p>Este producto está sin stock. Volvé a consultar más adelante.</p>
+            </div>
+          ) : product.availableForDirectPurchase ? (
             <AddToCartPanel productId={product.id} productName={product.name} />
           ) : (
             <div className="purchase purchase--quote">
-              <p>Este producto se hace a medida. Contanos tu idea y simulá una solicitud de presupuesto.</p>
+              <p>Este producto se hace a medida. Contanos tu idea y te pasamos un presupuesto.</p>
               <Link className="btn btn--violet btn--lg" href={`/encargos?producto=${product.slug}`}>
-                Solicitar presupuesto demo
+                Solicitar presupuesto
               </Link>
             </div>
           )}
@@ -96,7 +135,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
 
           <section className="details-box" aria-labelledby="details-title">
             <h2 id="details-title">
-              Material y uso <span className="badge badge--pending">Información ilustrativa</span>
+              Material y uso
             </h2>
             <ul>
               {product.details.map((detail) => (
@@ -105,9 +144,6 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
             </ul>
           </section>
 
-          <p className="fine-print">
-            Producto de demostración. No se informa stock, plazos de producción ni características técnicas definitivas.
-          </p>
         </div>
       </div>
 
@@ -123,6 +159,20 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
           </ul>
         </section>
       )}
+      <JsonLd
+        data={[
+          productJsonLd(product, { baseUrl: site.url, brand: site.name, category: categoryLabel }),
+          // Mirrors the visible breadcrumbs.
+          breadcrumbJsonLd(
+            [
+              { name: "Tienda", path: "/tienda" },
+              { name: categoryLabel, path: `/categorias/${product.category}` },
+              { name: product.name, path: `/producto/${product.slug}` },
+            ],
+            site.url,
+          ),
+        ]}
+      />
     </main>
   );
 }

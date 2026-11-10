@@ -1,17 +1,16 @@
+import { toNextJsHandler } from "better-auth/next-js";
 import { isAuthEnabled } from "@/server/auth/config";
-import { getAuth } from "@/server/auth/neon";
+import { getAuth } from "@/server/auth/server";
 
 const disabled = () => Response.json({ error: "auth_disabled" }, { status: 404 });
 
-type Context = { params: Promise<{ path: string[] }> };
-
-/** Neon Auth endpoints (/api/auth/*). Respond 404 where accounts are disabled. */
-export async function GET(request: Request, context: Context) {
+/** Better Auth endpoints (/api/auth/*). Respond 404 where accounts are disabled. */
+export async function GET(request: Request) {
   if (!isAuthEnabled()) return disabled();
-  return getAuth().handler().GET(request, context);
+  return toNextJsHandler(getAuth()).GET(request);
 }
 
-export async function POST(request: Request, context: Context) {
+export async function POST(request: Request) {
   if (!isAuthEnabled()) return disabled();
-  return getAuth().handler().POST(request, context);
+  return toNextJsHandler(getAuth()).POST(request);
 }

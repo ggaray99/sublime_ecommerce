@@ -1,0 +1,12 @@
+.git
+.next
+node_modules
+.env*
+!.env.example
+.atl
+.vercel
+*.pdf
+*.zip
+docs
+tests
+npm-debug.log*

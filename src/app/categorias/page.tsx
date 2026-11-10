@@ -2,20 +2,20 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { PageIntro } from "@/components/page-intro";
-import { categories } from "@/data/categories";
-import { products } from "@/data/products";
+import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefront";
 
 export const metadata: Metadata = {
   title: "Categorías",
-  description: "Calcos y stickers, packs, indumentaria, DTF, vinilos y personalizados: los formatos de la tienda demo de Sublime.",
+  description: "Calcos y stickers, packs, indumentaria, DTF, vinilos y personalizados: los formatos de Sublime.",
   alternates: { canonical: "/categorias" },
 };
 
-export default function CategoriasPage() {
+export default async function CategoriasPage() {
+  const [products, categories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Formatos" title="CATEGORÍAS." tone="light">
-        <p>Seis maneras de llevar un diseño a un objeto. Todo el contenido es de demostración.</p>
+        <p>Distintas maneras de llevar un diseño a un objeto.</p>
       </PageIntro>
       <ul className="category-list">
         {categories.map((category) => {
@@ -27,9 +27,9 @@ export default function CategoriasPage() {
                 <h2>{category.label}</h2>
                 <p>{category.description}</p>
                 <p className="muted">
-                  {count} {count === 1 ? "producto demo" : "productos demo"}
+                  {count} {count === 1 ? "producto" : "productos"}
                 </p>
-                <Link className="btn btn--coal" href={`/tienda?categoria=${category.id}`}>
+                <Link className="btn btn--coal" href={`/categorias/${category.id}`}>
                   Ver {category.label.toLowerCase()}
                 </Link>
               </div>

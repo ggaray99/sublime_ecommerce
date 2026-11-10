@@ -1,4 +1,4 @@
-import type { NeonQueryFunction } from "@neondatabase/serverless";
+import type { QueryFn } from "../db/client.ts";
 import type { Availability, InventoryRepository } from "./repository.ts";
 
 type AvailabilityRow = { sku: string; track_stock: boolean; on_hand: number | null; reserved: number | null };
@@ -8,7 +8,7 @@ type AvailabilityRow = { sku: string; track_stock: boolean; on_hand: number | nu
  * without an inventory row has 0 available (never sell what was not counted);
  * untracked variants (made to order) report null.
  */
-export function createPostgresInventoryRepository(sql: NeonQueryFunction<false, false>): InventoryRepository {
+export function createPostgresInventoryRepository(sql: QueryFn): InventoryRepository {
   return {
     async getAvailability(skus) {
       const result: Availability = new Map();

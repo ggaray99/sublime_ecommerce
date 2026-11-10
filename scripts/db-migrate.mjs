@@ -1,13 +1,14 @@
-// Applies db/migrations/*.sql (and optionally the catalog seed) to a STAGING database.
+// Applies db/migrations/*.sql (and, on staging, the demo seeds) to a database.
 //
 //   node --env-file=.env.local scripts/db-migrate.mjs --target=staging            # status only
 //   node --env-file=.env.local scripts/db-migrate.mjs --target=staging --apply    # apply pending migrations
 //   node --env-file=.env.local scripts/db-migrate.mjs --target=staging --apply --seed
+//   node scripts/db-migrate.mjs --target=production --apply                         # inside the VPS, SUBLIME_ENV=production
 //
 // Each file runs in its own transaction together with its row in schema_migrations,
 // so a failure leaves nothing half-applied. Applied files are checksummed: editing
 // one after it ran aborts the run. The connection string is never printed.
-import { Pool } from "@neondatabase/serverless";
+import pg from "pg";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -21,8 +22,18 @@ function fail(message) {
   process.exit(1);
 }
 
-if (!args.has("--target=staging")) fail("Indicá --target=staging. Este script no está habilitado para producción.");
-if (process.env.VERCEL_ENV === "production") fail("VERCEL_ENV=production: ejecución bloqueada.");
+// The target must match the environment of DATABASE_URL, so a staging command can
+// never touch production and the other way round. Production never takes the
+// demo seeds: its catalog is loaded from the admin panel.
+const production = process.env.SUBLIME_ENV === "production" || process.env.VERCEL_ENV === "production";
+if (args.has("--target=production")) {
+  if (!production) fail("--target=production solo corre con SUBLIME_ENV=production.");
+  if (args.has("--seed")) fail("Producción no lleva los datos de prueba (--seed).");
+} else if (args.has("--target=staging")) {
+  if (production) fail("Entorno de producción: usá --target=production.");
+} else {
+  fail("Indicá --target=staging o --target=production.");
+}
 if (!process.env.DATABASE_URL) fail("Falta DATABASE_URL (por ejemplo: node --env-file=.env.local …).");
 
 const files = [
@@ -30,14 +41,23 @@ const files = [
     .filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name))
     .sort()
     .map((name) => ({ name: `migrations/${name}`, path: join(root, "migrations", name) })),
-  ...(args.has("--seed") ? [{ name: "seed/0001_catalog_seed.sql", path: join(root, "seed", "0001_catalog_seed.sql") }] : []),
+  ...(args.has("--seed")
+    ? readdirSync(join(root, "seed"))
+        .filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name))
+        .sort()
+        .map((name) => ({ name: `seed/${name}`, path: join(root, "seed", name) }))
+    : []),
 ].map((file) => {
-  const sql = readFileSync(file.path, "utf8");
+  // Checksums ignore line endings: Git on Windows may rewrite LF as CRLF on checkout.
+  const sql = readFileSync(file.path, "utf8").replace(/\r\n/g, "\n");
   if (/^\s*(BEGIN|COMMIT|ROLLBACK)\s*;/im.test(sql)) fail(`${file.name} no debe manejar su propia transacción.`);
-  return { ...file, sql, checksum: createHash("sha256").update(sql).digest("hex") };
+  const checksum = createHash("sha256").update(sql).digest("hex");
+  // Files applied before this normalization may have been hashed with CRLF.
+  const crlfChecksum = createHash("sha256").update(sql.replace(/\n/g, "\r\n")).digest("hex");
+  return { ...file, sql, checksum, accepted: new Set([checksum, crlfChecksum]) };
 });
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const client = await pool.connect();
 
 try {
@@ -51,7 +71,7 @@ try {
 
   for (const [name, checksum] of applied) {
     const file = files.find((candidate) => candidate.name === name);
-    if (file && file.checksum !== checksum) fail(`${name} cambió después de aplicarse. Creá una migración nueva.`);
+    if (file && !file.accepted.has(checksum)) fail(`${name} cambió después de aplicarse. Creá una migración nueva.`);
   }
 
   const pending = files.filter((file) => !applied.has(file.name));

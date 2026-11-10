@@ -1,6 +1,6 @@
 import { MAX_ADDRESSES, type AddressInput, type ProfileInput } from "./validation.ts";
 
-/** Minimal query interface shared by the Neon HTTP client and test adapters. */
+/** Minimal query interface shared by the PostgreSQL pool and test adapters. */
 export type QueryFn = { query(text: string, params?: unknown[]): Promise<unknown[]> };
 
 export type Customer = { id: string; authUserId: string; email: string; fullName: string; phone: string | null };
@@ -69,12 +69,22 @@ const ADDRESS_COLUMNS =
  */
 export function createCustomerRepository(sql: QueryFn) {
   return {
-    /** Finds or creates the customer linked to an auth user (idempotent). */
+    /**
+     * Finds or creates the customer linked to an auth user (idempotent). A page
+     * view only reads: it writes when the row is missing or the email changed.
+     */
     async ensureCustomer(authUserId: string, email: string, name: string): Promise<Customer> {
       const rows = (await sql.query(
-        `INSERT INTO customers (auth_user_id, email, full_name) VALUES ($1, $2, $3)
-         ON CONFLICT (auth_user_id) DO UPDATE SET email = EXCLUDED.email, updated_at = now()
-         RETURNING id, auth_user_id, email, full_name, phone`,
+        `WITH found AS (
+           SELECT id, auth_user_id, email, full_name, phone FROM customers WHERE auth_user_id = $1 AND email = $2
+         ),
+         saved AS (
+           INSERT INTO customers (auth_user_id, email, full_name)
+           SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM found)
+           ON CONFLICT (auth_user_id) DO UPDATE SET email = EXCLUDED.email, updated_at = now()
+           RETURNING id, auth_user_id, email, full_name, phone
+         )
+         SELECT * FROM found UNION ALL SELECT * FROM saved`,
         [authUserId, email, name.slice(0, 120)],
       )) as CustomerRow[];
       return toCustomer(rows[0]);

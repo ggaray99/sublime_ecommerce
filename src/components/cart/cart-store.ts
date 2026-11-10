@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { products } from "@/data/products";
+import type { Product } from "@/data/products";
 import { addLine, parseCart, removeLine, setQuantity, summarizeCart, type CartLine } from "@/lib/cart";
 
 const STORAGE_KEY = "sublime-demo-cart-v1";
@@ -56,14 +56,15 @@ function write(lines: CartLine[]) {
 }
 
 export const cartActions = {
-  add(productId: string, quantity = 1) {
-    write(addLine(getSnapshot(), productId, quantity));
+  /** `sku` picks the variant (size, color…) of products with options. */
+  add(productId: string, quantity = 1, sku?: string) {
+    write(addLine(getSnapshot(), productId, quantity, sku));
   },
-  setQuantity(productId: string, quantity: number) {
-    write(setQuantity(getSnapshot(), productId, quantity));
+  setQuantity(productId: string, quantity: number, sku?: string) {
+    write(setQuantity(getSnapshot(), productId, quantity, sku));
   },
-  remove(productId: string) {
-    write(removeLine(getSnapshot(), productId));
+  remove(productId: string, sku?: string) {
+    write(removeLine(getSnapshot(), productId, sku));
   },
   clear() {
     write(EMPTY);
@@ -74,8 +75,18 @@ export function useCartLines(): CartLine[] {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-export function useCartSummary() {
-  return summarizeCart(useCartLines(), products);
+/** Cart pages pass the server catalog (database prices where connected). */
+export function useCartSummary(catalog: readonly Product[]) {
+  return summarizeCart(useCartLines(), catalog);
+}
+
+/**
+ * Units in the cart, for the header badge. Needs no catalog, so the header
+ * never ships product data to the browser; unknown products are dropped when
+ * the cart page quotes them.
+ */
+export function useCartCount(): number {
+  return useCartLines().reduce((total, line) => total + line.quantity, 0);
 }
 
 const noopSubscribe = () => () => {};

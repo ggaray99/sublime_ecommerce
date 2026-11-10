@@ -18,11 +18,20 @@ export type CatalogVariant = {
   /** Business rule: every product tracks stock except custom orders, which are made to order. */
   trackStock: boolean;
   active: boolean;
+  /** The product has options (size, color…): the cart must say which variant (by SKU). */
+  hasOptions: boolean;
+  /** Price before a product sale; equals unitPriceMinor when there is none. */
+  regularPriceMinor?: number | null;
+  /** For category-wide promotions. */
+  categoryId?: string;
 };
 
 /** Persistence-agnostic access to the catalog (static today, Postgres later). */
 export interface CatalogRepository {
+  /** Default variant of each product. */
   findVariantsByProductIds(productIds: readonly string[]): Promise<Map<string, CatalogVariant>>;
+  /** Any variant by its SKU (variants of products with options). */
+  findVariantsBySkus(skus: readonly string[]): Promise<Map<string, CatalogVariant>>;
   listActiveVariants(): Promise<CatalogVariant[]>;
 }
 
@@ -43,6 +52,7 @@ export function toCatalogVariant(product: Product): CatalogVariant {
     requiresQuote: product.requiresQuote,
     trackStock: !product.requiresQuote,
     active: true,
+    hasOptions: false,
   };
 }
 
@@ -56,6 +66,11 @@ export function createStaticCatalogRepository(products: readonly Product[]): Cat
         const variant = byProductId.get(id);
         if (variant) found.set(id, variant);
       }
+      return found;
+    },
+    async findVariantsBySkus(skus) {
+      const found = new Map<string, CatalogVariant>();
+      for (const variant of byProductId.values()) if (skus.includes(variant.sku)) found.set(variant.sku, variant);
       return found;
     },
     async listActiveVariants() {

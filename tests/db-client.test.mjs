@@ -18,5 +18,8 @@ describe("hasDatabase (environment guard)", () => {
     assert.equal(hasDatabase({ DATABASE_URL: url, VERCEL_ENV: "production" }), false);
     assert.equal(hasDatabase({ DATABASE_URL: url, VERCEL_ENV: "production", SUBLIME_DB_IN_PRODUCTION: "yes" }), false);
     assert.equal(hasDatabase({ DATABASE_URL: url, VERCEL_ENV: "production", SUBLIME_DB_IN_PRODUCTION: "enabled" }), true);
+    assert.equal(hasDatabase({ DATABASE_URL: url, SUBLIME_ENV: "production" }), false);
+    assert.equal(hasDatabase({ DATABASE_URL: url, SUBLIME_ENV: "production", SUBLIME_DB_IN_PRODUCTION: "enabled" }), true);
+    assert.equal(hasDatabase({ DATABASE_URL: url, SUBLIME_ENV: "staging" }), true);
   });
 });

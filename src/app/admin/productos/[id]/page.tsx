@@ -4,10 +4,26 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ProductForm, StockForm } from "@/components/admin/forms";
-import { AdminUnavailable, AuditList, productStatusLabel, stockLabel } from "@/components/admin/shared";
+import { ImageManager } from "@/components/admin/image-manager";
+import { VariantsManager } from "@/components/admin/variants-manager";
+import {
+  AdminUnavailable,
+  AuditList,
+  loadCategoryOptions,
+  priceInput,
+  productFormValues,
+  productStatusLabel,
+  stockLabel,
+  themeOptions,
+} from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { AdminDataError } from "@/server/admin/repository";
-import { adminAvailable, getAdminRepository, getCurrentAdmin } from "@/server/admin/session";
+import { adminAvailable, getAdminRepository, getCurrentAdmin, getImageRepository, getProductExtrasRepository, getVariantRepository } from "@/server/admin/session";
+import { optionsLabel } from "@/server/admin/variants";
+import { hasMediaStorage } from "@/server/media/public-files";
+import { ProductExtrasForm } from "@/components/admin/product-extras-form";
+import { toArgentinaInput } from "@/server/admin/product-extras";
+import { duplicateProductAction } from "@/app/admin/actions";
 
 export const metadata: Metadata = {
   title: "Editar producto",
@@ -21,11 +37,9 @@ const REASON_LABEL: Record<string, string> = {
   sale: "Venta",
 };
 
-/** Formats centavos for the price input ("2500" or "2500,50"). */
-const priceInput = (minor: number | null) =>
-  minor === null ? "" : minor % 100 ? `${Math.floor(minor / 100)},${String(minor % 100).padStart(2, "0")}` : String(minor / 100);
+type Props = PageProps<"/admin/productos/[id]">;
 
-async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[id]">["params"] }) {
+async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "searchParams">) {
   // Always request-time: also keeps the route dynamic where the panel is disabled.
   await connection();
   if (!adminAvailable()) return <AdminUnavailable />;
@@ -38,7 +52,21 @@ async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[i
     if (error instanceof AdminDataError) notFound();
     throw error;
   });
-  const [movements, audit] = await Promise.all([repo.listMovements(id), repo.listAudit({ entityId: id, limit: 20 })]);
+  const [movements, audit, query, categoryOptions, images, variants, extras] = await Promise.all([
+    repo.listMovements(id),
+    repo.listAudit({ entityId: id, limit: 20 }),
+    searchParams,
+    loadCategoryOptions(),
+    getImageRepository().listImages(id),
+    getVariantRepository().listVariants(id),
+    getProductExtrasRepository().get(id),
+  ]);
+  const hasOptions = product.optionNames.length > 0;
+  const stockVariants = hasOptions
+    ? variants
+        .filter((variant) => variant.active && variant.trackStock)
+        .map((variant) => ({ value: variant.sku, label: `${optionsLabel(variant.options, product.optionNames)} (${variant.sku})` }))
+    : undefined;
 
   return (
     <div className="account">
@@ -46,17 +74,81 @@ async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[i
         <Link href="/admin">← Volver a productos</Link>
       </p>
       <section className="account__section" aria-labelledby="producto-title">
-        <h2 id="producto-title">{product.name}</h2>
+        <div className="account__head">
+          <h2 id="producto-title">{product.name}</h2>
+          <form action={duplicateProductAction}>
+            <input type="hidden" name="productId" value={product.id} />
+            <button type="submit" className="btn btn--ghost">
+              Duplicar
+            </button>
+          </form>
+          {product.status === "active" ? (
+            <Link className="btn btn--acid" href={`/producto/${product.slug}`}>
+              Ver en la tienda
+            </Link>
+          ) : (
+            <span className="badge badge--pending">No visible en la tienda ({productStatusLabel[product.status].toLowerCase()})</span>
+          )}
+        </div>
         <p className="muted">
-          SKU {product.sku} · {productStatusLabel[product.status]} ·{" "}
-          <Link href={`/producto/${product.slug}`}>Ver en la tienda</Link>
+          SKU {product.sku} · {productStatusLabel[product.status]}
         </p>
+        {query.creado && (
+          <p className="panel panel--muted" role="status">
+            Producto creado. {product.status === "draft" && "Está en borrador: publicalo cuando esté completo."}
+          </p>
+        )}
+        {query.copia && (
+          <p className="panel panel--muted" role="status">
+            Copia creada en borrador, con las mismas variantes y precios. Cargá el stock y las fotos, y publicala cuando esté lista.
+          </p>
+        )}
+        {query.imagen === "error" && (
+          <p className="form-alert" role="alert">
+            El producto se creó, pero no pudimos guardar la foto. Probá subirla de nuevo en la sección Imágenes.
+          </p>
+        )}
         <ProductForm
+          mode="edit"
           productId={product.id}
-          price={priceInput(product.priceMinor)}
-          status={product.status}
           requiresQuote={product.requiresQuote}
+          initial={productFormValues(product)}
+          categories={categoryOptions}
+          themes={themeOptions}
+          hasOptions={hasOptions}
         />
+      </section>
+
+      <section className="account__section" aria-labelledby="venta-title">
+        <h2 id="venta-title">Venta y logística</h2>
+        <ProductExtrasForm
+          productId={product.id}
+          priceMinor={product.priceMinor}
+          hasOptions={hasOptions}
+          initial={{
+            weightG: extras?.weightG ? String(extras.weightG) : "",
+            length: extras?.lengthMm ? String(extras.lengthMm / 10).replace(".", ",") : "",
+            width: extras?.widthMm ? String(extras.widthMm / 10).replace(".", ",") : "",
+            height: extras?.heightMm ? String(extras.heightMm / 10).replace(".", ",") : "",
+            cost: extras?.costMinor !== null && extras?.costMinor !== undefined ? priceInput(extras.costMinor) : "",
+            lowStockThreshold: extras?.lowStockThreshold !== null && extras?.lowStockThreshold !== undefined ? String(extras.lowStockThreshold) : "",
+            saleKind: extras?.salePercent ? "percent" : extras?.salePriceMinor ? "price" : "none",
+            salePercent: extras?.salePercent ? String(extras.salePercent) : "",
+            salePrice: extras?.salePriceMinor ? priceInput(extras.salePriceMinor) : "",
+            saleStartsAt: toArgentinaInput(extras?.saleStartsAt ?? null),
+            saleEndsAt: toArgentinaInput(extras?.saleEndsAt ?? null),
+          }}
+        />
+      </section>
+
+      <section className="account__section" aria-labelledby="variantes-title">
+        <h2 id="variantes-title">Variantes</h2>
+        <VariantsManager product={product} variants={variants} />
+      </section>
+
+      <section className="account__section" aria-labelledby="imagenes-title">
+        <h2 id="imagenes-title">Imágenes</h2>
+        <ImageManager product={product} images={images} uploadsEnabled={hasMediaStorage()} />
       </section>
 
       <section className="account__section" aria-labelledby="stock-title">
@@ -66,7 +158,7 @@ async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[i
             <p className="muted">
               Disponible: {stockLabel(product)} · En depósito: {product.onHand}
             </p>
-            <StockForm productId={product.id} onHand={product.onHand} />
+            <StockForm productId={product.id} onHand={product.onHand} variants={stockVariants} />
             <h3 className="account__subtitle">Movimientos</h3>
             {movements.length ? (
               <ol className="audit-list">
@@ -78,6 +170,7 @@ async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[i
                         {movement.deltaOnHand}
                       </strong>{" "}
                       · {REASON_LABEL[movement.reason] ?? movement.reason}
+                      {hasOptions && ` · ${movement.sku}`}
                       {movement.note && ` · ${movement.note}`}
                     </p>
                     <p className="muted">
@@ -103,14 +196,14 @@ async function ProductAdmin({ params }: { params: PageProps<"/admin/productos/[i
   );
 }
 
-export default function AdminProductPage({ params }: PageProps<"/admin/productos/[id]">) {
+export default function AdminProductPage({ params, searchParams }: Props) {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="EDITAR PRODUCTO." tone="light">
-        <p>Entorno de prueba: los cambios se guardan en la base de staging y quedan registrados.</p>
+        <p>Cada cambio queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando el producto…</p>}>
-        <ProductAdmin params={params} />
+        <ProductAdmin params={params} searchParams={searchParams} />
       </Suspense>
     </main>
   );

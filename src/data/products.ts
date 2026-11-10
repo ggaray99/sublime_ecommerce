@@ -1,16 +1,8 @@
-﻿import type { CategoryId } from "./categories";
+import type { ThemeId } from "./themes.ts";
 
-export type ThemeId =
-  | "anime"
-  | "futbol"
-  | "gaming"
-  | "motor"
-  | "musica"
-  | "grafico"
-  | "espacio"
-  | "argentina"
-  | "naturaleza"
-  | "aventura";
+export { themes, type ThemeId } from "./themes.ts";
+import type { CategoryId } from "./categories";
+
 
 export type ProductImage = { src: string; alt: string };
 
@@ -20,9 +12,15 @@ export type Product = {
   name: string;
   description: string;
   category: CategoryId;
+  /** Category name from the database; the static catalog resolves it from src/data/categories. */
+  categoryLabel?: string;
   theme: ThemeId;
   /** Illustrative price in ARS. `null` means the product is quoted on request. */
   price: number | null;
+  /** Price before an active sale (the store shows it struck through). */
+  regularPrice?: number;
+  /** When the sale ends, if it has an end date (ISO). */
+  saleEndsAt?: string;
   images: ProductImage[];
   tags: string[];
   featured: boolean;
@@ -33,20 +31,28 @@ export type Product = {
   details: string[];
   /** Ordering code from the client's printed sticker catalog, when the product comes from it. */
   code?: string;
+  /**
+   * Available units from the database (staging/previews). `null` = made to order;
+   * absent = unknown (static catalog, production today).
+   */
+  stock?: number | null;
+  /** Option names in order (e.g. ["Talle"]) when the product comes in variants. */
+  optionNames?: string[];
+  /** Active variants (database catalog only). `price` and `stock` refer to each one. */
+  variants?: ProductVariant[];
 };
 
-export const themes: Record<ThemeId, string> = {
-  anime: "Anime y personajes",
-  futbol: "Fútbol",
-  gaming: "Gaming y sci-fi",
-  motor: "Autos y motos",
-  musica: "Música y skate",
-  grafico: "Gráfico y urbano",
-  espacio: "Espacio",
-  argentina: "Argentina y Mendoza",
-  naturaleza: "Flores y naturaleza",
-  aventura: "Aventura y viajes",
+export type ProductVariant = {
+  sku: string;
+  options: Record<string, string>;
+  /** ARS; null when made to order. */
+  price: number | null;
+  /** Price before an active sale. */
+  regularPrice?: number;
+  /** Available units; null when made to order. */
+  stock: number | null;
 };
+
 
 const gallery = (slug: string, alts: string[]): ProductImage[] =>
   alts.map((alt, index) => ({ src: `/demo/products/${slug}-${index + 1}.webp`, alt }));
@@ -65,7 +71,6 @@ const packDetails = [
 
 const shirtDetails = [
   "Técnica de estampado, tela y talles a confirmar.",
-  "La imagen es una representación digital, no una fotografía del producto.",
   "Cuidados de lavado a definir según el material final.",
 ];
 
@@ -84,7 +89,6 @@ const vinylDetails = [
 const customDetails = [
   "Formato, material y cantidad se definen en cada pedido.",
   "El valor se calcula a partir de tu idea: no hay precio fijo.",
-  "En esta demo, la solicitud es una simulación local.",
 ];
 
 /** Original demo products with generated mockups (packs, apparel, DTF, vinyl, custom). */

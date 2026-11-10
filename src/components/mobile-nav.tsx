@@ -57,7 +57,7 @@ export function MobileNav({ links }: { links: NavLink[] }) {
             ))}
             <li>
               <Link href="/carrito" onClick={() => setOpen(false)}>
-                Carrito demo
+                Carrito
               </Link>
             </li>
           </ul>

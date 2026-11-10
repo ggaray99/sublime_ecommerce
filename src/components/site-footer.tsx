@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { categories } from "@/data/categories";
 import { contact, infoNav, mainNav } from "@/data/site";
+import { getStorefrontCategories } from "@/server/storefront";
 import { BrandLogo } from "./brand-logo";
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const categories = await getStorefrontCategories();
   return (
     <footer className="site-footer">
       <div className="site-footer__brand">
         <BrandLogo className="brand-logo--footer" />
-        <p>Calcos, stickers y productos personalizados. Laboratorio de producto: todo el contenido es de demostración.</p>
+        <p>Calcos, stickers y productos personalizados con diseños originales.</p>
       </div>
       <nav aria-labelledby="footer-nav-shop">
         <h2 id="footer-nav-shop">Tienda</h2>
@@ -19,7 +20,7 @@ export function SiteFooter() {
             </li>
           ))}
           <li>
-            <Link href="/carrito">Carrito demo</Link>
+            <Link href="/carrito">Carrito</Link>
           </li>
         </ul>
       </nav>
@@ -54,9 +55,7 @@ export function SiteFooter() {
           ))}
         </dl>
       </section>
-      <p className="site-footer__legal">
-        Sitio de demostración. Productos, precios e imágenes son ilustrativos. No se realizan ventas ni se procesan pagos.
-      </p>
+      <p className="site-footer__legal">© Sublime. Precios en pesos argentinos.</p>
     </footer>
   );
 }

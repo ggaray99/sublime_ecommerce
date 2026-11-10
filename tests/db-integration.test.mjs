@@ -2,8 +2,8 @@
 // `npm run test:db` (which loads .env.local) and need DATABASE_URL; the regular
 // `npm test` skips them. Read-only: they never write to the database.
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
-import { neon } from "@neondatabase/serverless";
+import { after, describe, it } from "node:test";
+import pg from "pg";
 import { products } from "../src/data/products.ts";
 import { quoteCart } from "../src/server/cart/quote.ts";
 import { createPostgresCatalogRepository } from "../src/server/catalog/postgres-repository.ts";
@@ -14,7 +14,9 @@ import { createUntrackedInventoryRepository } from "../src/server/inventory/repo
 const enabled = process.env.npm_lifecycle_event === "test:db" && Boolean(process.env.DATABASE_URL);
 
 describe("Postgres repositories (staging)", { skip: !enabled && "run with npm run test:db and DATABASE_URL" }, () => {
-  const sql = enabled ? neon(process.env.DATABASE_URL) : null;
+  const pool = enabled ? new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 2 }) : null;
+  const sql = enabled ? { query: async (text, params) => (await pool.query(text, params)).rows } : null;
+  after(() => pool?.end());
   const catalog = enabled ? createPostgresCatalogRepository(sql) : null;
   const inventory = enabled ? createPostgresInventoryRepository(sql) : null;
   const staticCatalog = createStaticCatalogRepository(products);
@@ -54,7 +56,7 @@ describe("Postgres repositories (staging)", { skip: !enabled && "run with npm ru
   });
 
   it("enforces stock integrity constraints in the database", async () => {
-    const [{ violations }] = await sql`SELECT count(*)::int AS violations FROM inventory WHERE reserved > on_hand OR on_hand < 0`;
+    const [{ violations }] = await sql.query("SELECT count(*)::int AS violations FROM inventory WHERE reserved > on_hand OR on_hand < 0");
     assert.equal(violations, 0);
   });
 });

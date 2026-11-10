@@ -6,7 +6,14 @@ import { Suspense } from "react";
 import { AddressForm, ProfileForm } from "@/components/account/forms";
 import { AccountsUnavailable } from "@/components/account/unavailable";
 import { PageIntro } from "@/components/page-intro";
+import { argentinaTime, orderStatusLabel } from "@/components/orders/order-view";
+import { formatPrice } from "@/lib/format";
 import { getCurrentAdmin } from "@/server/admin/session";
+import { orderNumber, orderTotalMinor } from "@/server/orders/repository";
+import { getOrderRepository, ordersAvailable } from "@/server/orders/session";
+import { requestStatusLabel } from "@/components/requests/request-view";
+import { requestNumber } from "@/server/custom-requests/repository";
+import { customRequestsAvailable, getCustomRequestRepository } from "@/server/custom-requests/session";
 import { accountsAvailable, getCurrentCustomer, getCustomerRepository } from "@/server/customers/session";
 import { deleteAddressAction, setDefaultAddressAction, signOutAction } from "./actions";
 
@@ -22,7 +29,12 @@ async function AccountContent() {
   await connection();
   const customer = await getCurrentCustomer();
   if (!customer) redirect("/cuenta/ingresar");
-  const [addresses, admin] = await Promise.all([getCustomerRepository().listAddresses(customer.id), getCurrentAdmin()]);
+  const [addresses, admin, orders, requests] = await Promise.all([
+    getCustomerRepository().listAddresses(customer.id),
+    getCurrentAdmin(),
+    ordersAvailable() ? getOrderRepository().listOrders({ customerId: customer.id, limit: 20 }) : Promise.resolve([]),
+    customRequestsAvailable() ? getCustomRequestRepository().list({ customerId: customer.id, limit: 20 }) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="account">
@@ -42,6 +54,51 @@ async function AccountContent() {
           </p>
         )}
         <ProfileForm fullName={customer.fullName} phone={customer.phone} />
+      </section>
+
+      <section className="account__section" aria-labelledby="pedidos-title">
+        <h2 id="pedidos-title">Mis pedidos</h2>
+        {orders.length ? (
+          <ul className="audit-list">
+            {orders.map((order) => (
+              <li key={order.id}>
+                <p>
+                  <Link href={`/pedido/${order.id}`}>
+                    <strong>{orderNumber(order)}</strong>
+                  </Link>{" "}
+                  · {orderStatusLabel[order.status]} · {formatPrice(orderTotalMinor(order) / 100)}
+                </p>
+                <p className="muted">{argentinaTime(order.createdAt)}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">Todavía no hiciste pedidos.</p>
+        )}
+      </section>
+
+      <section className="account__section" aria-labelledby="encargos-title">
+        <h2 id="encargos-title">Mis encargos</h2>
+        {requests.length ? (
+          <ul className="audit-list">
+            {requests.map((request) => (
+              <li key={request.id}>
+                <p>
+                  <Link href={`/encargo/${request.id}`}>
+                    <strong>{requestNumber(request)}</strong>
+                  </Link>{" "}
+                  · {request.productType} · {requestStatusLabel[request.status]}
+                  {request.quoteMinor !== null && ` · ${formatPrice(request.quoteMinor / 100)}`}
+                </p>
+                <p className="muted">{argentinaTime(request.createdAt)}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">
+            Todavía no pediste encargos. <Link href="/encargos">Pedí uno a medida</Link>.
+          </p>
+        )}
       </section>
 
       <section className="account__section" aria-labelledby="direcciones-title">
@@ -96,7 +153,7 @@ export default function CuentaPage() {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Mi cuenta" title="MI CUENTA." tone="light">
-        <p>Entorno de prueba: las cuentas y direcciones se guardan en la base de staging.</p>
+        <p>Tus datos, direcciones, pedidos y encargos.</p>
       </PageIntro>
       {accountsAvailable() ? (
         <Suspense fallback={<p className="panel panel--muted">Cargando tu cuenta…</p>}>

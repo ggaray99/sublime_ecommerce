@@ -1,26 +1,17 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
-import { categories } from "@/data/categories";
-import { productBySlug, products } from "@/data/products";
+import { getHomeHero } from "@/server/home/session";
+import { pickHeroProducts } from "@/server/home/settings";
+import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefront";
 import { priceLabel } from "@/lib/format";
 
-const heroProducts = ["pack-caos-grafico", "remera-ruido-visual", "sticker-gato-de-la-suerte-137"]
-  .map((slug) => productBySlug(slug))
-  .filter((product) => product !== undefined);
-
-// Featured mix: catalog stickers first, then the rest of the product lines.
-const featured = [
-  ...products.filter((product) => product.featured && product.code).slice(0, 4),
-  ...products.filter((product) => product.featured && !product.code).slice(0, 4),
-];
-
 const applications = [
-  { src: "/demo/editorial/laptop.webp", label: "Laptops", alt: "Stickers de demostración pegados en una laptop" },
-  { src: "/demo/editorial/botella.webp", label: "Botellas", alt: "Calcos de demostración en una botella térmica" },
-  { src: "/demo/editorial/casco.webp", label: "Cascos", alt: "Calco de demostración aplicado en un casco" },
-  { src: "/demo/editorial/packaging.webp", label: "Packaging", alt: "Caja de envío con calcos de demostración" },
-  { src: "/demo/editorial/remera.webp", label: "Remeras", alt: "Remera clara con estampa de demostración" },
+  { src: "/demo/editorial/laptop.webp", label: "Laptops", alt: "Stickers pegados en una laptop" },
+  { src: "/demo/editorial/botella.webp", label: "Botellas", alt: "Calcos en una botella térmica" },
+  { src: "/demo/editorial/casco.webp", label: "Cascos", alt: "Calco aplicado en un casco" },
+  { src: "/demo/editorial/packaging.webp", label: "Packaging", alt: "Caja de envío con calcos" },
+  { src: "/demo/editorial/remera.webp", label: "Remeras", alt: "Remera clara con estampa" },
 ];
 
 const ticker = ["Calcos troquelados", "Packs", "Remeras", "Planchas DTF", "Vinilos", "Encargos a medida"];
@@ -29,41 +20,49 @@ const processTracks = [
   {
     title: "Productos estándar",
     note: "Calcos, packs, remeras, DTF y vinilos del catálogo.",
-    steps: ["Elegí tus diseños en la tienda.", "Sumalos al carrito demo y ajustá cantidades.", "Recorré el checkout simulado: no se cobra nada."],
+    steps: ["Elegí tus diseños en la tienda.", "Sumalos al carrito y ajustá cantidades.", "Confirmá el pedido, elegí cómo pagar y coordinamos la entrega."],
   },
   {
     title: "Personalizados",
     note: "Stickers, etiquetas y prendas a partir de tu idea.",
     steps: [
       "Contanos qué querés, en qué formato y cuántos.",
-      "Se arma una propuesta con valores y tiempos (canal pendiente).",
-      "Aprobás la propuesta y se produce (proceso a definir).",
+      "Te respondemos con un presupuesto: valores y tiempos.",
+      "Aprobás el presupuesto y lo producimos.",
     ],
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const [products, categories, hero] = await Promise.all([getStorefrontProducts(), getStorefrontCategories(), getHomeHero()]);
+  // Edited from /admin/portada; hidden or missing products fall back to the usual ones.
+  const heroProducts = pickHeroProducts(hero, products);
+  // Featured mix: catalog stickers first, then the rest of the product lines.
+  const featured = [
+    ...products.filter((product) => product.featured && product.code).slice(0, 4),
+    ...products.filter((product) => product.featured && !product.code).slice(0, 4),
+  ];
+
   return (
     <main id="contenido">
       <section className="hero" aria-labelledby="hero-title">
         <div className="hero__copy">
-          <p className="kicker">Stickers / DTF / Vinilos / Remeras</p>
+          {hero.kicker && <p className="kicker">{hero.kicker}</p>}
           <h1 id="hero-title">
-            PEGÁ
-            <br />
-            <em>TU IDENTIDAD.</em>
+            {hero.titleLine1}
+            {hero.titleLine1 && hero.titleLine2 && <br />}
+            {hero.titleLine2 && <em>{hero.titleLine2}</em>}
           </h1>
-          <p className="hero__lede">
-            Calcos troquelados, packs, remeras y productos a medida con diseños originales. Esta es una tienda demo: probá
-            el recorrido completo sin compras reales.
-          </p>
+          {hero.lede && <p className="hero__lede">{hero.lede}</p>}
           <div className="actions">
-            <Link className="btn btn--acid btn--lg" href="/tienda?categoria=stickers">
-              Explorar calcos
+            <Link className="btn btn--acid btn--lg" href={hero.primaryHref}>
+              {hero.primaryLabel}
             </Link>
-            <Link className="btn btn--ghost-light btn--lg" href="/encargos">
-              Ver personalizados →
-            </Link>
+            {hero.secondaryLabel && (
+              <Link className="btn btn--ghost-light btn--lg" href={hero.secondaryHref}>
+                {hero.secondaryLabel}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -83,11 +82,11 @@ export default function Home() {
               </span>
             </Link>
           ))}
-          <span className="hero__stamp" aria-hidden="true">
-            DISEÑOS
-            <br />
-            ORIGINALES
-          </span>
+          {hero.stamp && (
+            <span className="hero__stamp" aria-hidden="true">
+              {hero.stamp}
+            </span>
+          )}
         </div>
       </section>
 
@@ -122,7 +121,7 @@ export default function Home() {
             <li key={category.id}>
               <Link href={`/tienda?categoria=${category.id}`} className="category-card">
                 <span className="category-card__media">
-                  <Image src={category.image} alt="" width={800} height={800} sizes="(max-width: 559px) 100vw, (max-width: 1023px) 50vw, 33vw" />
+                  <Image src={category.image} alt="" width={800} height={800} sizes="(max-width: 359px) 100vw, (max-width: 899px) 50vw, 33vw" />
                 </span>
                 <span className="category-card__body">
                   <small>{String(index + 1).padStart(2, "0")}</small>
@@ -141,7 +140,7 @@ export default function Home() {
       <section id="destacados" className="section section--coal" aria-labelledby="destacados-title">
         <div className="section__head">
           <div>
-            <p className="kicker">Destacados demo</p>
+            <p className="kicker">Destacados</p>
             <h2 id="destacados-title">
               LO QUE PODÉS
               <br />
@@ -152,7 +151,7 @@ export default function Home() {
             Ver catálogo completo
           </Link>
         </div>
-        <p className="price-note">Precios ilustrativos en pesos argentinos. No hay stock ni ventas reales.</p>
+        <p className="price-note">Precios en pesos argentinos.</p>
         <ul className="product-grid">
           {featured.map((product) => (
             <li key={product.id}>
@@ -172,8 +171,7 @@ export default function Home() {
           </h2>
           <p>
             Cada diseño está pensado para vivir fuera de la pantalla: en la botella de todos los días, la tapa de la
-            notebook, el casco o la caja de un envío. Mockups digitales de demostración; la fotografía real llegará con el
-            catálogo definitivo.
+            notebook, el casco o la caja de un envío.
           </p>
         </div>
         <ul className="editorial__grid">
@@ -208,9 +206,8 @@ export default function Home() {
             <li>Referencias en texto o archivo</li>
           </ul>
           <Link className="btn btn--acid btn--lg" href="/encargos">
-            Simular un encargo
+            Pedir un encargo
           </Link>
-          <p className="fine-print">El formulario es una demo: no envía la solicitud a ningún negocio.</p>
         </div>
         <div className="custom-cta__art">
           <Image
@@ -242,7 +239,6 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <p className="fine-print">En esta demo no se procesan pedidos, pagos ni envíos.</p>
       </section>
     </main>
   );

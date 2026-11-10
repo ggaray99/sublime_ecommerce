@@ -1,4 +1,4 @@
-﻿# Sublime Ecommerce
+# Sublime Ecommerce
 
 First functional version of a demo storefront for custom stickers, sublimated T-shirts, DTF and vinyl in Argentina.
 
@@ -22,12 +22,14 @@ npm.cmd run build
 `npm.cmd test` runs the domain unit tests (catalog filters, cart, quote validation, price format) with Node's built-in test runner; no extra dependencies.
 
 ## Backend (staging only)
-Production remains a static, guest-only demo. Preview and Development deployments use:
-- Neon PostgreSQL (`sublime-staging`) for catalog, stock and customers — see `db/README.md`.
-- Neon Auth for customer accounts (`/cuenta`).
+Production remains a static, guest-only demo. Staging uses:
+- PostgreSQL (node-postgres) for catalog, stock, orders and customers — see `db/README.md`.
+- Better Auth, inside the app, for customer accounts (`/cuenta`); accounts live in the same database.
+- Uploaded photos and private attachments on disk (`MEDIA_ROOT`), photos served by `/media/*`.
+- Docker image per environment for the VPS — see `docs/backend/vps-paso-1-codigo.md` and `.env.example`.
 - `POST /api/cart/quote` to recompute carts on the server.
 
-Docs: `docs/backend/fase-1-fundaciones.md`, `docs/backend/fase-2-identidad.md`, `docs/backend/fase-3-administracion.md`, `docs/backend/backup-y-rollback.md`.
+Docs: `docs/backend/fase-1-fundaciones.md`, `docs/backend/fase-2-identidad.md`, `docs/backend/fase-3-catalogo-admin.md` (índice de 3A, 3B y 3C), `docs/backend/api-admin-v1.md`, `docs/backend/fase-4-pedidos.md`, `docs/backend/fase-6-envios.md`, `docs/backend/fase-7-encargos.md`, `docs/backend/vps-paso-1-codigo.md`, `docs/backend/pendientes.md`, `docs/backend/plan-produccion.md`, `docs/backend/backup-y-rollback.md`.
 
 ## Brand system
 Implemented from the client's branding kit:

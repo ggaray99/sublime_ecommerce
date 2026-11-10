@@ -5,15 +5,17 @@ import { DEFAULT_CURRENCY, multiplyMinor, type Currency } from "../money.ts";
 export const MAX_CART_LINES = 50;
 export const MAX_LINE_QUANTITY = 99;
 
-export type QuoteRequestLine = { productId: string; quantity: number };
+/** `sku` picks a variant (size, color…); without it the product's default variant is used. */
+export type QuoteRequestLine = { productId: string; quantity: number; sku?: string };
 
 export type QuoteIssueCode =
   | "unknown_product"
+  | "variant_required"
   | "requires_quote"
   | "not_purchasable"
   | "insufficient_stock";
 
-export type QuoteIssue = { productId: string; code: QuoteIssueCode; message: string };
+export type QuoteIssue = { productId: string; sku?: string; code: QuoteIssueCode; message: string };
 
 export type QuotedLine = {
   productId: string;
@@ -24,6 +26,8 @@ export type QuotedLine = {
   lineTotalMinor: number;
   /** null when stock is not tracked for this SKU. */
   available: number | null;
+  /** For category promotions (empty in the static catalog). */
+  categoryId: string;
 };
 
 export type CartQuote = {
@@ -46,19 +50,39 @@ export async function quoteCart(
   lines: readonly QuoteRequestLine[],
   deps: { catalog: CatalogRepository; inventory: InventoryRepository },
 ): Promise<CartQuote> {
-  const merged = new Map<string, number>();
-  for (const line of lines) merged.set(line.productId, (merged.get(line.productId) ?? 0) + line.quantity);
+  // Same product and variant → one line.
+  const merged = new Map<string, { productId: string; sku?: string; quantity: number }>();
+  for (const line of lines) {
+    const key = `${line.productId}|${line.sku ?? ""}`;
+    const current = merged.get(key);
+    merged.set(key, { productId: line.productId, sku: line.sku, quantity: (current?.quantity ?? 0) + line.quantity });
+  }
+  const requestedLines = [...merged.values()];
 
-  const variants = await deps.catalog.findVariantsByProductIds([...merged.keys()]);
-  const availability = await deps.inventory.getAvailability([...variants.values()].map((variant) => variant.sku));
+  const [defaults, bySku] = await Promise.all([
+    deps.catalog.findVariantsByProductIds([...new Set(requestedLines.filter((line) => !line.sku).map((line) => line.productId))]),
+    deps.catalog.findVariantsBySkus([...new Set(requestedLines.flatMap((line) => (line.sku ? [line.sku] : [])))]),
+  ]);
+  const resolve = (line: { productId: string; sku?: string }) => {
+    if (!line.sku) return defaults.get(line.productId);
+    const variant = bySku.get(line.sku);
+    // A SKU of another product is treated as unknown, never as that other product.
+    return variant?.productId === line.productId ? variant : undefined;
+  };
+  const resolved = requestedLines.map((line) => ({ line, variant: resolve(line) }));
+  const availability = await deps.inventory.getAvailability(resolved.flatMap(({ variant }) => (variant ? [variant.sku] : [])));
 
   const quoted: QuotedLine[] = [];
   const issues: QuoteIssue[] = [];
 
-  for (const [productId, requested] of merged) {
-    const variant = variants.get(productId);
+  for (const { line, variant } of resolved) {
+    const { productId, sku, quantity: requested } = line;
     if (!variant || !variant.active) {
-      issues.push({ productId, code: "unknown_product", message: "El producto no existe o no está disponible." });
+      issues.push({ productId, sku, code: "unknown_product", message: "El producto no existe o no está disponible." });
+      continue;
+    }
+    if (variant.hasOptions && !sku) {
+      issues.push({ productId, code: "variant_required", message: "Elegí una opción (talle, color…) antes de comprar." });
       continue;
     }
     if (variant.requiresQuote) {
@@ -90,11 +114,12 @@ export async function quoteCart(
       unitPriceMinor: variant.unitPriceMinor,
       lineTotalMinor: multiplyMinor(variant.unitPriceMinor, quantity),
       available,
+      categoryId: variant.categoryId ?? "",
     });
   }
 
   const subtotalMinor = quoted.reduce((total, line) => total + line.lineTotalMinor, 0);
-  const capped = [...merged.values()].some((quantity) => quantity > MAX_LINE_QUANTITY);
+  const capped = requestedLines.some((line) => line.quantity > MAX_LINE_QUANTITY);
 
   return {
     currency: DEFAULT_CURRENCY,

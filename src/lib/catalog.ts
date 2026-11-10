@@ -1,7 +1,7 @@
-import type { CategoryId } from "../data/categories";
+import { categoryById, type CategoryId } from "../data/categories.ts";
 import type { Product, ThemeId } from "../data/products";
 
-export type ProductType = "estandar" | "personalizado";
+export type ProductType = "estandar" | "personalizado" | "oferta";
 export type SortOption = "destacados" | "nombre-asc" | "nombre-desc" | "precio-asc" | "precio-desc";
 
 export type CatalogFilters = {
@@ -24,14 +24,19 @@ export const sortOptions: { value: SortOption; label: string }[] = [
   { value: "destacados", label: "Destacados primero" },
   { value: "nombre-asc", label: "Nombre: A → Z" },
   { value: "nombre-desc", label: "Nombre: Z → A" },
-  { value: "precio-asc", label: "Precio demo: menor a mayor" },
-  { value: "precio-desc", label: "Precio demo: mayor a menor" },
+  { value: "precio-asc", label: "Precio: menor a mayor" },
+  { value: "precio-desc", label: "Precio: mayor a menor" },
 ];
 
 export const typeOptions: { value: ProductType; label: string }[] = [
-  { value: "estandar", label: "Estándar (carrito demo)" },
+  { value: "estandar", label: "Estándar (al carrito)" },
   { value: "personalizado", label: "Personalizado (a presupuestar)" },
+  { value: "oferta", label: "En oferta" },
 ];
+
+/** A product sale is running: the store shows the regular price crossed out. */
+export const isOnSale = (product: Pick<Product, "price" | "regularPrice">) =>
+  product.price !== null && product.regularPrice !== undefined && product.regularPrice > product.price;
 
 /** URL keys used by /tienda. Kept in Spanish so shared links read naturally. */
 const keys = { query: "q", category: "categoria", type: "tipo", theme: "tema", sort: "orden" } as const;
@@ -82,6 +87,17 @@ const byPrice = (direction: 1 | -1) => (a: Product, b: Product) => {
   return (a.price - b.price) * direction || byName(a, b);
 };
 
+/** Normalized search text per product, computed once (products are immutable props). */
+const searchText = new WeakMap<Product, string>();
+const haystackOf = (product: Product) => {
+  let text = searchText.get(product);
+  if (text === undefined) {
+    text = normalize(`${product.name} ${product.tags.join(" ")} ${product.code ?? ""}`);
+    searchText.set(product, text);
+  }
+  return text;
+};
+
 export function filterProducts(products: readonly Product[], filters: CatalogFilters): Product[] {
   const terms = normalize(filters.query).split(/\s+/).filter(Boolean);
 
@@ -90,8 +106,9 @@ export function filterProducts(products: readonly Product[], filters: CatalogFil
     if (filters.theme !== "todas" && product.theme !== filters.theme) return false;
     if (filters.type === "estandar" && product.requiresQuote) return false;
     if (filters.type === "personalizado" && !product.requiresQuote) return false;
+    if (filters.type === "oferta" && !isOnSale(product)) return false;
     if (!terms.length) return true;
-    const haystack = normalize(`${product.name} ${product.tags.join(" ")} ${product.code ?? ""}`);
+    const haystack = haystackOf(product);
     return terms.every((term) => haystack.includes(term));
   });
 
@@ -120,3 +137,27 @@ export function relatedProducts(products: readonly Product[], product: Product, 
     .slice(0, limit)
     .map((entry) => entry.candidate);
 }
+
+/** True when the product tracks stock and none is available (database catalog only). */
+export const isOutOfStock = (product: Pick<Product, "stock">) => product.stock === 0;
+
+/** Category name: from the database when available, otherwise from the static list. */
+export const categoryLabelOf = (product: Pick<Product, "category" | "categoryLabel">) =>
+  product.categoryLabel ?? categoryById(product.category)?.label ?? product.category;
+
+/** True when the product comes in variants whose prices differ (shown as "desde $ X"). */
+export const hasPriceRange = (product: Pick<Product, "variants">) =>
+  new Set((product.variants ?? []).map((variant) => variant.price)).size > 1;
+
+/**
+ * A product as client components need it (shop grid, cart, checkout): no
+ * description, details or extra photos. Keeps the page payload small; `tags`
+ * stay only where the shop search uses them.
+ */
+export const forClient = (product: Product, options: { tags?: boolean } = {}): Product => ({
+  ...product,
+  description: "",
+  details: [],
+  images: product.images.slice(0, 1),
+  tags: options.tags ? product.tags : [],
+});

@@ -1,0 +1,111 @@
+# Sublime on the VPS (/srv/sublime). Traefik (in /root/docker-compose.yml, shared
+# with n8n and Chatwoot) terminates HTTPS and routes by host name; it finds these
+# containers through the root_default network and their labels.
+#
+#   docker compose -f /srv/sublime/compose.yaml up -d
+#
+# Secrets live next to this file, readable only by their owner: postgres.env,
+# staging.env and .env (Traefik basic auth for staging). See deploy/README.md.
+name: sublime
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: ./postgres.env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Only reachable from this machine (builds run with --network host); never from internet.
+    ports:
+      - "127.0.0.1:5433:5432"
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  staging:
+    image: sublime:staging
+    restart: unless-stopped
+    env_file: ./staging.env
+    environment:
+      MEDIA_ROOT: /data/media
+    volumes:
+      - ./media/staging:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal, proxy]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: root_default
+      traefik.http.routers.sublime-staging.rule: Host(`staging.sublime.consulte.app`)
+      traefik.http.routers.sublime-staging.entrypoints: websecure
+      traefik.http.routers.sublime-staging.tls: "true"
+      traefik.http.routers.sublime-staging.tls.certresolver: mytlschallenge
+      traefik.http.routers.sublime-staging.middlewares: sublime-staging-auth,sublime-staging-headers
+      # Staging is private: browser password (like Vercel's preview protection).
+      traefik.http.middlewares.sublime-staging-auth.basicauth.users: ${STAGING_BASIC_AUTH}
+      traefik.http.middlewares.sublime-staging-auth.basicauth.realm: Sublime staging
+      traefik.http.middlewares.sublime-staging-headers.headers.customresponseheaders.X-Robots-Tag: noindex, nofollow
+      traefik.http.middlewares.sublime-staging-headers.headers.stsSeconds: "31536000"
+      traefik.http.middlewares.sublime-staging-headers.headers.contentTypeNosniff: "true"
+      traefik.http.middlewares.sublime-staging-headers.headers.frameDeny: "true"
+      traefik.http.middlewares.sublime-staging-headers.headers.referrerPolicy: strict-origin-when-cross-origin
+      traefik.http.services.sublime-staging.loadbalancer.server.port: "3000"
+      # Mercado Pago's webhook cannot send the browser password. Only this POST
+      # skips it: the route rejects anything without the app's HMAC signature.
+      traefik.http.routers.sublime-staging-mp-webhook.rule: Host(`staging.sublime.consulte.app`) && Path(`/api/mercadopago/webhook`) && Method(`POST`)
+      traefik.http.routers.sublime-staging-mp-webhook.priority: "1000"
+      traefik.http.routers.sublime-staging-mp-webhook.entrypoints: websecure
+      traefik.http.routers.sublime-staging-mp-webhook.tls: "true"
+      traefik.http.routers.sublime-staging-mp-webhook.tls.certresolver: mytlschallenge
+      traefik.http.routers.sublime-staging-mp-webhook.middlewares: sublime-staging-headers
+      traefik.http.routers.sublime-staging-mp-webhook.service: sublime-staging
+
+  # The store. Deployed by hand (deploy/deploy-production.sh), never by the staging
+  # auto-deploy. SUBLIME_MAINTENANCE=1 in production.env shows only the
+  # "Estamos trabajando" page to the public (src/proxy.ts).
+  production:
+    image: sublime:production
+    restart: unless-stopped
+    # Optional so staging deploys work before setup-production.sh creates it;
+    # deploy-production.sh refuses to run without it.
+    env_file:
+      - path: ./production.env
+        required: false
+    environment:
+      MEDIA_ROOT: /data/media
+    volumes:
+      - ./media/production:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal, proxy]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: root_default
+      traefik.http.routers.sublime-production.rule: Host(`sublimestudio.com.ar`) || Host(`www.sublimestudio.com.ar`)
+      traefik.http.routers.sublime-production.entrypoints: websecure
+      traefik.http.routers.sublime-production.tls: "true"
+      traefik.http.routers.sublime-production.tls.certresolver: mytlschallenge
+      traefik.http.routers.sublime-production.middlewares: sublime-www,sublime-production-headers
+      # One address for the store: www goes to the bare domain.
+      traefik.http.middlewares.sublime-www.redirectregex.regex: ^https://www\.sublimestudio\.com\.ar/(.*)
+      traefik.http.middlewares.sublime-www.redirectregex.replacement: https://sublimestudio.com.ar/$${1}
+      traefik.http.middlewares.sublime-www.redirectregex.permanent: "true"
+      traefik.http.middlewares.sublime-production-headers.headers.stsSeconds: "31536000"
+      traefik.http.middlewares.sublime-production-headers.headers.contentTypeNosniff: "true"
+      traefik.http.middlewares.sublime-production-headers.headers.frameDeny: "true"
+      traefik.http.middlewares.sublime-production-headers.headers.referrerPolicy: strict-origin-when-cross-origin
+      traefik.http.services.sublime-production.loadbalancer.server.port: "3000"
+
+networks:
+  internal: {}
+  proxy:
+    external: true
+    name: root_default
+
+volumes:
+  pgdata: {}

@@ -2,15 +2,21 @@ import type { Metadata, Viewport } from "next";
 import { Bebas_Neue } from "next/font/google";
 import localFont from "next/font/local";
 import { CartToast } from "@/components/cart/cart-toast";
+import { PreviewBar } from "@/components/preview-bar";
+import { Suspense } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { JsonLd } from "@/components/json-ld";
 import { site } from "@/data/site";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
+import { isSiteIndexable } from "@/server/env";
 import "./globals.css";
 
 /* Brand typography (client branding kit):
    Bebas Neue — primary: titles, highlighted numbers, promotional buttons.
    Gontserrat — secondary: product names, prices, forms, buttons and states.
-   Gontserrat is OFL licensed; the files are latin subsets of the kit's TTFs. */
+   Gontserrat is OFL licensed; the files are latin subsets of the kit's TTFs.
+   Only the weights the CSS uses (400, 600, 700, 800) are loaded. */
 const bebas = Bebas_Neue({
   subsets: ["latin"],
   weight: "400",
@@ -21,7 +27,6 @@ const bebas = Bebas_Neue({
 const gontserrat = localFont({
   src: [
     { path: "../fonts/gontserrat/Gontserrat-Regular.woff2", weight: "400", style: "normal" },
-    { path: "../fonts/gontserrat/Gontserrat-Medium.woff2", weight: "500", style: "normal" },
     { path: "../fonts/gontserrat/Gontserrat-SemiBold.woff2", weight: "600", style: "normal" },
     { path: "../fonts/gontserrat/Gontserrat-Bold.woff2", weight: "700", style: "normal" },
     { path: "../fonts/gontserrat/Gontserrat-ExtraBold.woff2", weight: "800", style: "normal" },
@@ -33,8 +38,8 @@ const gontserrat = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
-    default: "Sublime — Calcos, stickers y productos personalizados (demo)",
-    template: "%s | Sublime (demo)",
+    default: "Sublime — Calcos, stickers y productos personalizados",
+    template: "%s | Sublime",
   },
   description: site.description,
   applicationName: "Sublime",
@@ -47,8 +52,8 @@ export const metadata: Metadata = {
     description: site.description,
     url: "/",
   },
-  // Demo content with fictitious prices: keep it out of search results until launch.
-  robots: { index: false, follow: false },
+  // Kept out of search results until launch (real catalog, prices and policies): see SITE_INDEXABLE.
+  robots: isSiteIndexable() ? { index: true, follow: true } : { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
@@ -62,9 +67,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <a className="skip-link" href="#contenido">
           Saltar al contenido
         </a>
+        {/* Reads the URL (it re-checks the preview cookie on navigation): needs its own boundary. */}
+        <Suspense fallback={null}>
+          <PreviewBar />
+        </Suspense>
         <SiteHeader />
         {children}
         <SiteFooter />
+        <JsonLd data={[organizationJsonLd(site), websiteJsonLd(site)]} />
         <CartToast />
       </body>
     </html>

@@ -30,18 +30,20 @@ const validAddress = {
 };
 
 describe("isAuthEnabled (environment guard)", () => {
-  const base = { NEON_AUTH_BASE_URL: "https://auth.example", NEON_AUTH_COOKIE_SECRET: "x".repeat(32) };
+  const base = { DATABASE_URL: "postgres://placeholder", BETTER_AUTH_SECRET: "x".repeat(32) };
 
-  it("needs the auth URL and a cookie secret of at least 32 characters", () => {
+  it("needs the database and a secret of at least 32 characters", () => {
     assert.equal(isAuthEnabled({}), false);
-    assert.equal(isAuthEnabled({ ...base, NEON_AUTH_COOKIE_SECRET: "short" }), false);
+    assert.equal(isAuthEnabled({ ...base, BETTER_AUTH_SECRET: "short" }), false);
+    assert.equal(isAuthEnabled({ BETTER_AUTH_SECRET: base.BETTER_AUTH_SECRET }), false);
     assert.equal(isAuthEnabled(base), true);
   });
 
   it("stays off in production unless explicitly enabled", () => {
-    assert.equal(isAuthEnabled({ ...base, VERCEL_ENV: "production" }), false);
-    assert.equal(isAuthEnabled({ ...base, VERCEL_ENV: "production", SUBLIME_AUTH_IN_PRODUCTION: "enabled" }), true);
-    assert.equal(isAuthEnabled({ ...base, VERCEL_ENV: "preview" }), true);
+    assert.equal(isAuthEnabled({ ...base, SUBLIME_ENV: "production" }), false);
+    assert.equal(isAuthEnabled({ ...base, SUBLIME_ENV: "production", SUBLIME_AUTH_IN_PRODUCTION: "enabled" }), true);
+    assert.equal(isAuthEnabled({ ...base, VERCEL_ENV: "production" }), false, "Vercel production stays guarded");
+    assert.equal(isAuthEnabled({ ...base, SUBLIME_ENV: "staging" }), true);
   });
 });
 

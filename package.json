@@ -17,21 +17,23 @@
     "admin:grant": "node --env-file-if-exists=.env.local scripts/admin-grant.mjs --target=staging"
   },
   "dependencies": {
-    "@neondatabase/auth": "^0.7.0-beta",
-    "@neondatabase/serverless": "^1.0.2",
+    "ag-psd": "^33.0.0",
+    "better-auth": "^1.7.12",
     "next": "16.4.2",
+    "pg": "^8.23.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.11",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
-    "sharp": "^0.35.5",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
