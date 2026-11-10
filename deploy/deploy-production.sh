@@ -20,6 +20,9 @@ cd "$ROOT"
 [ "$(id -un)" = "deploy" ] || { echo "✖ corré como deploy: sudo -u deploy bash $0"; exit 1; }
 [ -f production.env ] || { echo "✖ falta production.env: corré setup-production.sh"; exit 1; }
 [ -d "$REPO" ] || { echo "✖ falta $REPO: el despliegue automático de staging lo crea"; exit 1; }
+# Waits for a staging auto-deploy in progress (same lock): they share the repo, docker and the CPU.
+exec 9>"$ROOT/.auto-deploy.lock"
+flock 9
 
 # shellcheck disable=SC1091
 [ -f deploy.conf ] && . ./deploy.conf

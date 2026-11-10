@@ -38,7 +38,13 @@ EOF
 fi
 
 # Secrets added later to the store (also on an existing production.env); never overwritten.
-add_secret() { grep -q "^$1=" production.env || { echo "$1=$2" >> production.env; echo "✔ $1 agregado"; }; }
+add_secret() {
+  grep -q "^$1=" production.env && return 0
+  # A hand-edited file may lack the final newline: never glue onto its last line.
+  [ -z "$(tail -c1 production.env)" ] || echo >> production.env
+  echo "$1=$2" >> production.env
+  echo "✔ $1 agregado"
+}
 # The every-minute cron (deploy/outbox.sh): notifications, low stock, lost Mercado Pago notices.
 add_secret OUTBOX_TOKEN "$(openssl rand -hex 32)"
 # Encrypts the Mercado Pago tokens stored by the OAuth connection. Changing it means connecting again.
