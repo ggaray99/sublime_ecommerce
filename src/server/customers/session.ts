@@ -2,6 +2,7 @@ import { cache } from "react";
 import { isAuthEnabled } from "../auth/config.ts";
 import { getSessionUser } from "../auth/server.ts";
 import { getSql, hasDatabase } from "../db/client.ts";
+import { createCustomerAdminRepository, type CustomerAdminRepository } from "./admin.ts";
 import { createCustomerRepository, type Customer, type CustomerRepository } from "./repository.ts";
 
 /** Customer accounts need both Better Auth and the database (staging today). */
@@ -23,3 +24,7 @@ export const getCurrentCustomer = cache(async function getCurrentCustomer(): Pro
   if (!user) return null;
   return getCustomerRepository().ensureCustomer(user.id, user.email, user.name);
 });
+
+export function getCustomerAdminRepository(): CustomerAdminRepository {
+  return createCustomerAdminRepository(getSql());
+}

@@ -40,7 +40,7 @@ async function OrderAdmin({ params }: { params: PageProps<"/admin/pedidos/[id]">
         <h2 id="pedido-title">Pedido {orderNumber(order)}</h2>
         <p className="muted">
           {order.contactName} · <a href={`mailto:${order.contactEmail}`}>{order.contactEmail}</a>
-          {order.contactPhone && ` · ${order.contactPhone}`} · {order.customerId ? "cliente con cuenta" : "compra como invitado"}
+          {order.contactPhone && ` · ${order.contactPhone}`} · {order.customerId ? <Link href={`/admin/clientes/${order.customerId}`}>cliente con cuenta</Link> : "compra como invitado"}
         </p>
         {order.status === "pending_payment" && (
           <p className="panel panel--muted">Stock reservado hasta {argentinaTime(order.expiresAt)} (hora de Argentina). Si no se confirma el pago, vence solo.</p>
