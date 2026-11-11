@@ -3768,3 +3768,18 @@ body:has(.maintenance:not([style*="none"])) .skip-link {
 body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .preview-bar {
   display: none;
 }
+
+/* Page-text editor (/admin/ajustes/paginas): one block per section. */
+.page-section-fields {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1rem;
+  border: var(--line);
+  border-radius: 0.5rem;
+}
+
+.page-section-fields legend {
+  padding: 0 0.25rem;
+  font-weight: 700;
+}

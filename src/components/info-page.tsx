@@ -15,7 +15,9 @@ export function InfoPage({ content }: { content: InfoPageContent }) {
               <h2>{section.title}</h2>
               {section.status === "pendiente" && <span className="badge badge--pending">Pendiente</span>}
             </div>
-            <p>{section.body}</p>
+            {section.body.split(/\n\s*\n/).map((paragraph, index) => (
+              <p key={index}>{paragraph}</p>
+            ))}
           </section>
         ))}
       </div>

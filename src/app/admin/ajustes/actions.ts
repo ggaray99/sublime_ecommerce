@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { formValues, requireAdmin, type AdminFormState } from "@/server/admin/guard";
 import { createPreviewToken, PREVIEW_COOKIE, PREVIEW_DAYS, PREVIEW_FLAG_COOKIE } from "@/server/preview";
 import { parseContact } from "@/server/settings/contact";
-import { getContactRepository, getLabPricingRepository, getStoreStatusRepository, SETTINGS_TAG } from "@/server/settings/session";
+import { isInfoPageSlug, parsePageContent } from "@/server/settings/pages";
+import { getContactRepository, getLabPricingRepository, getPagesRepository, getStoreStatusRepository, SETTINGS_TAG } from "@/server/settings/session";
 import { parseLabPricing } from "@/server/settings/lab-pricing";
 import { forgetStoreStatus } from "@/server/store-status";
 
@@ -47,7 +48,23 @@ export async function saveContactAction(_state: AdminFormState, form: FormData):
   await getContactRepository().save(admin, parsed.value);
   updateTag(SETTINGS_TAG);
   revalidatePath("/admin/ajustes");
-  return { ok: parsed.value.whatsapp ? "WhatsApp guardado." : "WhatsApp quitado: no se muestran links.", values };
+  return { ok: "Datos de contacto guardados. Los vacíos no se muestran en la tienda.", values };
+}
+
+const PAGE_PATHS = { nosotros: "/nosotros", envios: "/envios", preguntas: "/preguntas", politicas: "/politicas" } as const;
+
+export async function savePageAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
+  const admin = await requireAdmin();
+  const values = formValues(form);
+  const slug = values.slug ?? "";
+  if (!isInfoPageSlug(slug)) return { error: "Página desconocida." };
+  const parsed = parsePageContent(values);
+  if (!parsed.ok) return { fields: parsed.errors, values };
+  await getPagesRepository().save(admin, slug, parsed.value);
+  updateTag(SETTINGS_TAG);
+  revalidatePath(PAGE_PATHS[slug]);
+  revalidatePath("/admin/ajustes", "layout");
+  return { ok: "Página guardada. Ya se ve en la tienda.", values };
 }
 
 export async function saveLabPricingAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {

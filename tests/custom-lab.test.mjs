@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { createCustomRequestRepository } from "../src/server/custom-requests/repository.ts";
-import { createContactRepository, parseContact, whatsappLink } from "../src/server/settings/contact.ts";
+import { createContactRepository, DEFAULT_CONTACT, parseContact, whatsappLink } from "../src/server/settings/contact.ts";
 
 const migrations = () =>
   readdirSync(join("db", "migrations"))
@@ -94,23 +94,23 @@ describe("Custom Lab requests (PGlite)", () => {
 
 describe("contact settings (WhatsApp)", () => {
   it("keeps the digits wa.me expects and requires the country code", () => {
-    assert.deepEqual(parseContact({ whatsapp: "+54 9 261 555-1234" }), { ok: true, value: { whatsapp: "5492615551234" } });
-    assert.deepEqual(parseContact({ whatsapp: "" }), { ok: true, value: { whatsapp: "" } });
+    assert.deepEqual(parseContact({ whatsapp: "+54 9 261 555-1234" }), { ok: true, value: { ...DEFAULT_CONTACT, whatsapp: "5492615551234" } });
+    assert.deepEqual(parseContact({ whatsapp: "" }), { ok: true, value: DEFAULT_CONTACT });
     assert.equal(parseContact({ whatsapp: "261 555 1234" }).ok, false);
     assert.equal(parseContact({ whatsapp: "+54 9 abc" }).ok, false);
   });
 
   it("builds the link with the request number, or none without a number", () => {
-    assert.equal(whatsappLink({ whatsapp: "5492615551234" }, "Hola, encargo ENC-5001"), "https://wa.me/5492615551234?text=Hola%2C%20encargo%20ENC-5001");
-    assert.equal(whatsappLink({ whatsapp: "" }, "x"), null);
+    assert.equal(whatsappLink({ ...DEFAULT_CONTACT, whatsapp: "5492615551234" }, "Hola, encargo ENC-5001"), "https://wa.me/5492615551234?text=Hola%2C%20encargo%20ENC-5001");
+    assert.equal(whatsappLink(DEFAULT_CONTACT, "x"), null);
   });
 
   it("saves with an audit entry", async () => {
     const db = new PGlite();
     for (const sql of migrations()) await db.exec(sql);
     const repo = createContactRepository({ query: async (text, params) => (await db.query(text, params)).rows });
-    assert.deepEqual(await repo.get(), { whatsapp: "" });
-    await repo.save({ authUserId: "admin-1", email: "admin@example.com" }, { whatsapp: "5492615551234" });
+    assert.deepEqual(await repo.get(), DEFAULT_CONTACT);
+    await repo.save({ authUserId: "admin-1", email: "admin@example.com" }, { ...DEFAULT_CONTACT, whatsapp: "5492615551234" });
     assert.equal((await repo.get()).whatsapp, "5492615551234");
     const { rows } = await db.query("SELECT action FROM audit_logs WHERE entity = 'settings'");
     assert.deepEqual(rows.map((r) => r.action), ["settings.contact"]);

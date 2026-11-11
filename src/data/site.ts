@@ -24,14 +24,6 @@ export const infoNav: NavLink[] = [
   { href: "/politicas", label: "Políticas" },
 ];
 
-/** Contact data is not confirmed yet: every value is an explicit placeholder. */
-export const contact: { label: string; value: string }[] = [
-  { label: "Email", value: "Pendiente de confirmación" },
-  { label: "WhatsApp", value: "Pendiente de confirmación" },
-  { label: "Redes sociales", value: "Pendientes de confirmación" },
-  { label: "Ubicación", value: "Pendiente de confirmación" },
-];
-
 export type InfoSection = {
   title: string;
   body: string;

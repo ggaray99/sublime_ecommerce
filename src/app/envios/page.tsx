@@ -1,6 +1,7 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { InfoPage } from "@/components/info-page";
 import { infoPages } from "@/data/site";
+import { getInfoPage } from "@/server/settings/session";
 
 const content = infoPages.envios;
 
@@ -10,6 +11,6 @@ export const metadata: Metadata = {
   alternates: { canonical: "/envios" },
 };
 
-export default function EnviosPage() {
-  return <InfoPage content={content} />;
+export default async function EnviosPage() {
+  return <InfoPage content={await getInfoPage("envios")} />;
 }

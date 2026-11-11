@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { contact, infoNav, mainNav } from "@/data/site";
+import { infoNav, mainNav } from "@/data/site";
+import { contactItems } from "@/server/settings/contact";
+import { getContactSettings } from "@/server/settings/session";
 import { getStorefrontCategories } from "@/server/storefront";
 import { BrandLogo } from "./brand-logo";
 
 export async function SiteFooter() {
-  const categories = await getStorefrontCategories();
+  const [categories, contact] = await Promise.all([getStorefrontCategories(), getContactSettings()]);
+  const items = contactItems(contact);
   return (
     <footer className="site-footer">
       <div className="site-footer__brand">
@@ -46,14 +49,26 @@ export async function SiteFooter() {
       </nav>
       <section aria-labelledby="footer-contact">
         <h2 id="footer-contact">Contacto</h2>
-        <dl className="site-footer__contact">
-          {contact.map((item) => (
-            <div key={item.label}>
-              <dt>{item.label}</dt>
-              <dd>{item.value}</dd>
-            </div>
-          ))}
-        </dl>
+        {items.length ? (
+          <dl className="site-footer__contact">
+            {items.map((item) => (
+              <div key={item.label}>
+                <dt>{item.label}</dt>
+                <dd>
+                  {item.href ? (
+                    <a href={item.href} {...(item.href.startsWith("https:") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+                      {item.value}
+                    </a>
+                  ) : (
+                    item.value
+                  )}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p>Datos de contacto pendientes de confirmación.</p>
+        )}
       </section>
       <p className="site-footer__legal">© Sublime. Precios en pesos argentinos.</p>
     </footer>

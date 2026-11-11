@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -12,7 +13,9 @@ import { estimateSheets } from "@/lib/lab/pricing";
 import { PageIntro } from "@/components/page-intro";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
 import { whatsappLink } from "@/server/settings/contact";
-import { getContactRepository, getLabPricingRepository, getStoreStatusRepository } from "@/server/settings/session";
+import { getContactRepository, getLabPricingRepository, getPagesRepository, getStoreStatusRepository } from "@/server/settings/session";
+import { INFO_PAGE_SLUGS } from "@/server/settings/pages";
+import { infoPages } from "@/data/site";
 import { setStoreStatusAction, startPreviewAction } from "./actions";
 
 export const metadata: Metadata = {
@@ -24,7 +27,14 @@ async function Settings() {
   await connection();
   if (!adminAvailable()) return <AdminUnavailable />;
   if (!(await getCurrentAdmin())) notFound();
-  const [contact, pricing, status] = await Promise.all([getContactRepository().get(), getLabPricingRepository().get(), getStoreStatusRepository().get()]);
+  const pagesRepo = getPagesRepository();
+  const [contact, pricing, status, pageTexts] = await Promise.all([
+    getContactRepository().get(),
+    getLabPricingRepository().get(),
+    getStoreStatusRepository().get(),
+    Promise.all(INFO_PAGE_SLUGS.map((slug) => pagesRepo.get(slug))),
+  ]);
+  const savedPages = Object.fromEntries(INFO_PAGE_SLUGS.map((slug, index) => [slug, pageTexts[index] !== null]));
   const examples = [1, ...pricing.tiers.map((tier) => tier.minSheets)].flatMap((sheets) => estimateSheets(pricing, sheets) ?? []);
   const sample = whatsappLink(contact, "Hola, consulto por el encargo ENC-5001");
 
@@ -69,9 +79,10 @@ async function Settings() {
       <section className="account__section" aria-labelledby="contacto-title">
         <h2 id="contacto-title">Contacto</h2>
         <p className="muted">
-          Con un número cargado, los encargos muestran un botón de WhatsApp con el número de encargo ya escrito en el mensaje.
+          Se muestran en el pie de todas las páginas; los datos vacíos no aparecen. Con un WhatsApp cargado, los encargos
+          muestran un botón con el número de encargo ya escrito en el mensaje.
         </p>
-        <ContactForm whatsapp={contact.whatsapp} />
+        <ContactForm contact={contact} />
         {sample && (
           <p className="muted">
             Probalo:{" "}
@@ -80,6 +91,21 @@ async function Settings() {
             </a>
           </p>
         )}
+      </section>
+
+      <section className="account__section" aria-labelledby="paginas-title" id="paginas">
+        <h2 id="paginas-title">Páginas informativas</h2>
+        <p className="muted">Los textos que todavía dicen “Pendiente” o “A definir” muestran una etiqueta en la tienda hasta que los cargues.</p>
+        <ul className="address-list">
+          {INFO_PAGE_SLUGS.map((slug) => (
+            <li key={slug} className="address-card">
+              <p className="address-card__title">
+                <Link href={`/admin/ajustes/paginas/${slug}`}>{infoPages[slug].title}</Link>
+                {!savedPages[slug] && <span className="badge badge--pending">Texto de ejemplo</span>}
+              </p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="account__section" aria-labelledby="stickers-title">
