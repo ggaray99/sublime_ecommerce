@@ -25,12 +25,12 @@ export function Checkbox({ name, label, defaultChecked, hint }: { name: string; 
 const ACCEPT = "image/jpeg,image/png,image/webp";
 const HINT = "JPG, PNG o WebP, hasta 4 MB, entre 400 y 4000 px por lado.";
 
-export function FileField({ state }: { state: AdminFormState }) {
+export function FileField({ state, label = "Archivo" }: { state: AdminFormState; label?: string }) {
   const id = useId();
   const error = state.fields?.file;
   return (
     <div className="field">
-      <label htmlFor={id}>Archivo</label>
+      <label htmlFor={id}>{label}</label>
       <input
         id={id}
         name="file"

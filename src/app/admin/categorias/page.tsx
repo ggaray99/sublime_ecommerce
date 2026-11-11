@@ -9,6 +9,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { FALLBACK_CATEGORY_IMAGE } from "@/server/catalog/postgres-storefront";
+import { hasMediaStorage } from "@/server/media/public-files";
 import { adminAvailable, getCategoryRepository, getCurrentAdmin } from "@/server/admin/session";
 
 export const metadata: Metadata = {
@@ -40,6 +41,7 @@ async function Categories({ searchParams }: { searchParams: PageProps<"/admin/ca
               <p className="address-card__title">
                 <Link href={`/admin/categorias/${category.id}`}>{category.label}</Link>
                 {!category.active && <span className="badge badge--pending">Oculta</span>}
+                {!category.imageUrl && <span className="badge badge--pending">Sin imagen</span>}
               </p>
               <p className="muted">
                 {category.activeProductCount} publicados de {category.productCount} · orden {category.sortOrder}
@@ -53,6 +55,7 @@ async function Categories({ searchParams }: { searchParams: PageProps<"/admin/ca
         <h2 id="nueva-title">Nueva categoría</h2>
         <CategoryForm
           mode="create"
+          withImage={hasMediaStorage()}
           initial={{ id: "", label: "", tagline: "", description: "", sortOrder: String(nextOrder), active: true }}
         />
       </section>

@@ -2,11 +2,20 @@
 
 import { useActionState } from "react";
 import { createCategoryAction, deleteCategoryAction, updateCategoryAction } from "@/app/admin/categorias/actions";
-import { Checkbox, Field, Status } from "./forms";
+import { Checkbox, Field, FileField, Status } from "./forms";
 
 export type CategoryFormValues = { id: string; label: string; tagline: string; description: string; sortOrder: string; active: boolean };
 
-export function CategoryForm({ mode, initial }: { mode: "create" | "edit"; initial: CategoryFormValues }) {
+export function CategoryForm({
+  mode,
+  initial,
+  withImage = false,
+}: {
+  mode: "create" | "edit";
+  initial: CategoryFormValues;
+  /** Create form only: an optional photo, uploaded together with the category. */
+  withImage?: boolean;
+}) {
   const [state, action, pending] = useActionState(mode === "create" ? createCategoryAction : updateCategoryAction, {});
   const value = (key: Exclude<keyof CategoryFormValues, "active">) => state.values?.[key] ?? initial[key];
   const active = state.values ? state.values.active === "on" : initial.active;
@@ -29,6 +38,7 @@ export function CategoryForm({ mode, initial }: { mode: "create" | "edit"; initi
         <Field name="sortOrder" label="Orden" state={state} defaultValue={value("sortOrder")} hint="Menor = aparece antes." inputMode="numeric" />
       </div>
       <Field name="description" label="Descripción" state={state} defaultValue={value("description")} multiline />
+      {mode === "create" && withImage && <FileField state={state} label="Imagen (opcional)" />}
       <Checkbox name="active" label="Visible en la tienda" defaultChecked={active} hint="Si la ocultás, también se ocultan sus productos." />
       <button type="submit" className="btn btn--coal" disabled={pending}>
         {pending ? "Guardando…" : mode === "create" ? "Crear categoría" : "Guardar cambios"}

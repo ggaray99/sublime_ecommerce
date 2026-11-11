@@ -46,7 +46,11 @@ async function CategoryAdmin({ params, searchParams }: Pick<Props, "params" | "s
         </p>
         {query.creada && (
           <p className="panel panel--muted" role="status">
-            Categoría creada. Ya podés asignarle productos y subir su imagen.
+            {query.imagen === "error"
+              ? "Categoría creada, pero la imagen no se pudo guardar. Subila de nuevo desde Imagen."
+              : category.imageUrl
+                ? "Categoría creada con su imagen. Ya podés asignarle productos."
+                : "Categoría creada. Ya podés asignarle productos y subir su imagen."}
           </p>
         )}
         <CategoryForm
@@ -66,9 +70,9 @@ async function CategoryAdmin({ params, searchParams }: Pick<Props, "params" | "s
         <h2 id="imagen-title">Imagen</h2>
         <Image src={category.imageUrl || FALLBACK_CATEGORY_IMAGE} alt="" width={320} height={320} className="image-admin__thumb" />
         {hasMediaStorage() ? (
-          <CategoryImageUpload categoryId={category.id} />
+          <CategoryImageUpload categoryId={category.id} hasImage={Boolean(category.imageUrl)} />
         ) : (
-          <p className="panel panel--muted">La carga de imágenes no está configurada en este entorno (falta conectar Vercel Blob).</p>
+          <p className="panel panel--muted">La carga de imágenes no está configurada en este entorno (falta MEDIA_ROOT).</p>
         )}
       </section>
 

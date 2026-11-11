@@ -53,7 +53,7 @@ export function ImageAltForm({ productId, imageId, alt }: { productId: string; i
   );
 }
 
-export function CategoryImageUpload({ categoryId }: { categoryId: string }) {
+export function CategoryImageUpload({ categoryId, hasImage }: { categoryId: string; hasImage: boolean }) {
   const [state, action, pending] = useActionState(uploadCategoryImageAction, {});
   return (
     <form action={action} className="quote-form">
@@ -61,7 +61,7 @@ export function CategoryImageUpload({ categoryId }: { categoryId: string }) {
       <input type="hidden" name="categoryId" value={categoryId} />
       <FileField state={state} />
       <button type="submit" className="btn btn--coal" disabled={pending}>
-        {pending ? "Subiendo…" : "Reemplazar imagen"}
+        {pending ? "Subiendo…" : hasImage ? "Reemplazar imagen" : "Subir imagen"}
       </button>
     </form>
   );
