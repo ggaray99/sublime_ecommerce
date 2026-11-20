@@ -4,6 +4,8 @@ import { products, type Product } from "../data/products.ts";
 import { listStorefrontCategories, listStorefrontProducts } from "./catalog/postgres-storefront.ts";
 import { getSql, hasDatabase } from "./db/client.ts";
 import { listStorefrontDesigns, type StorefrontDesign } from "./designs/repository.ts";
+import type { TemplateOverrides } from "../lib/designs/mockups.ts";
+import { listTemplateOverrides } from "./mockups/templates-repository.ts";
 
 /** Invalidated with updateTag() by every admin change to the catalog. */
 export const CATALOG_TAG = "catalog";
@@ -54,6 +56,18 @@ export async function getStorefrontDesigns(): Promise<StorefrontDesign[]> {
   }
   cacheLife("minutes");
   return listStorefrontDesigns(getSql());
+}
+
+/** Templates uploaded in Admin › Soportes, which replace the built-in ones in every mockup. */
+export async function getMockupTemplateOverrides(): Promise<TemplateOverrides> {
+  "use cache";
+  cacheTag(CATALOG_TAG);
+  if (!hasDatabase()) {
+    cacheLife("max");
+    return {};
+  }
+  cacheLife("minutes");
+  return listTemplateOverrides(getSql());
 }
 
 export async function getStorefrontDesign(slug: string): Promise<StorefrontDesign | undefined> {

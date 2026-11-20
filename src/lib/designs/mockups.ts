@@ -7,6 +7,9 @@
  * templates; the tank top photos, the rendered mug, the sticker surface and every
  * warp map come from scripts/generate-mockups.mjs (run it again after changing a
  * template, a print area or a warp scale).
+ *
+ * Admin › Soportes can replace any of these built-in templates with an uploaded
+ * photo (TemplateOverrides, stored in mockup_templates).
  */
 import { PRINT_AREA_CM, printArea, SCALE_RANGE, shirtTemplateSrc, TEMPLATE_PX, type Placement } from "../lab/tshirt.ts";
 import type { MockupKind } from "./kinds.ts";
@@ -61,7 +64,7 @@ const MUG_CM = { width: 9, height: 8 } as const;
 const STICKER_CM = { width: 8, height: 8 } as const;
 
 /** How far fabric folds shift the print, in template pixels. */
-const FABRIC_WARP_PX = 10;
+export const FABRIC_WARP_PX = 10;
 const warp = (name: string, scale: number): Warp => ({
   map: `/lab/mockups/warp/${name}-map.png`,
   shade: `/lab/mockups/warp/${name}-shade.png`,
@@ -131,14 +134,65 @@ export const MOCKUPS: Record<MockupKind, KindMockup> = {
   },
 };
 
-/** The template for a kind; a tone or side the kind does not have falls back to its first one. */
-export function mockupTemplate(kind: MockupKind, tone: MockupTone, side: MockupSide): MockupTemplate {
+/** One template of a kind: a color tone and a side. */
+export type TemplateSlot = { kind: MockupKind; tone: MockupTone; side: MockupSide };
+export type TemplateSlotKey = `${MockupKind}-${MockupTone}-${MockupSide}`;
+
+/** An uploaded template that replaces the built-in one of its slot. */
+export type TemplateOverride = { src: string; area: Box; warp?: Warp };
+export type TemplateOverrides = Partial<Record<TemplateSlotKey, TemplateOverride>>;
+
+export const slotKey = ({ kind, tone, side }: TemplateSlot): TemplateSlotKey => `${kind}-${tone}-${side}`;
+
+/** Every slot the kinds declare, in kind, tone, side order. */
+export const TEMPLATE_SLOTS: TemplateSlot[] = (Object.keys(MOCKUPS) as MockupKind[]).flatMap((kind) =>
+  MOCKUPS[kind].tones.flatMap((tone) => MOCKUPS[kind].sides.map((side) => ({ kind, tone, side }))),
+);
+
+export const isTemplateSlot = (kind: string, tone: string, side: string): kind is MockupKind =>
+  TEMPLATE_SLOTS.some((slot) => slot.kind === kind && slot.tone === tone && slot.side === side);
+
+/**
+ * The template for a kind; a tone or side the kind does not have falls back to
+ * its first one. An uploaded template for that slot wins over the built-in one.
+ */
+export function mockupTemplate(kind: MockupKind, tone: MockupTone, side: MockupSide, overrides?: TemplateOverrides): MockupTemplate {
   const mockup = MOCKUPS[kind];
   const t = mockup.tones.includes(tone) ? tone : mockup.tones[0];
   const s = mockup.sides.includes(side) ? side : mockup.sides[0];
-  const template = mockup.templates[`${t}-${s}`]!;
+  const template = overrides?.[slotKey({ kind, tone: t, side: s })] ?? mockup.templates[`${t}-${s}`]!;
   return { ...template, blend: t === "light" && mockup.multiplyOnLight ? "multiply" : "normal" };
 }
+
+/** Smallest print area the admin can mark, in template pixels. */
+export const MIN_AREA_PX = 80;
+
+/**
+ * A print area the admin marked on an uploaded photo, made valid: the kind's
+ * print proportion (from its width), at least MIN_AREA_PX wide and inside the template.
+ */
+export function fitTemplateArea(kind: MockupKind, box: { left: number; top: number; width: number }): Box {
+  const { printCm } = MOCKUPS[kind];
+  const ratio = printCm.height / printCm.width;
+  const num = (n: number, fallback: number) => (Number.isFinite(n) ? n : fallback);
+  const maxWidth = Math.min(TEMPLATE_PX, Math.floor(TEMPLATE_PX / ratio));
+  const width = Math.round(Math.min(maxWidth, Math.max(MIN_AREA_PX, num(box.width, TEMPLATE_PX / 2))));
+  const height = Math.min(TEMPLATE_PX, Math.round(width * ratio));
+  const left = Math.round(Math.min(TEMPLATE_PX - width, Math.max(0, num(box.left, 0))));
+  const top = Math.round(Math.min(TEMPLATE_PX - height, Math.max(0, num(box.top, 0))));
+  return { left, top, width, height };
+}
+
+/** Where the print area starts on a newly uploaded photo: the built-in one, refitted to the print proportion. */
+export function startingArea(slot: TemplateSlot): Box {
+  const { area } = mockupTemplate(slot.kind, slot.tone, slot.side);
+  const fitted = fitTemplateArea(slot.kind, { left: area.left, top: area.top, width: area.width });
+  // The built-in mug area bounds the whole rendered band; on a photo start with the front of the mug.
+  return slot.kind === "mug" ? fitTemplateArea("mug", { left: 340, top: 330, width: 400 }) : fitted;
+}
+
+/** Mug photos: how much of the cylinder the print area spans (0 flat … 1 half the mug). */
+export const DEFAULT_MUG_CURVE = 0.7;
 
 const normalize = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const DARK_WORDS = ["negro", "negra", "black", "oscuro"];

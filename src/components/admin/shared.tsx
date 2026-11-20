@@ -117,6 +117,8 @@ function describe(entry: AuditEntry): string {
     "design.status": `Diseño ${DESIGN_STATUS_LABELS[changes.after as DesignStatus]?.toLowerCase() ?? changes.after}`,
     "design.delete": "Diseño eliminado",
     "design.base": changes.productId ? "Producto base vinculado" : "Producto base desvinculado",
+    "design.template": "Imagen de soporte actualizada",
+    "design.template_reset": "Imagen de soporte restablecida a la original",
     "product.extras": "Venta y logística actualizadas",
     "product.duplicate": `Copia de ${changes.from}`,
     "product.import": `Planilla importada (${changes.sku})`,
