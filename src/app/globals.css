@@ -3797,3 +3797,128 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
   flex: 1 1 16rem;
   margin: 0;
 }
+
+/* ------------------------------------------------------------------
+   Design catalog (/disenos): a design laid over a base product template
+   (same overlay as the T-shirt lab), listing cards and the detail page.
+   ------------------------------------------------------------------ */
+.mockup-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #f4f3f0;
+}
+
+.mockup-stage--large {
+  max-width: min(100%, calc(100svh - 160px));
+  border: var(--line);
+}
+
+.mockup-stage__photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  pointer-events: none;
+}
+
+.mockup-stage__area {
+  position: absolute;
+}
+
+.mockup-stage__design {
+  position: absolute;
+  height: auto;
+  max-width: none;
+  transform: translate(-50%, -50%);
+  user-select: none;
+  pointer-events: none;
+}
+
+.mockup-stage__design.is-multiply {
+  mix-blend-mode: multiply;
+}
+
+/* Die-cut sticker: a white vinyl border around the design and a soft shadow. */
+.mockup-stage__design.is-sticker {
+  filter: drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff) drop-shadow(0 -3px 0 #fff)
+    drop-shadow(0 6px 8px rgb(0 0 0 / 0.25));
+}
+
+/* Listing cards: the generic card image rules must not stretch the overlay. */
+.product-card .design-card__media img.mockup-stage__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: none;
+}
+
+.product-card .design-card__media img.mockup-stage__design,
+.product-card:hover .design-card__media img.mockup-stage__design {
+  height: auto;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+}
+
+.design-card__media .mockup-stage {
+  transition: transform 0.35s ease;
+}
+
+.product-card:hover .design-card__media .mockup-stage {
+  transform: scale(1.04) rotate(-1deg);
+}
+
+.design-card__kinds {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted-light);
+}
+
+.design-detail__header {
+  max-width: 70ch;
+  margin-bottom: clamp(16px, 3vw, 28px);
+}
+
+.design-detail__header h1 {
+  margin: 0.2em 0;
+}
+
+.design-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(20px, 3vw, 40px);
+  align-items: start;
+}
+
+.design-detail__preview {
+  position: sticky;
+  top: 88px;
+  display: grid;
+  gap: 8px;
+}
+
+.design-detail__controls {
+  display: grid;
+  gap: 18px;
+}
+
+@media (max-width: 899px) {
+  .design-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .design-detail__preview {
+    position: static;
+  }
+}
+
+/* Admin "Soportes": one card per base kind with its product picker. */
+.soportes-form {
+  margin-top: 12px;
+}
+
+.soportes-form select {
+  width: 100%;
+  max-width: 100%;
+}

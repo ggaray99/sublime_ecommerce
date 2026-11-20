@@ -6,7 +6,7 @@ import { PageIntro } from "@/components/page-intro";
 import { ProductCard } from "@/components/product-card";
 import { site } from "@/data/site";
 import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/structured-data";
-import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefront";
+import { getShopProducts, getStorefrontCategories } from "@/server/storefront";
 
 async function getCategory(id: string) {
   return (await getStorefrontCategories()).find((category) => category.id === id);
@@ -39,7 +39,7 @@ export default async function CategoryPage({ params }: PageProps<"/categorias/[i
   const { id } = await params;
   const category = await getCategory(id);
   if (!category) notFound();
-  const products = (await getStorefrontProducts()).filter((product) => product.category === category.id);
+  const products = (await getShopProducts()).filter((product) => product.category === category.id);
 
   return (
     <main id="contenido" className="page page--light">

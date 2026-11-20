@@ -11,6 +11,7 @@ export type NavLink = { href: string; label: string };
 
 export const mainNav: NavLink[] = [
   { href: "/tienda", label: "Tienda" },
+  { href: "/disenos", label: "Diseños" },
   { href: "/categorias", label: "Categorías" },
   { href: "/#destacados", label: "Destacados" },
   { href: "/encargos", label: "Personalizados" },

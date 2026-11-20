@@ -4,7 +4,7 @@ import { PageIntro } from "@/components/page-intro";
 import { ProductCard } from "@/components/product-card";
 import { Shop } from "@/components/shop";
 import type { Product } from "@/data/products";
-import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefront";
+import { getShopProducts, getStorefrontCategories } from "@/server/storefront";
 import { forClient } from "@/lib/catalog";
 
 export const metadata: Metadata = {
@@ -27,7 +27,7 @@ function CatalogFallback({ products }: { products: Product[] }) {
 }
 
 export default async function TiendaPage() {
-  const [all, categories] = await Promise.all([getStorefrontProducts(), getStorefrontCategories()]);
+  const [all, categories] = await Promise.all([getShopProducts(), getStorefrontCategories()]);
   // The grid and its search only need names, tags, prices and the cover photo.
   const products = all.map((product) => forClient(product, { tags: true }));
   return (

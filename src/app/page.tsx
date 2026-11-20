@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { getHomeHero } from "@/server/home/session";
 import { pickHeroProducts } from "@/server/home/settings";
-import { getStorefrontCategories, getStorefrontProducts } from "@/server/storefront";
+import { getShopProducts, getStorefrontCategories } from "@/server/storefront";
 import { priceLabel } from "@/lib/format";
 
 const applications = [
@@ -34,7 +34,7 @@ const processTracks = [
 ];
 
 export default async function Home() {
-  const [products, categories, hero] = await Promise.all([getStorefrontProducts(), getStorefrontCategories(), getHomeHero()]);
+  const [products, categories, hero] = await Promise.all([getShopProducts(), getStorefrontCategories(), getHomeHero()]);
   // Edited from /admin/portada; hidden or missing products fall back to the usual ones.
   const heroProducts = pickHeroProducts(hero, products);
   // Featured mix: catalog stickers first, then the rest of the product lines.
