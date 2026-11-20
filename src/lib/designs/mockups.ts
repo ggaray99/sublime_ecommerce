@@ -4,7 +4,9 @@
  * Shared by the browser (live preview) and the server.
  *
  * Every template is a TEMPLATE_PX square. The T-shirt reuses the Custom Lab
- * templates; tank top, mug and sticker are demo art from scripts/generate-mockups.mjs.
+ * templates; the tank top photos, the rendered mug, the sticker surface and every
+ * warp map come from scripts/generate-mockups.mjs (run it again after changing a
+ * template, a print area or a warp scale).
  */
 import { PRINT_AREA_CM, printArea, SCALE_RANGE, shirtTemplateSrc, TEMPLATE_PX, type Placement } from "../lab/tshirt.ts";
 import type { MockupKind } from "./kinds.ts";
@@ -21,12 +23,20 @@ export const MOCKUP_SIDE_LABELS: Record<MockupSide, string> = { front: "Frente",
 /** A rectangle in template pixels. */
 export type Box = { left: number; top: number; width: number; height: number };
 
+/**
+ * Bends the flat design onto the product: `map` is an SVG feDisplacementMap
+ * (fabric folds, the mug's curve) sized like the print area, `shade` the light
+ * and shadow laid back over the ink, `scale` the displacement in template pixels.
+ */
+export type Warp = { map: string; shade: string; scale: number };
+
 export type MockupTemplate = {
   src: string;
   /** Where the design can be placed, in template pixels. */
   area: Box;
   /** "multiply" lets the fabric or ceramic show through the ink on light templates. */
   blend: "multiply" | "normal";
+  warp?: Warp;
 };
 
 type KindMockup = {
@@ -38,7 +48,7 @@ type KindMockup = {
   start: { scale: number; y: number };
   /** A sticker is white vinyl on top of the surface, so it never multiplies. */
   multiplyOnLight: boolean;
-  templates: Partial<Record<`${MockupTone}-${MockupSide}`, { src: string; area: Box }>>;
+  templates: Partial<Record<`${MockupTone}-${MockupSide}`, { src: string; area: Box; warp?: Warp }>>;
 };
 
 /** A box centred horizontally at `centerX`, `width` wide, with the print proportion. */
@@ -50,16 +60,30 @@ const TANK_CM = { width: 24, height: 30 } as const;
 const MUG_CM = { width: 9, height: 8 } as const;
 const STICKER_CM = { width: 8, height: 8 } as const;
 
+/** How far fabric folds shift the print, in template pixels. */
+const FABRIC_WARP_PX = 10;
+const warp = (name: string, scale: number): Warp => ({
+  map: `/lab/mockups/warp/${name}-map.png`,
+  shade: `/lab/mockups/warp/${name}-shade.png`,
+  scale,
+});
+
 const shirt = (tone: MockupTone, side: MockupSide) => {
   const color = tone === "dark" ? "black" : "white";
-  return { src: shirtTemplateSrc(color, side), area: printArea(color, side) };
+  return { src: shirtTemplateSrc(color, side), area: printArea(color, side), warp: warp(`tshirt-${tone}-${side}`, FABRIC_WARP_PX) };
 };
 
 const tank = (tone: MockupTone, side: MockupSide) => ({
-  src: `/lab/mockups/tank-${tone === "dark" ? "black" : "white"}-${side}.png`,
-  // The demo tank top body spans x 300–780; the back neckline is higher.
-  area: areaOf(540, side === "front" ? 370 : 330, 250, TANK_CM),
+  // One photo per color; the back print sits a little higher, under the shallower neckline.
+  src: `/lab/mockups/tank-${tone === "dark" ? "black" : "white"}.png`,
+  // The tank top body spans x 288–792, y 157–922; the front neckline bottoms out near y 260.
+  area: areaOf(540, side === "front" ? 300 : 270, 260, TANK_CM),
+  warp: warp(`tank-${tone}-${side}`, FABRIC_WARP_PX),
 });
+
+/** The rendered mug: its print band (9 × 8 cm around the body) fits inside this box; see the script. */
+const MUG_AREA: Box = { left: 200, top: 200, width: 700, height: 700 };
+const MUG_WARP_PX = 1000;
 
 export const MOCKUPS: Record<MockupKind, KindMockup> = {
   tshirt: {
@@ -94,8 +118,8 @@ export const MOCKUPS: Record<MockupKind, KindMockup> = {
     printCm: MUG_CM,
     start: { scale: 0.8, y: 0.5 },
     multiplyOnLight: true,
-    // The demo mug body spans x 250–730, y 270–870 (handle on the right).
-    templates: { "light-front": { src: "/lab/mockups/mug-white.png", area: areaOf(490, 400, 360, MUG_CM) } },
+    // The print band wraps around the body; the box only bounds it (see MUG_AREA).
+    templates: { "light-front": { src: "/lab/mockups/mug-white.png", area: MUG_AREA, warp: warp("mug-light-front", MUG_WARP_PX) } },
   },
   sticker: {
     sides: ["front"],
@@ -159,3 +183,14 @@ export const areaStyle = (area: Box) => {
   const pct = (n: number) => `${(n / TEMPLATE_PX) * 100}%`;
   return { left: pct(area.left), top: pct(area.top), width: pct(area.width), height: pct(area.height) };
 };
+
+/**
+ * The design's rectangle inside the print area, as fractions of the area (0–1):
+ * the flat artwork before a warp bends it onto the product.
+ */
+export function designBox(kind: MockupKind, p: Placement, designAspect: number) {
+  const { printCm } = MOCKUPS[kind];
+  const aspect = designAspect > 0 && Number.isFinite(designAspect) ? designAspect : 1;
+  const height = (p.scale / aspect) * (printCm.width / printCm.height);
+  return { left: p.x - p.scale / 2, top: p.y - height / 2, width: p.scale, height };
+}

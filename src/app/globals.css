@@ -3836,8 +3836,17 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
   pointer-events: none;
 }
 
-.mockup-stage__design.is-multiply {
+.mockup-stage__design.is-multiply,
+.mockup-stage__warp.is-multiply {
   mix-blend-mode: multiply;
+}
+
+/* A design bent onto the product by its warp map (SVG filter). */
+.mockup-stage__warp {
+  position: absolute;
+  overflow: visible;
+  user-select: none;
+  pointer-events: none;
 }
 
 /* Die-cut sticker: a white vinyl border around the design and a soft shadow. */

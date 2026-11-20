@@ -2,12 +2,14 @@
 // a print area inside it, and a default placement that stays inside that area.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
+import sharp from "sharp";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { MOCKUP_KINDS } from "../src/lib/designs/kinds.ts";
 import {
   clampMockupPlacement,
   defaultPlacement,
+  designBox,
   MOCKUPS,
   mockupTemplate,
   TEMPLATE_PX,
@@ -40,6 +42,24 @@ describe("mockup templates", () => {
         }
       }
     }
+  });
+
+  it("bends the design onto garments and the mug with warp maps sized like the print area", async () => {
+    for (const kind of ["tshirt", "tank", "mug"]) {
+      for (const tone of MOCKUPS[kind].tones) {
+        for (const side of MOCKUPS[kind].sides) {
+          const { warp, area } = mockupTemplate(kind, tone, side);
+          assert.ok(warp && warp.scale > 0, `${kind} ${tone} ${side}: no warp`);
+          for (const file of [warp.map, warp.shade]) {
+            assert.ok(existsSync(publicFile(file)), `${file} is missing: run node scripts/generate-mockups.mjs`);
+            const { width, height } = await sharp(publicFile(file)).metadata();
+            assert.deepEqual([width, height], [area.width, area.height], `${file} does not match its print area`);
+          }
+        }
+      }
+    }
+    // A sticker is flat vinyl: no warp.
+    assert.equal(mockupTemplate("sticker", "light", "front").warp, undefined);
   });
 
   it("reuses the T-shirt lab templates and print areas", () => {
@@ -90,10 +110,21 @@ describe("placement", () => {
     }
   });
 
+  it("lays the flat design inside the print area with its own proportion", () => {
+    for (const kind of MOCKUP_KINDS) {
+      const { printCm } = MOCKUPS[kind];
+      for (const aspect of [0.5, 1, 2]) {
+        const box = designBox(kind, defaultPlacement(kind, aspect), aspect);
+        assert.ok(box.left >= -1e-9 && box.top >= -1e-9 && box.left + box.width <= 1 + 1e-9 && box.top + box.height <= 1 + 1e-9, `${kind} ${aspect}`);
+        const cmAspect = (box.width * printCm.width) / (box.height * printCm.height);
+        assert.ok(Math.abs(cmAspect - aspect) < 1e-9, `${kind} ${aspect}: printed proportion ${cmAspect}`);
+      }
+    }
+  });
+
   it("shrinks a tall design so its height fits the area", () => {
-    const area = mockupTemplate("mug", "light", "front").area;
     const p = clampMockupPlacement("mug", { scale: 1, x: 0.5, y: 0.5 }, 0.1);
-    const heightFraction = ((p.scale * area.width) / 0.1) / area.height;
+    const heightFraction = designBox("mug", p, 0.1).height;
     assert.ok(heightFraction <= 1 + 1e-9, `height ${heightFraction}`);
   });
 });
