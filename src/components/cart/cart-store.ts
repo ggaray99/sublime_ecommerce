@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { Product } from "@/data/products";
-import { addLine, parseCart, removeLine, setQuantity, summarizeCart, type CartLine } from "@/lib/cart";
+import { addLine, parseCart, removeLine, setQuantity, summarizeCart, type CartDesign, type CartLine } from "@/lib/cart";
 
 const STORAGE_KEY = "sublime-demo-cart-v1";
 const EMPTY: CartLine[] = [];
@@ -56,15 +56,15 @@ function write(lines: CartLine[]) {
 }
 
 export const cartActions = {
-  /** `sku` picks the variant (size, color…) of products with options. */
-  add(productId: string, quantity = 1, sku?: string) {
-    write(addLine(getSnapshot(), productId, quantity, sku));
+  /** `sku` picks the variant (size, color…) of products with options; `designId` the design printed on it. */
+  add(productId: string, quantity = 1, sku?: string, designId?: string) {
+    write(addLine(getSnapshot(), productId, quantity, sku, designId));
   },
-  setQuantity(productId: string, quantity: number, sku?: string) {
-    write(setQuantity(getSnapshot(), productId, quantity, sku));
+  setQuantity(productId: string, quantity: number, sku?: string, designId?: string) {
+    write(setQuantity(getSnapshot(), productId, quantity, sku, designId));
   },
-  remove(productId: string, sku?: string) {
-    write(removeLine(getSnapshot(), productId, sku));
+  remove(productId: string, sku?: string, designId?: string) {
+    write(removeLine(getSnapshot(), productId, sku, designId));
   },
   clear() {
     write(EMPTY);
@@ -75,9 +75,9 @@ export function useCartLines(): CartLine[] {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-/** Cart pages pass the server catalog (database prices where connected). */
-export function useCartSummary(catalog: readonly Product[]) {
-  return summarizeCart(useCartLines(), catalog);
+/** Cart pages pass the server catalog (database prices where connected) and the published designs. */
+export function useCartSummary(catalog: readonly Product[], designs: readonly CartDesign[] = []) {
+  return summarizeCart(useCartLines(), catalog, designs);
 }
 
 /**

@@ -8,7 +8,8 @@ import { getCurrentCustomer, getCustomerRepository } from "@/server/customers/se
 import { PROVINCES } from "@/server/customers/validation";
 import { getShippingRepository, ordersAvailable } from "@/server/orders/session";
 import { onlinePaymentsAvailable } from "@/server/payments/session";
-import { getStorefrontProducts } from "@/server/storefront";
+import { getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
+import { toCartDesign } from "@/lib/cart";
 import { forClient } from "@/lib/catalog";
 
 export const metadata: Metadata = {
@@ -21,7 +22,8 @@ export const metadata: Metadata = {
 /** Request-time: reads the session to pre-fill contact data and saved addresses. */
 async function RealCheckout() {
   await connection();
-  const catalog = (await getStorefrontProducts()).map((product) => forClient(product));
+  const [products, designs] = await Promise.all([getStorefrontProducts(), getStorefrontDesigns()]);
+  const catalog = products.map((product) => forClient(product));
   const customer = await getCurrentCustomer().catch(() => null);
   const shipping = getShippingRepository();
   const [addresses, shippingRules, pickup, onlinePayment] = await Promise.all([
@@ -33,6 +35,7 @@ async function RealCheckout() {
   return (
     <CheckoutForm
       catalog={catalog}
+      designs={designs.map(toCartDesign)}
       onlinePayment={onlinePayment}
       signedIn={Boolean(customer)}
       prefill={{ name: customer?.fullName ?? "", email: customer?.email ?? "", phone: customer?.phone ?? "" }}
@@ -47,7 +50,8 @@ async function RealCheckout() {
 
 export default async function CheckoutPage() {
   if (!ordersAvailable()) {
-    const catalog = (await getStorefrontProducts()).map((product) => forClient(product));
+    const [products, designs] = await Promise.all([getStorefrontProducts(), getStorefrontDesigns()]);
+    const catalog = products.map((product) => forClient(product));
     return (
       <main id="contenido" className="page">
         <PageIntro
@@ -63,7 +67,7 @@ export default async function CheckoutPage() {
             paso solicita ni procesa datos.
           </p>
         </PageIntro>
-        <CheckoutDemo catalog={catalog} />
+        <CheckoutDemo catalog={catalog} designs={designs.map(toCartDesign)} />
       </main>
     );
   }

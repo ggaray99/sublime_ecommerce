@@ -5,6 +5,7 @@ import { useActionState, useEffect, useId, useState, useTransition } from "react
 import { placeOrderAction, previewDiscountAction, type CheckoutState, type DiscountPreview } from "@/app/checkout/actions";
 import { Field } from "@/components/form-field";
 import type { Product } from "@/data/products";
+import { lineKey, type CartDesign } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
 import { etaLabel, quoteShipping, type PickupSettings, type ShippingRule } from "@/server/shipping/rules";
 import { useCartLines, useCartSummary, useHydrated } from "./cart-store";
@@ -24,6 +25,8 @@ export type SavedAddress = {
 
 type Props = {
   catalog: Product[];
+  /** Published designs, to show design lines by their name. */
+  designs?: CartDesign[];
   prefill: { name: string; email: string; phone: string };
   addresses: SavedAddress[];
   provinces: readonly string[];
@@ -36,10 +39,10 @@ type Props = {
 };
 
 /** Real checkout (staging): reserves stock for 15 minutes; then Mercado Pago, or a transfer arranged with the shop. */
-export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn, shippingRules, pickup, onlinePayment }: Props) {
+export function CheckoutForm({ catalog, designs = [], prefill, addresses, provinces, signedIn, shippingRules, pickup, onlinePayment }: Props) {
   const hydrated = useHydrated();
   const lines = useCartLines();
-  const { items, count, subtotal } = useCartSummary(catalog);
+  const { items, count, subtotal } = useCartSummary(catalog, designs);
   const [state, action, pending] = useActionState<CheckoutState, FormData>(placeOrderAction, {});
   // One key per checkout page: a double click or a retry returns the same order.
   const [idempotencyKey] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`));
@@ -94,9 +97,13 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
       : null;
   const shippingMinor = method === "pickup" || freeShipping ? 0 : estimate?.covered ? estimate.costMinor : null;
   const couponState = coupon && preview?.coupon?.code === coupon.toUpperCase().replace(/\s+/g, "") ? preview.coupon : null;
-  const issueFor = (productId: string, sku?: string) =>
-    state.issues?.find((issue) => issue.productId === productId && (issue.sku ?? "") === (sku ?? ""))?.message ??
-    state.issues?.find((issue) => issue.productId === productId && !issue.sku)?.message;
+  const issueFor = (productId: string, sku?: string, designId?: string) => {
+    const sameDesign = (issue: { designId?: string }) => (issue.designId ?? "") === (designId ?? "");
+    return (
+      state.issues?.find((issue) => issue.productId === productId && (issue.sku ?? "") === (sku ?? "") && sameDesign(issue))?.message ??
+      state.issues?.find((issue) => issue.productId === productId && !issue.sku && sameDesign(issue))?.message
+    );
+  };
 
   return (
     <form
@@ -260,12 +267,12 @@ export function CheckoutForm({ catalog, prefill, addresses, provinces, signedIn,
       <aside className="summary" aria-labelledby="checkout-summary-title">
         <h2 id="checkout-summary-title">Tu pedido</h2>
         <ul className="summary__items">
-          {items.map(({ product, variant, optionsLabel, quantity, lineTotal }) => {
-            const issue = issueFor(product.id, variant?.sku);
+          {items.map(({ product, design, variant, optionsLabel, quantity, lineTotal }) => {
+            const issue = issueFor(product.id, variant?.sku, design?.id);
             return (
-              <li key={`${product.id}-${variant?.sku ?? ""}`}>
+              <li key={lineKey(product.id, variant?.sku, design?.id)}>
                 <span>
-                  {quantity} × {product.name}
+                  {quantity} × {design?.name ?? product.name}
                   {optionsLabel && ` (${optionsLabel})`}
                   {issue && <strong className="field__error"> · {issue}</strong>}
                 </span>

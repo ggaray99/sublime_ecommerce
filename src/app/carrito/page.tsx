@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { CartView } from "@/components/cart/cart-view";
 import { PageIntro } from "@/components/page-intro";
 import { ordersAvailable } from "@/server/orders/session";
-import { getStorefrontProducts } from "@/server/storefront";
+import { getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
+import { toCartDesign } from "@/lib/cart";
 import { forClient } from "@/lib/catalog";
 
 export const metadata: Metadata = {
@@ -12,7 +13,8 @@ export const metadata: Metadata = {
 };
 
 export default async function CarritoPage() {
-  const catalog = (await getStorefrontProducts()).map((product) => forClient(product));
+  const [products, designs] = await Promise.all([getStorefrontProducts(), getStorefrontDesigns()]);
+  const catalog = products.map((product) => forClient(product));
   return (
     <main id="contenido" className="page">
       <PageIntro
@@ -25,7 +27,7 @@ export default async function CarritoPage() {
       >
         <p>El carrito se guarda solo en este navegador y no contiene datos personales.</p>
       </PageIntro>
-      <CartView catalog={catalog} realCheckout={ordersAvailable()} />
+      <CartView catalog={catalog} designs={designs.map(toCartDesign)} realCheckout={ordersAvailable()} />
     </main>
   );
 }

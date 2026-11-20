@@ -1,30 +1,38 @@
 import type { Product, ProductVariant } from "../data/products";
+import { designLineName, type MockupKind } from "./designs/kinds.ts";
 
 /**
- * Only product ids, variant SKUs and quantities are persisted: no personal data.
- * `sku` identifies the variant (size, color…) of products that have options.
+ * Only product ids, variant SKUs, design ids and quantities are persisted: no personal data.
+ * `sku` identifies the variant (size, color…) of products that have options;
+ * `designId` the published design printed on a base product (mug, T-shirt…).
  */
-export type CartLine = { productId: string; quantity: number; sku?: string };
+export type CartLine = { productId: string; quantity: number; sku?: string; designId?: string };
 
 export const MAX_QUANTITY = 99;
 
+const DESIGN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 const clamp = (quantity: number) => Math.min(MAX_QUANTITY, Math.max(1, Math.floor(quantity)));
-const sameLine = (line: CartLine, productId: string, sku?: string) => line.productId === productId && (line.sku ?? "") === (sku ?? "");
+/** A line is a product + variant + design: the same product with two designs is two lines. */
+const sameLine = (line: CartLine, productId: string, sku?: string, designId?: string) =>
+  line.productId === productId && (line.sku ?? "") === (sku ?? "") && (line.designId ?? "") === (designId ?? "");
 
-export function addLine(lines: readonly CartLine[], productId: string, quantity = 1, sku?: string): CartLine[] {
-  const existing = lines.find((line) => sameLine(line, productId, sku));
-  if (!existing) return [...lines, { productId, quantity: clamp(quantity), ...(sku ? { sku } : {}) }];
-  return lines.map((line) => (sameLine(line, productId, sku) ? { ...line, quantity: clamp(line.quantity + quantity) } : line));
+export function addLine(lines: readonly CartLine[], productId: string, quantity = 1, sku?: string, designId?: string): CartLine[] {
+  const existing = lines.find((line) => sameLine(line, productId, sku, designId));
+  if (!existing) return [...lines, { productId, quantity: clamp(quantity), ...(sku ? { sku } : {}), ...(designId ? { designId } : {}) }];
+  return lines.map((line) => (sameLine(line, productId, sku, designId) ? { ...line, quantity: clamp(line.quantity + quantity) } : line));
 }
 
-export function setQuantity(lines: readonly CartLine[], productId: string, quantity: number, sku?: string): CartLine[] {
+export function setQuantity(lines: readonly CartLine[], productId: string, quantity: number, sku?: string, designId?: string): CartLine[] {
   if (!Number.isFinite(quantity)) return [...lines];
-  return lines.map((line) => (sameLine(line, productId, sku) ? { ...line, quantity: clamp(quantity) } : line));
+  return lines.map((line) => (sameLine(line, productId, sku, designId) ? { ...line, quantity: clamp(quantity) } : line));
 }
 
-export function removeLine(lines: readonly CartLine[], productId: string, sku?: string): CartLine[] {
-  return lines.filter((line) => !sameLine(line, productId, sku));
+export function removeLine(lines: readonly CartLine[], productId: string, sku?: string, designId?: string): CartLine[] {
+  return lines.filter((line) => !sameLine(line, productId, sku, designId));
 }
+
+const isDesignId = (value: unknown) => typeof value === "string" && DESIGN_ID.test(value);
 
 /** Parses persisted cart data defensively; anything malformed is dropped. */
 export function parseCart(raw: string | null): CartLine[] {
@@ -40,16 +48,35 @@ export function parseCart(raw: string | null): CartLine[] {
           typeof (line as CartLine).productId === "string" &&
           typeof (line as CartLine).quantity === "number" &&
           Number.isFinite((line as CartLine).quantity) &&
-          ((line as CartLine).sku === undefined || typeof (line as CartLine).sku === "string"),
+          ((line as CartLine).sku === undefined || typeof (line as CartLine).sku === "string") &&
+          // Lines saved before designs existed have no designId and stay valid.
+          ((line as CartLine).designId === undefined || isDesignId((line as CartLine).designId)),
       )
-      .map((line) => ({ productId: line.productId, quantity: clamp(line.quantity), ...(line.sku ? { sku: line.sku } : {}) }));
+      .map((line) => ({
+        productId: line.productId,
+        quantity: clamp(line.quantity),
+        ...(line.sku ? { sku: line.sku } : {}),
+        ...(line.designId ? { designId: line.designId } : {}),
+      }));
   } catch {
     return [];
   }
 }
 
+/** What the cart needs to show a design line (a subset of the storefront design). */
+export type CartDesign = { id: string; slug: string; name: string; imageUrl: string; bases: { kind: MockupKind; productId: string }[] };
+
+/** Keeps only what the browser needs from a storefront design. */
+export const toCartDesign = ({ id, slug, name, imageUrl, bases }: CartDesign): CartDesign => ({ id, slug, name, imageUrl, bases });
+
+/** Stable key of a cart line (React lists). */
+export const lineKey = (productId: string, sku?: string, designId?: string) => `${productId}|${sku ?? ""}|${designId ?? ""}`;
+
+
 export type CartItem = {
   product: Product;
+  /** Design printed on the base product; `name` is the line name ("Gato astronauta · Remera"). */
+  design?: { id: string; slug: string; name: string; imageUrl: string; kind: MockupKind };
   /** Chosen variant of a product with options. */
   variant?: ProductVariant;
   /** "Talle M · Color Negro" */
@@ -70,20 +97,32 @@ export const variantLabel = (product: Pick<Product, "optionNames">, variant: Pro
     .map((name) => `${name} ${variant.options[name]}`)
     .join(" · ");
 
+/** The design of a line, when it is still published and offered on that product. */
+function designOf(line: CartLine, designs: readonly CartDesign[]): CartItem["design"] | null {
+  const design = designs.find((candidate) => candidate.id === line.designId);
+  const base = design?.bases.find((candidate) => candidate.productId === line.productId);
+  if (!design || !base) return null;
+  return { id: design.id, slug: design.slug, name: designLineName(design.name, base.kind), imageUrl: design.imageUrl, kind: base.kind };
+}
+
 /**
  * Resolves lines against the catalog, ignoring unknown or quote-only products.
  * Products with options need a known variant SKU; lines without one are dropped.
+ * Design lines need their design among `designs` (published, offered on that product).
  */
-export function summarizeCart(lines: readonly CartLine[], catalog: readonly Product[]): CartSummary {
+export function summarizeCart(lines: readonly CartLine[], catalog: readonly Product[], designs: readonly CartDesign[] = []): CartSummary {
   const items: CartItem[] = [];
   for (const line of lines) {
     const product = catalog.find((candidate) => candidate.id === line.productId);
     if (!product || !product.availableForDirectPurchase) continue;
+    const design = line.designId ? designOf(line, designs) : undefined;
+    if (design === null) continue;
     if (product.variants) {
       const variant = product.variants.find((candidate) => candidate.sku === line.sku);
       if (!variant || variant.price === null) continue;
       items.push({
         product,
+        ...(design ? { design } : {}),
         variant,
         optionsLabel: variantLabel(product, variant),
         quantity: line.quantity,
@@ -94,7 +133,7 @@ export function summarizeCart(lines: readonly CartLine[], catalog: readonly Prod
       continue;
     }
     if (product.price === null || line.sku) continue;
-    items.push({ product, quantity: line.quantity, unitPrice: product.price, stock: product.stock, lineTotal: product.price * line.quantity });
+    items.push({ product, ...(design ? { design } : {}), quantity: line.quantity, unitPrice: product.price, stock: product.stock, lineTotal: product.price * line.quantity });
   }
   return {
     items,

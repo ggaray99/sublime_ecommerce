@@ -6,9 +6,11 @@ export type ParseResult = { ok: true; lines: QuoteRequestLine[] } | { ok: false;
 
 const PRODUCT_ID = /^[a-z0-9-]{1,40}$/i;
 const SKU = /^[A-Z0-9][A-Z0-9-]{1,39}$/;
+const DESIGN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const LINE_KEYS = new Set(["productId", "quantity", "sku", "designId"]);
 
 /**
- * Validates the POST /api/cart/quote body: `{ lines: [{ productId, quantity }] }`.
+ * Validates the POST /api/cart/quote body: `{ lines: [{ productId, quantity, sku?, designId? }] }`.
  * Unknown keys are rejected so clients cannot believe extra fields (like prices) are honored.
  */
 export function parseQuoteRequest(body: unknown): ParseResult {
@@ -38,7 +40,7 @@ export function parseQuoteRequest(body: unknown): ParseResult {
     }
     const line = raw as Record<string, unknown>;
     for (const key of Object.keys(line)) {
-      if (key !== "productId" && key !== "quantity" && key !== "sku") errors.push({ path: `${path}.${key}`, message: "Campo no admitido." });
+      if (!LINE_KEYS.has(key)) errors.push({ path: `${path}.${key}`, message: "Campo no admitido." });
     }
     if (typeof line.productId !== "string" || !PRODUCT_ID.test(line.productId)) {
       errors.push({ path: `${path}.productId`, message: "Identificador de producto inválido." });
@@ -54,8 +56,16 @@ export function parseQuoteRequest(body: unknown): ParseResult {
     if (line.sku !== undefined && (typeof line.sku !== "string" || !SKU.test(line.sku))) {
       errors.push({ path: `${path}.sku`, message: "SKU inválido." });
     }
+    if (line.designId !== undefined && (typeof line.designId !== "string" || !DESIGN_ID.test(line.designId))) {
+      errors.push({ path: `${path}.designId`, message: "Diseño inválido." });
+    }
     if (typeof line.productId === "string" && typeof line.quantity === "number") {
-      lines.push({ productId: line.productId, quantity: line.quantity, ...(typeof line.sku === "string" ? { sku: line.sku } : {}) });
+      lines.push({
+        productId: line.productId,
+        quantity: line.quantity,
+        ...(typeof line.sku === "string" ? { sku: line.sku } : {}),
+        ...(typeof line.designId === "string" ? { designId: line.designId } : {}),
+      });
     }
   });
 

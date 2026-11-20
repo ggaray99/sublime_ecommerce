@@ -16,7 +16,7 @@ export type CheckoutState = {
   error?: string;
   fields?: Record<string, string>;
   /** Problems per cart line (stock, unavailable products) to show next to each item. */
-  issues?: { productId: string; sku?: string; message: string }[];
+  issues?: { productId: string; sku?: string; designId?: string; message: string }[];
   values?: Record<string, string>;
 };
 
@@ -48,7 +48,7 @@ export async function placeOrderAction(_state: CheckoutState, form: FormData): P
     if (result.reason === "shipping") return { error: result.message, fields: { postalCode: result.message }, values };
     return {
       error: "Algunos productos cambiaron. Revisá el carrito antes de confirmar.",
-      issues: result.issues.map((issue) => ({ productId: issue.productId, sku: issue.sku, message: issue.message })),
+      issues: result.issues.map((issue) => ({ productId: issue.productId, sku: issue.sku, designId: issue.designId, message: issue.message })),
       values,
     };
   }

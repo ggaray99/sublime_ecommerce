@@ -1,8 +1,6 @@
-import type { CatalogRepository } from "../catalog/repository.ts";
-import { quoteCart, type CartQuote, type QuoteIssue } from "../cart/quote.ts";
+import { quoteCart, type CartQuote, type QuoteDeps, type QuoteIssue, type QuoteRequestLine } from "../cart/quote.ts";
 import { parseQuoteRequest } from "../cart/validation.ts";
 import { parseAddress, type FieldErrors } from "../customers/validation.ts";
-import type { InventoryRepository } from "../inventory/repository.ts";
 import type { ShippingRepository } from "../shipping/repository.ts";
 import { quoteShipping } from "../shipping/rules.ts";
 import { normalizeCoupon, type PaymentPreference, type PromotionResult } from "../../lib/promotions.ts";
@@ -17,7 +15,7 @@ export type CheckoutInput = {
   contactPhone: string;
   delivery: Delivery;
   notes: string;
-  lines: { productId: string; quantity: number; sku?: string }[];
+  lines: QuoteRequestLine[];
   couponCode: string;
   paymentPreference: PaymentPreference;
 };
@@ -27,7 +25,7 @@ const text = (data: Data, key: string) => (typeof data[key] === "string" ? (data
 
 /**
  * Validates the checkout form. `cart` is the browser cart serialized as JSON
- * (ids, SKUs and quantities only); prices are always recomputed on the server.
+ * (ids, SKUs, design ids and quantities only); prices are always recomputed on the server.
  */
 export function parseCheckout(data: Data): { ok: true; value: CheckoutInput } | { ok: false; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
@@ -96,9 +94,7 @@ export type CheckoutResult =
 export async function checkout(
   input: CheckoutInput,
   customerId: string | null,
-  deps: {
-    catalog: CatalogRepository;
-    inventory: InventoryRepository;
+  deps: QuoteDeps & {
     orders: OrderRepository;
     shipping: ShippingRepository;
     /** Without it (no database for promotions) nothing is discounted. */
@@ -161,6 +157,8 @@ export async function checkout(
         name: line.name,
         quantity: line.quantity,
         unitPriceMinor: line.unitPriceMinor,
+        designId: line.designId ?? null,
+        designName: line.designName ?? null,
       })),
       discountMinor: discount.discountMinor,
       promotions: discount.applied,

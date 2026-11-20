@@ -3,16 +3,16 @@
 import type { Product } from "@/data/products";
 import Image from "next/image";
 import Link from "next/link";
-import { MAX_QUANTITY } from "@/lib/cart";
+import { lineKey, MAX_QUANTITY, type CartDesign } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
 import { categoryLabelOf } from "@/lib/catalog";
 import { cartActions, useCartSummary, useHydrated } from "./cart-store";
 import { QuantityStepper } from "./quantity-stepper";
 
 /** `realCheckout`: orders are enabled (staging) and the checkout places a real order. */
-export function CartView({ catalog, realCheckout = false }: { catalog: Product[]; realCheckout?: boolean }) {
+export function CartView({ catalog, designs = [], realCheckout = false }: { catalog: Product[]; designs?: CartDesign[]; realCheckout?: boolean }) {
   const hydrated = useHydrated();
-  const { items, count, subtotal } = useCartSummary(catalog);
+  const { items, count, subtotal } = useCartSummary(catalog, designs);
 
   if (!hydrated) {
     return <p className="panel panel--muted">Cargando tu carrito…</p>;
@@ -42,15 +42,19 @@ export function CartView({ catalog, realCheckout = false }: { catalog: Product[]
           Artículos en el carrito
         </h2>
         <ul className="cart-list">
-          {items.map(({ product, variant, optionsLabel, quantity, unitPrice, stock, lineTotal }) => (
-            <li key={`${product.id}-${variant?.sku ?? ""}`} className="cart-item">
-              <Link href={`/producto/${product.slug}`} className="cart-item__image" tabIndex={-1} aria-hidden="true">
-                <Image src={product.images[0].src} alt="" width={160} height={160} />
+          {items.map(({ product, design, variant, optionsLabel, quantity, unitPrice, stock, lineTotal }) => {
+            // Design lines link to the design and show its artwork; plain products, their own page.
+            const href = design ? `/disenos/${design.slug}` : `/producto/${product.slug}`;
+            const name = design?.name ?? product.name;
+            return (
+            <li key={lineKey(product.id, variant?.sku, design?.id)} className="cart-item">
+              <Link href={href} className="cart-item__image" tabIndex={-1} aria-hidden="true">
+                <Image src={design?.imageUrl ?? product.images[0].src} alt="" width={160} height={160} />
               </Link>
               <div className="cart-item__info">
-                <p className="kicker">{categoryLabelOf(product)}</p>
+                <p className="kicker">{design ? "Diseño" : categoryLabelOf(product)}</p>
                 <h3>
-                  <Link href={`/producto/${product.slug}`}>{product.name}</Link>
+                  <Link href={href}>{name}</Link>
                 </h3>
                 {optionsLabel && <p className="cart-item__options">{optionsLabel}</p>}
                 <p className="muted">{formatPrice(unitPrice)} c/u</p>
@@ -60,23 +64,24 @@ export function CartView({ catalog, realCheckout = false }: { catalog: Product[]
               </div>
               <div className="cart-item__controls">
                 <QuantityStepper
-                  label={`Cantidad de ${product.name}${optionsLabel ? ` (${optionsLabel})` : ""}`}
+                  label={`Cantidad de ${name}${optionsLabel ? ` (${optionsLabel})` : ""}`}
                   value={quantity}
                   min={1}
                   max={MAX_QUANTITY}
-                  onChange={(next) => cartActions.setQuantity(product.id, next, variant?.sku)}
+                  onChange={(next) => cartActions.setQuantity(product.id, next, variant?.sku, design?.id)}
                 />
-                <button type="button" className="link-button" onClick={() => cartActions.remove(product.id, variant?.sku)}>
+                <button type="button" className="link-button" onClick={() => cartActions.remove(product.id, variant?.sku, design?.id)}>
                   Quitar
                   <span className="visually-hidden">
                     {" "}
-                    {product.name} {optionsLabel}
+                    {name} {optionsLabel}
                   </span>
                 </button>
               </div>
               <p className="cart-item__total">{formatPrice(lineTotal)}</p>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </section>
 

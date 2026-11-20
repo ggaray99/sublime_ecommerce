@@ -24,8 +24,11 @@ const optionsText = (options: Record<string, string>) =>
     .map(([name, value]) => `${name} ${value}`)
     .join(" · ");
 
-/** Order summary shared by the customer confirmation page and the admin. */
-export function OrderSummary({ order }: { order: OrderDetail }) {
+/**
+ * Order summary shared by the customer confirmation page and the admin.
+ * `designFiles` (admin only) links each design line to its production file.
+ */
+export function OrderSummary({ order, designFiles = false }: { order: OrderDetail; designFiles?: boolean }) {
   const shipping = order.delivery.method === "shipping" ? order.delivery.address : null;
   return (
     <div className="order-summary">
@@ -93,12 +96,22 @@ export function OrderSummary({ order }: { order: OrderDetail }) {
           </tr>
         </thead>
         <tbody>
-          {order.items.map((item) => (
-            <tr key={item.sku}>
+          {order.items.map((item, index) => (
+            <tr key={`${item.sku}-${index}`}>
               <th scope="row">
                 {item.name}
                 <span className="muted"> · {item.sku}</span>
-                {Object.keys(item.options).length > 0 && !item.name.includes("·") && <span className="muted"> · {optionsText(item.options)}</span>}
+                {/* Design lines are named "Design · Kind": their options (size, color) are listed apart. */}
+                {Object.keys(item.options).length > 0 && (item.designId || !item.name.includes("·")) && (
+                  <span className="muted"> · {optionsText(item.options)}</span>
+                )}
+                {item.designName && <span className="order-items__design"> · Diseño: {item.designName}</span>}
+                {designFiles && item.designId && (
+                  <>
+                    {" · "}
+                    <a href={`/admin/disenos/${item.designId}/archivo`}>Archivo para producción</a>
+                  </>
+                )}
               </th>
               <td>{item.quantity}</td>
               <td>{formatPrice(item.unitPriceMinor / 100)}</td>

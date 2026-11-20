@@ -31,7 +31,18 @@ export type OrderPromotion = { promotionId: string; name: string; kind: string; 
 
 export type Tracking = { carrier: string; code: string; url: string };
 
-export type OrderItem = { sku: string; productId: string; name: string; options: Record<string, string>; quantity: number; unitPriceMinor: number; lineTotalMinor: number };
+export type OrderItem = {
+  sku: string;
+  productId: string;
+  name: string;
+  options: Record<string, string>;
+  quantity: number;
+  unitPriceMinor: number;
+  lineTotalMinor: number;
+  /** Design printed on the base product (null for plain products) and its name as sold. */
+  designId: string | null;
+  designName: string | null;
+};
 export type OrderEvent = { fromStatus: string | null; toStatus: string; actor: string; note: string; createdAt: Date };
 
 export type Order = {
@@ -72,7 +83,7 @@ export type NewOrder = {
   /** Shipping quoted by the server (rules in 0009). */
   shipping: ShippingSnapshot;
   /** Lines already priced by the server quote (never by the browser). */
-  lines: { sku: string; productId: string; name: string; quantity: number; unitPriceMinor: number }[];
+  lines: { sku: string; productId: string; name: string; quantity: number; unitPriceMinor: number; designId?: string | null; designName?: string | null }[];
   /** Discount the server computed (src/lib/promotions.ts); 0 without promotions. */
   discountMinor?: number;
   promotions?: OrderPromotion[];
@@ -165,10 +176,22 @@ export function createOrderRepository(sql: QueryFn) {
     if (!row) throw new OrderError("not_found", "El pedido no existe.");
     const [items, events] = await Promise.all([
       sql.query(
-        `SELECT sku, product_legacy_id, name, options, quantity, unit_price_minor, line_total_minor
+        `SELECT sku, product_legacy_id, name, options, quantity, unit_price_minor, line_total_minor, design_id, design_name
          FROM order_items WHERE order_id = $1 ORDER BY id`,
         [id],
-      ) as Promise<{ sku: string; product_legacy_id: string; name: string; options: Record<string, string>; quantity: number; unit_price_minor: string | number; line_total_minor: string | number }[]>,
+      ) as Promise<
+        {
+          sku: string;
+          product_legacy_id: string;
+          name: string;
+          options: Record<string, string>;
+          quantity: number;
+          unit_price_minor: string | number;
+          line_total_minor: string | number;
+          design_id: string | null;
+          design_name: string | null;
+        }[]
+      >,
       sql.query("SELECT from_status, to_status, actor, note, created_at FROM order_events WHERE order_id = $1 ORDER BY created_at, id", [id]) as Promise<
         { from_status: string | null; to_status: string; actor: string; note: string; created_at: Date }[]
       >,
@@ -183,6 +206,8 @@ export function createOrderRepository(sql: QueryFn) {
         quantity: item.quantity,
         unitPriceMinor: Number(item.unit_price_minor),
         lineTotalMinor: Number(item.line_total_minor),
+        designId: item.design_id ?? null,
+        designName: item.design_name ?? null,
       })),
       events: events.map((entry) => ({
         fromStatus: entry.from_status,
@@ -243,27 +268,33 @@ export function createOrderRepository(sql: QueryFn) {
         name: line.name,
         qty: line.quantity,
         unit_price: line.unitPriceMinor,
+        design_id: line.designId ?? null,
+        design_name: line.designName ?? null,
       }));
       const subtotal = input.lines.reduce((total, line) => total + line.unitPriceMinor * line.quantity, 0);
       try {
         const [row] = (await sql.query(
           `WITH req AS (
              SELECT r.*, v.id AS variant_id, v.options, v.track_stock
-             FROM jsonb_to_recordset($1::jsonb) AS r(sku text, product_id text, name text, qty int, unit_price bigint)
+             FROM jsonb_to_recordset($1::jsonb) AS r(sku text, product_id text, name text, qty int, unit_price bigint, design_id uuid, design_name text)
              JOIN product_variants v ON v.sku = r.sku
+           ),
+           -- The same SKU can come in several lines (with and without a design): stock is held per variant.
+           per_variant AS (
+             SELECT variant_id, sku, track_stock, sum(qty)::int AS qty FROM req GROUP BY variant_id, sku, track_stock
            ),
            -- Every data-modifying step runs: reserve only when the whole order will be created.
            reserve AS (
-             UPDATE inventory i SET reserved = i.reserved + req.qty, updated_at = now()
-             FROM req WHERE i.variant_id = req.variant_id AND req.track_stock AND (SELECT count(*) FROM req) = $12
+             UPDATE inventory i SET reserved = i.reserved + pv.qty, updated_at = now()
+             FROM per_variant pv WHERE i.variant_id = pv.variant_id AND pv.track_stock AND (SELECT count(*) FROM req) = $12
              RETURNING i.variant_id
            ),
            -- A tracked variant without an inventory row has no stock: inserting (0 on hand, N
            -- reserved) violates reserved <= on_hand on purpose, so the order fails as out of stock.
            uncounted AS (
              INSERT INTO inventory (variant_id, on_hand, reserved)
-             SELECT req.variant_id, 0, req.qty FROM req
-             WHERE req.track_stock AND NOT EXISTS (SELECT 1 FROM inventory i WHERE i.variant_id = req.variant_id)
+             SELECT pv.variant_id, 0, pv.qty FROM per_variant pv
+             WHERE pv.track_stock AND NOT EXISTS (SELECT 1 FROM inventory i WHERE i.variant_id = pv.variant_id)
              RETURNING variant_id
            ),
            created AS (
@@ -287,14 +318,16 @@ export function createOrderRepository(sql: QueryFn) {
              UPDATE promotions SET uses_count = uses_count + 1 WHERE id IN (SELECT promotion_id FROM redeemed)
            ),
            items AS (
-             INSERT INTO order_items (order_id, variant_id, product_legacy_id, sku, name, options, quantity, unit_price_minor, line_total_minor)
-             SELECT created.id, req.variant_id, req.product_id, req.sku, req.name, req.options, req.qty, req.unit_price, req.unit_price * req.qty
+             INSERT INTO order_items (order_id, variant_id, product_legacy_id, sku, name, options, quantity, unit_price_minor, line_total_minor,
+                                      design_id, design_name)
+             SELECT created.id, req.variant_id, req.product_id, req.sku, req.name, req.options, req.qty, req.unit_price, req.unit_price * req.qty,
+                    req.design_id, req.design_name
              FROM created, req
            ),
            holds AS (
              INSERT INTO stock_reservations (variant_id, quantity, expires_at, idempotency_key, order_id)
-             SELECT req.variant_id, req.qty, created.expires_at, created.id || ':' || req.sku, created.id
-             FROM created, req WHERE req.track_stock
+             SELECT pv.variant_id, pv.qty, created.expires_at, created.id || ':' || pv.sku, created.id
+             FROM created, per_variant pv WHERE pv.track_stock
              RETURNING id, variant_id, quantity
            ),
            moved AS (

@@ -3,6 +3,7 @@
 import type { Product } from "@/data/products";
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { lineKey, type CartDesign } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
 import { cartActions, useCartSummary, useHydrated } from "./cart-store";
 
@@ -12,9 +13,9 @@ const steps = [
   { title: "Pago", body: "No hay medios de pago integrados. Ningún dato de tarjeta se solicita ni se procesa." },
 ];
 
-export function CheckoutDemo({ catalog }: { catalog: Product[] }) {
+export function CheckoutDemo({ catalog, designs = [] }: { catalog: Product[]; designs?: CartDesign[] }) {
   const hydrated = useHydrated();
-  const { items, count, subtotal } = useCartSummary(catalog);
+  const { items, count, subtotal } = useCartSummary(catalog, designs);
   const [result, setResult] = useState<{ count: number; subtotal: number } | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
@@ -73,10 +74,10 @@ export function CheckoutDemo({ catalog }: { catalog: Product[] }) {
       <aside className="summary" aria-labelledby="checkout-summary-title">
         <h2 id="checkout-summary-title">Tu selección</h2>
         <ul className="summary__items">
-          {items.map(({ product, variant, optionsLabel, quantity, lineTotal }) => (
-            <li key={`${product.id}-${variant?.sku ?? ""}`}>
+          {items.map(({ product, design, variant, optionsLabel, quantity, lineTotal }) => (
+            <li key={lineKey(product.id, variant?.sku, design?.id)}>
               <span>
-                {quantity} × {product.name}
+                {quantity} × {design?.name ?? product.name}
                 {optionsLabel && ` (${optionsLabel})`}
               </span>
               <span>{formatPrice(lineTotal)}</span>

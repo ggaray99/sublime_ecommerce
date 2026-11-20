@@ -48,7 +48,7 @@ async function OrderAdmin({ params }: { params: PageProps<"/admin/pedidos/[id]">
         {order.status === "needs_review" && (
           <p className="form-alert">Pago recibido tarde y sin stock suficiente: definí con el cliente reposición, demora o devolución, y cancelá o reponé stock.</p>
         )}
-        <OrderSummary order={order} />
+        <OrderSummary order={order} designFiles />
       </section>
 
       <section className="account__section" aria-labelledby="acciones-title">

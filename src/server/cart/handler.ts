@@ -1,6 +1,4 @@
-import type { CatalogRepository } from "../catalog/repository.ts";
-import type { InventoryRepository } from "../inventory/repository.ts";
-import { quoteCart } from "./quote.ts";
+import { quoteCart, type QuoteDeps } from "./quote.ts";
 import { parseQuoteRequest } from "./validation.ts";
 
 export const MAX_BODY_BYTES = 16 * 1024;
@@ -14,7 +12,7 @@ const json = (status: number, body: unknown) =>
  */
 export async function handleCartQuote(
   request: Request,
-  deps: { catalog: CatalogRepository; inventory: InventoryRepository },
+  deps: QuoteDeps,
 ): Promise<Response> {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("application/json")) {
