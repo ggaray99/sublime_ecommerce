@@ -2753,6 +2753,47 @@ li:nth-child(3n) > .category-card .category-card__body {
   background: var(--light);
 }
 
+/* Design file picked in the admin: preview on a checkerboard (shows transparency) and the check result. */
+.design-upload__picked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 2px solid var(--black);
+}
+
+.design-upload__preview {
+  display: block;
+  width: 140px;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border: 2px solid var(--black);
+  background: repeating-conic-gradient(#e6e6e6 0 25%, #fff 0 50%) 0 0 / 16px 16px;
+}
+
+.design-upload__info {
+  flex: 1 1 220px;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-width: 0;
+}
+
+.design-upload__name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.design-upload__ok {
+  color: #0a7a3d;
+  font-weight: 700;
+}
+
+.design-upload__ok::before {
+  content: "✓ ";
+}
+
 .image-admin__body,
 .image-alt-form {
   display: grid;
@@ -3807,7 +3848,8 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  background: #f4f3f0;
+  /* Same grey as the Custom Lab stage, so white and black products both stand out. */
+  background: #d9d9d9;
 }
 
 .mockup-stage--large {

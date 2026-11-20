@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { writePsdBuffer } from "ag-psd";
 import sharp from "sharp";
-import { DesignFileError, prepareDesignFile, PREVIEW_MAX_PX } from "../src/server/designs/files.ts";
+import { formatFileSize, precheckDesignFile } from "../src/lib/designs/upload.ts";
+import { checkDesignFile, DesignFileError, prepareDesignFile, PREVIEW_MAX_PX } from "../src/server/designs/files.ts";
 
 const transparentPng = (width, height) =>
   sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
@@ -53,5 +54,38 @@ describe("design files", () => {
     await assert.rejects(() => prepareDesignFile(new Uint8Array()), /vacío/);
     const tiny = await transparentPng(200, 200);
     await assert.rejects(() => prepareDesignFile(tiny), /chica/);
+  });
+});
+
+describe("checking a design file right after it is picked", () => {
+  it("says the file is apt, with its size and any warning", async () => {
+    assert.deepEqual(await checkDesignFile(await transparentPng(3000, 2000)), { ok: true, width: 3000, height: 2000, warning: null });
+    const jpg = await sharp({ create: { width: 1200, height: 900, channels: 3, background: "#ffffff" } }).jpeg().toBuffer();
+    const checked = await checkDesignFile(jpg);
+    assert.equal(checked.ok, true);
+    assert.deepEqual([checked.width, checked.height], [1200, 900]);
+    assert.match(checked.warning, /fondo transparente/);
+  });
+
+  it("returns the same message saving would give for a file that is not apt", async () => {
+    assert.deepEqual(await checkDesignFile(await transparentPng(200, 200)), {
+      ok: false,
+      error: "La imagen es muy chica: necesita al menos 500 px por lado (recomendado 3000 px o más).",
+    });
+    assert.deepEqual(await checkDesignFile(new TextEncoder().encode("<svg/>")), { ok: false, error: "Formato no admitido: subí un PNG, JPG, WebP o PSD." });
+  });
+
+  it("refuses a wrong extension, an empty file or one over 15 MB before uploading it", () => {
+    assert.equal(precheckDesignFile({ name: "Logo.PNG", size: 2048 }), null);
+    assert.equal(precheckDesignFile({ name: "arte.psd", size: 15 * 1024 * 1024 }), null);
+    assert.equal(precheckDesignFile({ name: "logo.svg", size: 2048 }), "Formato no admitido: subí un PNG, JPG, WebP o PSD.");
+    assert.equal(precheckDesignFile({ name: "logo", size: 2048 }), "Formato no admitido: subí un PNG, JPG, WebP o PSD.");
+    assert.equal(precheckDesignFile({ name: "logo.png", size: 0 }), "El archivo está vacío.");
+    assert.equal(precheckDesignFile({ name: "logo.png", size: 15 * 1024 * 1024 + 1 }), "El archivo supera los 15 MB.");
+  });
+
+  it("shows file sizes in KB or MB", () => {
+    assert.equal(formatFileSize(830 * 1024), "830 KB");
+    assert.equal(formatFileSize(2.4 * 1024 * 1024), "2,4 MB");
   });
 });

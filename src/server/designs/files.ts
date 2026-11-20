@@ -1,5 +1,6 @@
 import { initializeCanvas, readPsd } from "ag-psd";
 import sharp, { type Sharp } from "sharp";
+import { DESIGN_MAX_BYTES, type DesignFileCheck } from "../../lib/designs/upload.ts";
 import { deleteMediaFile, saveMediaFile } from "../media/disk.ts";
 
 // ag-psd allocates pixel buffers through a canvas even with `useImageData`. On the
@@ -17,7 +18,7 @@ initializeCanvas(
  * production in the private area and a light WebP preview for the store's mockups.
  * SVG and PDF are refused: SVG can carry scripts and PDF needs a rasterizer.
  */
-export const MAX_DESIGN_BYTES = 15 * 1024 * 1024;
+export const MAX_DESIGN_BYTES = DESIGN_MAX_BYTES;
 export const MIN_DESIGN_PX = 500;
 export const MAX_DESIGN_PX = 8000;
 export const PREVIEW_MAX_PX = 1200;
@@ -101,6 +102,17 @@ export async function prepareDesignFile(bytes: Uint8Array): Promise<PreparedDesi
   } catch (error) {
     if (error instanceof DesignFileError) throw error;
     throw new DesignFileError("No pudimos leer la imagen: subí un PNG, JPG, WebP o PSD de hasta 40 megapíxeles.");
+  }
+}
+
+/** The admin's check right after picking a file: the same validation as saving, without storing anything. */
+export async function checkDesignFile(bytes: Uint8Array): Promise<DesignFileCheck> {
+  try {
+    const { width, height, warning } = await prepareDesignFile(bytes);
+    return { ok: true, width, height, warning };
+  } catch (error) {
+    if (error instanceof DesignFileError) return { ok: false, error: error.message };
+    throw error;
   }
 }
 

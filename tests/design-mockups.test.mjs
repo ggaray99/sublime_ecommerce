@@ -44,6 +44,22 @@ describe("mockup templates", () => {
     }
   });
 
+  it("leaves the background transparent on every template, so the stage grey is the same behind all products", async () => {
+    for (const kind of MOCKUP_KINDS) {
+      for (const tone of MOCKUPS[kind].tones) {
+        for (const side of MOCKUPS[kind].sides) {
+          const { src } = mockupTemplate(kind, tone, side);
+          const image = sharp(publicFile(src));
+          assert.ok((await image.metadata()).hasAlpha, `${src} has no alpha channel`);
+          for (const [left, top] of [[4, 4], [TEMPLATE_PX - 5, 4]]) {
+            const [, , , alpha] = await sharp(publicFile(src)).ensureAlpha().extract({ left, top, width: 1, height: 1 }).raw().toBuffer();
+            assert.equal(alpha, 0, `${src}: corner ${left},${top} is not transparent`);
+          }
+        }
+      }
+    }
+  });
+
   it("bends the design onto garments and the mug with warp maps sized like the print area", async () => {
     for (const kind of ["tshirt", "tank", "mug"]) {
       for (const tone of MOCKUPS[kind].tones) {

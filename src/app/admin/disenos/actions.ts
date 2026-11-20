@@ -5,7 +5,8 @@ import { DESIGN_STATUS_LABELS, DESIGN_STATUSES, type DesignStatus } from "@/lib/
 import { catalogChanged, dataError, formValues, requireAdmin, type AdminFormState } from "@/server/admin/guard";
 import { getDesignRepository } from "@/server/admin/session";
 import { createDesignWithFile, deleteDesignWithFiles, replaceDesignFile, type DesignFlowDeps } from "@/server/designs/admin-flow";
-import { deleteDesignFiles, DesignFileError, prepareDesignFile, storeDesignFiles } from "@/server/designs/files";
+import type { DesignFileCheck } from "@/lib/designs/upload";
+import { checkDesignFile, deleteDesignFiles, DesignFileError, prepareDesignFile, storeDesignFiles } from "@/server/designs/files";
 import { parseDesignInput } from "@/server/designs/validation";
 import { hasPrivateStorage } from "@/server/media/private-files";
 import { hasMediaStorage } from "@/server/media/public-files";
@@ -74,6 +75,14 @@ export async function updateDesignAction(_state: AdminFormState, form: FormData)
   }
   catalogChanged(...designPaths(id));
   return { ok: "Cambios guardados.", values };
+}
+
+/** Checks a file as soon as the admin picks it, so a bad upload shows up before saving. Stores nothing. */
+export async function checkDesignFileAction(form: FormData): Promise<DesignFileCheck> {
+  await requireAdmin();
+  const bytes = await readFile(form);
+  if (!bytes) return { ok: false, error: "Elegí el archivo del diseño." };
+  return checkDesignFile(bytes);
 }
 
 export async function uploadDesignFileAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {

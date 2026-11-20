@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useEffect, useId, useRef, useState, type ChangeEvent } from "react";
 import {
+  checkDesignFileAction,
   createDesignAction,
   deleteDesignAction,
   setDesignStatusAction,
@@ -9,6 +10,7 @@ import {
   uploadDesignFileAction,
 } from "@/app/admin/disenos/actions";
 import { MOCKUP_KIND_LABELS, MOCKUP_KINDS, type DesignStatus, type MockupKind } from "@/lib/designs/kinds";
+import { formatFileSize, precheckDesignFile } from "@/lib/designs/upload";
 import type { AdminFormState } from "@/server/admin/guard";
 import { ConfirmButton } from "./confirm-button";
 import { Checkbox, Field, Status, type Option } from "./forms";
@@ -19,31 +21,143 @@ const ACCEPT = ".png,.jpg,.jpeg,.webp,.psd";
 const FILE_HINT =
   "PNG con fondo transparente, 3000 px o más del lado mayor (≈300 dpi). También se aceptan JPG, WebP y PSD (guardado con «Maximizar compatibilidad»). SVG y PDF no.";
 
+type PickedFile = { name: string; size: number; preview: string | null };
+type FileCheck =
+  | { state: "checking" }
+  | { state: "ok"; width: number; height: number; warning: string | null }
+  | { state: "error"; message: string }
+  | { state: "unchecked" };
+
+/** Browsers can show these right away; a PSD has no preview until it is saved. */
+const PREVIEWABLE = /.(png|jpe?g|webp)$/i;
+
+/**
+ * The design file input. As soon as a file is picked it is checked on the server
+ * (the same rules as saving, nothing is stored) and shown with the result; the
+ * admin can remove it or pick another one before saving.
+ */
 function DesignFileField({ state, label, required }: { state: AdminFormState; label: string; required?: boolean }) {
   const id = useId();
-  const error = state.fields?.file;
+  const input = useRef<HTMLInputElement>(null);
+  // Only the answer for the latest pick counts.
+  const ticket = useRef(0);
+  const [picked, setPicked] = useState<PickedFile | null>(null);
+  const [check, setCheck] = useState<FileCheck>({ state: "unchecked" });
+  const serverError = state.fields?.file;
+
+  useEffect(() => {
+    const preview = picked?.preview;
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [picked]);
+
+  // React resets the form after each submit: the picked file goes with it.
+  useEffect(() => {
+    const form = input.current?.form;
+    if (!form) return;
+    const onReset = () => {
+      ticket.current++;
+      setPicked(null);
+      setCheck({ state: "unchecked" });
+    };
+    form.addEventListener("reset", onReset);
+    return () => form.removeEventListener("reset", onReset);
+  }, []);
+
+  function remove() {
+    ticket.current++;
+    if (input.current) input.current.value = "";
+    setPicked(null);
+    setCheck({ state: "unchecked" });
+  }
+
+  async function pick(event: ChangeEvent<HTMLInputElement>) {
+    const field = event.currentTarget;
+    const file = field.files?.[0];
+    const current = ++ticket.current;
+    if (!file) {
+      setPicked(null);
+      setCheck({ state: "unchecked" });
+      return;
+    }
+    const problem = precheckDesignFile(file);
+    setPicked({ name: file.name, size: file.size, preview: !problem && PREVIEWABLE.test(file.name) ? URL.createObjectURL(file) : null });
+    if (problem) {
+      field.value = "";
+      setCheck({ state: "error", message: problem });
+      return;
+    }
+    setCheck({ state: "checking" });
+    const body = new FormData();
+    body.append("file", file);
+    try {
+      const result = await checkDesignFileAction(body);
+      if (current !== ticket.current) return;
+      if (result.ok) {
+        setCheck({ state: "ok", width: result.width, height: result.height, warning: result.warning });
+      } else {
+        field.value = "";
+        setCheck({ state: "error", message: result.error });
+      }
+    } catch {
+      if (current === ticket.current) setCheck({ state: "unchecked" });
+    }
+  }
+
+  const invalid = check.state === "error" || Boolean(serverError && !picked);
   return (
-    <div className="field">
+    <div className="field design-upload">
       <label htmlFor={id}>
         {label}
         {required && " *"}
       </label>
       <input
+        ref={input}
         id={id}
         name="file"
         type="file"
         accept={ACCEPT}
         required={required}
-        aria-invalid={Boolean(error)}
-        aria-describedby={[`${id}-hint`, error ? `${id}-error` : ""].filter(Boolean).join(" ")}
+        onChange={pick}
+        aria-invalid={invalid}
+        aria-describedby={[`${id}-hint`, picked ? `${id}-check` : serverError ? `${id}-error` : ""].filter(Boolean).join(" ")}
       />
       <p className="field__hint" id={`${id}-hint`}>
         {FILE_HINT} Hasta 15 MB.
       </p>
-      {error && (
-        <p className="field__error" id={`${id}-error`}>
-          {error}
-        </p>
+      {picked ? (
+        <div className="design-upload__picked">
+          {picked.preview && check.state !== "error" && (
+            // A local blob of the picked file: next/image cannot optimize it.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={picked.preview} alt="Vista previa del archivo elegido" className="design-upload__preview" />
+          )}
+          <div className="design-upload__info">
+            <p className="design-upload__name">
+              {picked.name} · {formatFileSize(picked.size)}
+            </p>
+            <div id={`${id}-check`} role="status">
+              {check.state === "checking" && <p className="muted">Revisando el archivo…</p>}
+              {check.state === "ok" && (
+                <p className={check.warning ? "form-alert" : "design-upload__ok"}>
+                  Archivo apto: {check.width} × {check.height} px.{check.warning && ` ${check.warning}`}
+                </p>
+              )}
+              {check.state === "error" && <p className="field__error">{check.message} Elegí otro archivo.</p>}
+              {check.state === "unchecked" && <p className="muted">No pudimos revisarlo ahora: se revisa al guardar.</p>}
+            </div>
+            <button type="button" className="link-button" onClick={remove}>
+              Quitar archivo
+            </button>
+          </div>
+        </div>
+      ) : (
+        serverError && (
+          <p className="field__error" id={`${id}-error`}>
+            {serverError}
+          </p>
+        )
       )}
     </div>
   );
@@ -131,9 +245,9 @@ export function DesignFileUpload({ designId }: { designId: string }) {
     <form action={action} className="quote-form" noValidate>
       <Status state={state} />
       <input type="hidden" name="designId" value={designId} />
-      <DesignFileField state={state} label="Reemplazar archivo" />
+      <DesignFileField state={state} label="Cambiar archivo" />
       <button type="submit" className="btn btn--coal" disabled={pending}>
-        {pending ? "Subiendo…" : "Subir archivo"}
+        {pending ? "Subiendo…" : "Reemplazar archivo"}
       </button>
     </form>
   );

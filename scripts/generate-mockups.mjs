@@ -2,11 +2,13 @@
 //
 //   node scripts/generate-mockups.mjs
 //
-// Templates (1080 × 1080 PNG, public/lab/mockups):
-// - tank tops: product photos from scripts/mockup-sources (white and black);
+// Templates (1080 × 1080 PNG with a transparent background, public/lab/mockups;
+// the stage paints the same grey behind every product, like the Custom Lab):
+// - tank tops: product photos from scripts/mockup-sources (white and black), with
+//   the white studio background cut away;
 // - mug: rendered here by a small ray tracer (white ceramic, floating, soft shadow),
 //   so its exact geometry is known and the design can be wrapped around it;
-// - sticker surface: flat demo art.
+// - sticker surface: empty, the sticker sits straight on the stage.
 // The T-shirt reuses the Custom Lab photos in public/lab/shirts.
 //
 // Warp maps (public/lab/mockups/warp, one pair per template that declares `warp`
@@ -34,11 +36,41 @@ const SIZE = TEMPLATE_PX;
 
 /* ------------------------------------------------------------------ tank tops */
 
+/** Near-white pixels connected to the border are the studio background. */
+const BACKGROUND_MIN = 250;
+
+/** Alpha mask of the photo's subject: flood fill of the white background from the edges, softened by a pixel. */
+async function subjectMask(rgb, width, height) {
+  const background = new Uint8Array(width * height);
+  const isWhite = (i) => Math.min(rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]) >= BACKGROUND_MIN;
+  const stack = [];
+  for (let x = 0; x < width; x++) stack.push(x, (height - 1) * width + x);
+  for (let y = 0; y < height; y++) stack.push(y * width, y * width + width - 1);
+  while (stack.length) {
+    const i = stack.pop();
+    if (background[i] || !isWhite(i)) continue;
+    background[i] = 1;
+    const x = i % width;
+    if (x > 0) stack.push(i - 1);
+    if (x < width - 1) stack.push(i + 1);
+    if (i >= width) stack.push(i - width);
+    if (i < (height - 1) * width) stack.push(i + width);
+  }
+  const mask = Buffer.alloc(width * height);
+  for (let i = 0; i < mask.length; i++) mask[i] = background[i] ? 0 : 255;
+  return sharp(mask, { raw: { width, height, channels: 1 } }).blur(0.8).extractChannel(0).raw().toBuffer();
+}
+
 async function tankTemplates() {
   for (const color of ["white", "black"]) {
-    await sharp(join(here, "mockup-sources", `tank-${color}.webp`))
+    const { data, info } = await sharp(join(here, "mockup-sources", `tank-${color}.webp`))
       .resize(SIZE, SIZE, { fit: "contain", background: "#ffffff" })
       .flatten({ background: "#ffffff" })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const alpha = await subjectMask(data, info.width, info.height);
+    await sharp(data, { raw: { width: info.width, height: info.height, channels: 3 } })
+      .joinChannel(alpha, { raw: { width: info.width, height: info.height, channels: 1 } })
       .png({ compressionLevel: 9 })
       .toFile(join(out, `tank-${color}.png`));
     console.log(`✔ lab/mockups/tank-${color}.png`);
@@ -48,24 +80,9 @@ async function tankTemplates() {
 /* ------------------------------------------------------------------ sticker */
 
 async function stickerSurface() {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
-  <rect width="${SIZE}" height="${SIZE}" fill="#e9e7e2"/>
-  <defs>
-    <linearGradient id="lid" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#d7d9dd"/>
-      <stop offset="0.55" stop-color="#c3c6cc"/>
-      <stop offset="1" stop-color="#aeb2b9"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.35" cy="0.3" r="0.8">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect x="60" y="60" width="960" height="960" rx="48" fill="url(#lid)"/>
-  <rect x="60" y="60" width="960" height="960" rx="48" fill="url(#glow)"/>
-  <rect x="60" y="60" width="960" height="960" rx="48" fill="none" stroke="#9ca0a7" stroke-width="4"/>
-</svg>`;
-  await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toFile(join(out, "sticker-surface.png"));
+  await sharp({ create: { width: SIZE, height: SIZE, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .png({ compressionLevel: 9 })
+    .toFile(join(out, "sticker-surface.png"));
   console.log("✔ lab/mockups/sticker-surface.png");
 }
 
@@ -197,7 +214,7 @@ function shade(p) {
     0.5 * smooth(0.9, 0.97, dot(refl, SOFTBOX)) * ao +
     0.35 * fresnel * (0.6 + 0.4 * Math.max(0, refl[1])) * ao;
   const base = [0.93, 0.935, 0.945];
-  // Cool bounce from the blue-grey backdrop on the shadow side.
+  // Cool bounce light on the shadow side.
   const bounce = [0.86, 0.9, 0.96];
   const color = base.map((c, i) => {
     const lit = c * light * (0.85 + 0.15 * bounce[i]) + highlight;
@@ -236,18 +253,12 @@ async function mugTemplate() {
   const bottom = project([0, 0, 0]);
   const backdrop = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#e3e9ef"/>
-      <stop offset="1" stop-color="#d3dce4"/>
-    </linearGradient>
     <filter id="blur" filterUnits="userSpaceOnUse" x="0" y="0" width="${SIZE}" height="${SIZE}"><feGaussianBlur stdDeviation="22"/></filter>
   </defs>
-  <rect width="${SIZE}" height="${SIZE}" fill="url(#bg)"/>
   <ellipse cx="${bottom.x + 30}" cy="${Math.min(SIZE - 60, bottom.y + 120)}" rx="190" ry="26" fill="#56606b" opacity="0.35" filter="url(#blur)"/>
 </svg>`;
   await sharp(Buffer.from(backdrop))
     .composite([{ input: await sharp(rgba, { raw: { width: SIZE, height: SIZE, channels: 4 } }).png().toBuffer() }])
-    .flatten()
     .png({ compressionLevel: 9 })
     .toFile(join(out, "mug-white.png"));
   console.log("✔ lab/mockups/mug-white.png");
