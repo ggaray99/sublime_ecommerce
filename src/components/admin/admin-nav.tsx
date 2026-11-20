@@ -9,6 +9,8 @@ const LINKS = [
   { id: "portada", href: "/admin/portada", label: "Portada" },
   { id: "promociones", href: "/admin/promociones", label: "Promociones" },
   { id: "productos", href: "/admin", label: "Productos" },
+  { id: "disenos", href: "/admin/disenos", label: "Diseños" },
+  { id: "soportes", href: "/admin/soportes", label: "Soportes" },
   { id: "categorias", href: "/admin/categorias", label: "Categorías" },
   { id: "integraciones", href: "/admin/integraciones", label: "Integraciones (API)" },
   { id: "ajustes", href: "/admin/ajustes", label: "Ajustes" },
