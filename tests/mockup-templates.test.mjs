@@ -135,3 +135,71 @@ describe("mockup template repository", () => {
     assert.equal(log.entity_id, "tshirt-dark-back");
   });
 });
+
+describe("uploaded template photos and their warps", async () => {
+  const sharp = (await import("sharp")).default;
+  const { cylinderWarp, fabricWarp, prepareTemplatePhoto, TemplatePhotoError } = await import("../src/server/mockups/warp.ts");
+  const pixel = async (png, left, top) => [...(await sharp(png).ensureAlpha().extract({ left, top, width: 1, height: 1 }).raw().toBuffer())];
+  // A grey "garment" on a white studio background.
+  const studioPhoto = (format = "jpeg") =>
+    sharp({ create: { width: 1200, height: 900, channels: 3, background: "#ffffff" } })
+      .composite([{ input: { create: { width: 500, height: 600, channels: 3, background: "#3a3a3a" } }, left: 350, top: 150 }])
+      .toFormat(format)
+      .toBuffer();
+
+  it("turns a photo into a square template with its white background cut away", async () => {
+    const png = await prepareTemplatePhoto(await studioPhoto());
+    const meta = await sharp(png).metadata();
+    assert.deepEqual([meta.format, meta.width, meta.height, meta.hasAlpha], ["png", TEMPLATE_PX, TEMPLATE_PX, true]);
+    assert.equal((await pixel(png, 5, 5))[3], 0, "background corner stays");
+    assert.equal((await pixel(png, 540, 540))[3], 255, "the garment was cut");
+  });
+
+  it("keeps the transparency of a PNG that already has it", async () => {
+    const transparent = await sharp({ create: { width: 800, height: 800, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: { create: { width: 400, height: 400, channels: 4, background: "#ffffff" } }, left: 200, top: 200 }])
+      .png()
+      .toBuffer();
+    const png = await prepareTemplatePhoto(transparent);
+    // White touching the transparent area is the product, not background.
+    assert.deepEqual(await pixel(png, 540, 540), [255, 255, 255, 255]);
+    assert.equal((await pixel(png, 5, 5))[3], 0);
+  });
+
+  it("refuses small photos, other formats and empty files with a message", async () => {
+    const small = await sharp({ create: { width: 400, height: 300, channels: 3, background: "#ffffff" } }).png().toBuffer();
+    await assert.rejects(() => prepareTemplatePhoto(small), (error) => error instanceof TemplatePhotoError && /muy chica/.test(error.message));
+    await assert.rejects(() => prepareTemplatePhoto(new TextEncoder().encode("<svg/>")), TemplatePhotoError);
+    await assert.rejects(() => prepareTemplatePhoto(new Uint8Array()), /vacío/);
+    const tiff = await sharp({ create: { width: 900, height: 900, channels: 3, background: "#ffffff" } }).tiff().toBuffer();
+    await assert.rejects(() => prepareTemplatePhoto(tiff), /Formato no admitido/);
+  });
+
+  it("makes fabric warp maps sized like the print area", async () => {
+    const png = await prepareTemplatePhoto(await studioPhoto("png"));
+    const area = { left: 400, top: 300, width: 200, height: 250 };
+    const { map, shade, scale } = await fabricWarp(png, area, 10);
+    assert.equal(scale, 10);
+    for (const file of [map, shade]) {
+      const { width, height } = await sharp(file).metadata();
+      assert.deepEqual([width, height], [200, 250]);
+    }
+  });
+
+  it("wraps a mug design around the cylinder: wide in the middle, squeezed toward the sides", async () => {
+    const area = { width: 400, height: 356 };
+    const { map, shade, scale } = await cylinderWarp(area, 0.7);
+    const { width, height } = await sharp(map).metadata();
+    assert.deepEqual([width, height], [400, 356]);
+    const offset = async (x) => scale * ((await pixel(map, x, 100))[0] / 255 - 0.5);
+    assert.ok(Math.abs(await offset(200)) <= 1, "the middle column reads the middle of the design");
+    // Halfway to each side the design is still near its middle (stretched there), and both edges meet the design's edges.
+    assert.ok((await offset(300)) < -8, "right half reads closer to the middle of the design");
+    assert.ok((await offset(100)) > 8, "left half reads closer to the middle of the design");
+    assert.ok(Math.abs(await offset(399)) <= 2 && Math.abs(await offset(0)) <= 2, "the edges show the design's edges");
+    assert.ok((await pixel(shade, 395, 100))[0] < (await pixel(shade, 200, 100))[0], "the sides are darker");
+    // Curve 0 is a flat print.
+    const flat = await cylinderWarp(area, 0);
+    assert.ok(Math.abs(flat.scale * ((await pixel(flat.map, 390, 10))[0] / 255 - 0.5)) <= 1);
+  });
+});

@@ -25,6 +25,7 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { MOCKUP_KINDS } from "../src/lib/designs/kinds.ts";
 import { MOCKUPS, mockupTemplate, TEMPLATE_PX } from "../src/lib/designs/mockups.ts";
+import { cutOutWhiteBackground, fabricWarp } from "../src/server/mockups/warp.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -36,43 +37,10 @@ const SIZE = TEMPLATE_PX;
 
 /* ------------------------------------------------------------------ tank tops */
 
-/** Near-white pixels connected to the border are the studio background. */
-const BACKGROUND_MIN = 250;
-
-/** Alpha mask of the photo's subject: flood fill of the white background from the edges, softened by a pixel. */
-async function subjectMask(rgb, width, height) {
-  const background = new Uint8Array(width * height);
-  const isWhite = (i) => Math.min(rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]) >= BACKGROUND_MIN;
-  const stack = [];
-  for (let x = 0; x < width; x++) stack.push(x, (height - 1) * width + x);
-  for (let y = 0; y < height; y++) stack.push(y * width, y * width + width - 1);
-  while (stack.length) {
-    const i = stack.pop();
-    if (background[i] || !isWhite(i)) continue;
-    background[i] = 1;
-    const x = i % width;
-    if (x > 0) stack.push(i - 1);
-    if (x < width - 1) stack.push(i + 1);
-    if (i >= width) stack.push(i - width);
-    if (i < (height - 1) * width) stack.push(i + width);
-  }
-  const mask = Buffer.alloc(width * height);
-  for (let i = 0; i < mask.length; i++) mask[i] = background[i] ? 0 : 255;
-  return sharp(mask, { raw: { width, height, channels: 1 } }).blur(0.8).extractChannel(0).raw().toBuffer();
-}
-
 async function tankTemplates() {
   for (const color of ["white", "black"]) {
-    const { data, info } = await sharp(join(here, "mockup-sources", `tank-${color}.webp`))
-      .resize(SIZE, SIZE, { fit: "contain", background: "#ffffff" })
-      .flatten({ background: "#ffffff" })
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-    const alpha = await subjectMask(data, info.width, info.height);
-    await sharp(data, { raw: { width: info.width, height: info.height, channels: 3 } })
-      .joinChannel(alpha, { raw: { width: info.width, height: info.height, channels: 1 } })
-      .png({ compressionLevel: 9 })
-      .toFile(join(out, `tank-${color}.png`));
+    const png = await cutOutWhiteBackground(join(here, "mockup-sources", `tank-${color}.webp`));
+    await sharp(png).toFile(join(out, `tank-${color}.png`));
     console.log(`✔ lab/mockups/tank-${color}.png`);
   }
 }
@@ -345,49 +313,11 @@ async function mugWarp(name, area, scale) {
  * folds (blurred luminance as a height field) and the folds' light and shadow
  * (luminance minus its broad average) is laid back over it.
  */
-async function fabricWarp(name, src, area) {
-  const { width, height } = area;
-  const region = { left: area.left, top: area.top, width, height };
-  const grey = (sigma) =>
-    sharp(publicFile(src)).greyscale().blur(sigma).extract(region).raw().toBuffer();
-  const [fine, broad] = await Promise.all([grey(12), grey(45)]);
-  const at = (buffer, x, y) => buffer[Math.min(height - 1, Math.max(0, y)) * width + Math.min(width - 1, Math.max(0, x))];
-
-  const slopes = new Float32Array(width * height * 2);
-  const detail = new Float32Array(width * height);
-  const magnitudes = [];
-  const details = [];
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = y * width + x;
-      const gx = (at(fine, x + 2, y) - at(fine, x - 2, y)) / 4;
-      const gy = (at(fine, x, y + 2) - at(fine, x, y - 2)) / 4;
-      slopes[i * 2] = gx;
-      slopes[i * 2 + 1] = gy;
-      magnitudes.push(Math.abs(gx), Math.abs(gy));
-      detail[i] = fine[i] - broad[i];
-      details.push(Math.abs(detail[i]));
-    }
-  }
-  const percentile = (values, p) => values.sort((a, b) => a - b)[Math.floor(values.length * p)];
-  // Normalise to the photo's own folds, but never blow up the noise of a flat, dark garment.
-  const slopeRange = Math.max(percentile(magnitudes, 0.99), 1.5);
-  const detailRange = Math.max(percentile(details, 0.99), 10);
-
-  const map = Buffer.alloc(width * height * 4);
-  const shadeMap = Buffer.alloc(width * height * 4);
-  for (let i = 0; i < width * height; i++) {
-    const k = i * 4;
-    const sx = Math.max(-1, Math.min(1, slopes[i * 2] / slopeRange));
-    const sy = Math.max(-1, Math.min(1, slopes[i * 2 + 1] / slopeRange));
-    map[k] = Math.round(128 + 127 * sx);
-    map[k + 1] = Math.round(128 + 127 * sy);
-    map[k + 3] = 255;
-    const g = Math.round(128 + 110 * Math.max(-1, Math.min(1, detail[i] / detailRange)));
-    shadeMap[k] = shadeMap[k + 1] = shadeMap[k + 2] = g;
-    shadeMap[k + 3] = 255;
-  }
-  await writeWarp(name, width, height, map, shadeMap);
+async function writeFabricWarp(name, src, area, scale) {
+  const { map, shade } = await fabricWarp(publicFile(src), area, scale);
+  await sharp(map).toFile(join(out, "warp", `${name}-map.png`));
+  await sharp(shade).toFile(join(out, "warp", `${name}-shade.png`));
+  console.log(`✔ lab/mockups/warp/${name}-{map,shade}.png (${area.width}×${area.height})`);
 }
 
 /* ------------------------------------------------------------------ run */
@@ -405,7 +335,7 @@ for (const kind of MOCKUP_KINDS) {
       done.add(template.warp.map);
       const name = template.warp.map.split("/").pop().replace(/-map\.png$/, "");
       if (kind === "mug") await mugWarp(name, template.area, template.warp.scale);
-      else await fabricWarp(name, template.src, template.area);
+      else await writeFabricWarp(name, template.src, template.area, template.warp.scale);
     }
   }
 }

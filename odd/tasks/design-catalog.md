@@ -25,7 +25,7 @@ Route change (L5): after T1–T2 the parent context is near the backstop and the
 - [x] T7 · S8 · inline · tests 431/431, lint clean, Chrome check of the SVG filter (mug wrap, fabric folds) · tank photos as templates, ray-traced mug template, warp + shade maps (scripts/generate-mockups.mjs), SVG displacement in MockupStage.
 - [x] T8 · S9 · inline · tests 436/436 (+5), lint clean, next build exit 0 · tank photos cut out (flood fill of the white background), mug and sticker templates transparent, stage grey; `checkDesignFileAction` + `checkDesignFile` + browser precheck (`src/lib/designs/upload.ts`) and the new file field. Not checked in a browser (admin needs a database locally). Risk: none.
 - [x] T9 · S10 · inline · tests 9/9 (written alongside, no separate RED) · migration `0021_mockup_templates.sql` + repository (list/save/delete with audit) + storefront loader. Risk: item 1 (migration).
-- [ ] T10 · S10 · inline · `src/server/mockups/warp.ts`: photo preparation (background cut), fabric warp, cylinder warp; the script reuses it.
+- [x] T10 · S10 · inline · tests 14/14, script output pixel-identical · `src/server/mockups/warp.ts`: photo preparation (background cut), fabric warp, cylinder warp; the script reuses it.
 - [ ] T11 · S10 · inline · Soportes admin: upload, print-area editor, mug curve, restore.
 - [ ] T12 · S10 · inline · store: MockupStage and its callers use the uploaded templates.
 
