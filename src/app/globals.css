@@ -3973,3 +3973,80 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
   width: 100%;
   max-width: 100%;
 }
+
+/* Admin "Soportes": the templates of a kind, each with its print area editor. */
+.template-editor-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.template-editor {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.template-editor__title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 16px;
+}
+
+.template-editor__stage {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1;
+  /* Same grey as the store's mockup stage. */
+  background: #d9d9d9;
+  border: 2px solid var(--black);
+  overflow: hidden;
+  touch-action: none;
+}
+
+.template-editor__photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.template-editor__area {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px dashed var(--cyan);
+  background: rgb(53 189 242 / 0.18);
+  color: var(--black);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.template-editor__area.is-editable {
+  cursor: move;
+}
+
+.template-editor__area.is-editable:focus-visible {
+  outline: 3px solid var(--black);
+  outline-offset: 2px;
+}
+
+.template-editor__form input[type="range"] {
+  width: 100%;
+}
+
+.template-editor-details {
+  margin-top: 16px;
+}
+
+.template-editor-details summary {
+  cursor: pointer;
+  font-weight: 700;
+}

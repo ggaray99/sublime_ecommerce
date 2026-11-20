@@ -203,3 +203,111 @@ describe("uploaded template photos and their warps", async () => {
     assert.ok(Math.abs(flat.scale * ((await pixel(flat.map, 390, 10))[0] / 255 - 0.5)) <= 1);
   });
 });
+
+describe("Soportes flow: upload, print area and reset", async () => {
+  const sharp = (await import("sharp")).default;
+  const { resetTemplate, updateTemplateArea, uploadTemplatePhoto } = await import("../src/server/mockups/template-flow.ts");
+  const { TemplatePhotoError } = await import("../src/server/mockups/warp.ts");
+  const photo = () =>
+    sharp({ create: { width: 1080, height: 1080, channels: 3, background: "#ffffff" } })
+      .composite([{ input: { create: { width: 500, height: 700, channels: 3, background: "#222222" } }, left: 290, top: 200 }])
+      .jpeg()
+      .toBuffer();
+
+  /** In-memory repository and media disk. */
+  function fakes({ failSave = false } = {}) {
+    const rows = new Map();
+    const files = new Map();
+    let n = 0;
+    const deps = {
+      repo: {
+        getTemplate: async (slot) => rows.get(`${slot.kind}-${slot.tone}-${slot.side}`) ?? null,
+        saveTemplate: async (_actor, slot, input) => {
+          if (failSave) throw new Error("db down");
+          const key = `${slot.kind}-${slot.tone}-${slot.side}`;
+          const previous = rows.get(key) ?? null;
+          rows.set(key, { ...slot, ...input, updatedAt: new Date() });
+          return previous;
+        },
+        deleteTemplate: async (_actor, slot) => {
+          const key = `${slot.kind}-${slot.tone}-${slot.side}`;
+          const current = rows.get(key);
+          if (!current) throw new AdminDataError("not_found", "Ese soporte ya usa la imagen original.");
+          rows.delete(key);
+          return current;
+        },
+      },
+      save: async (name, png) => {
+        const url = `/media/soportes/${name}-${++n}.png`;
+        files.set(url, png);
+        return url;
+      },
+      read: async (url) => files.get(url) ?? null,
+      remove: async (urls) => urls.forEach((url) => files.delete(url)),
+    };
+    return { deps, rows, files };
+  }
+
+  it("uploads a garment photo with the starting print area and a fabric warp", async () => {
+    const { deps, rows, files } = fakes();
+    await uploadTemplatePhoto(deps, admin, shirtSlot, await photo());
+    const saved = rows.get("tshirt-dark-back");
+    assert.deepEqual(saved.area, startingArea(shirtSlot));
+    assert.equal(saved.curve, null);
+    assert.equal(saved.warp.scale, 10);
+    assert.deepEqual([...files.keys()].sort(), [saved.imageUrl, saved.warp.map, saved.warp.shade].sort());
+  });
+
+  it("keeps the marked area on a new photo and deletes the replaced files", async () => {
+    const { deps, rows, files } = fakes();
+    await uploadTemplatePhoto(deps, admin, shirtSlot, await photo());
+    await updateTemplateArea(deps, admin, shirtSlot, { left: 380, top: 280, width: 300 }, null);
+    const marked = rows.get("tshirt-dark-back").area;
+    await uploadTemplatePhoto(deps, admin, shirtSlot, await photo());
+    const saved = rows.get("tshirt-dark-back");
+    assert.deepEqual(saved.area, marked);
+    assert.deepEqual([...files.keys()].sort(), [saved.imageUrl, saved.warp.map, saved.warp.shade].sort());
+  });
+
+  it("refits the marked area, rebuilds the warp and keeps the photo", async () => {
+    const { deps, rows, files } = fakes();
+    await uploadTemplatePhoto(deps, admin, mugSlot, await photo());
+    const before = rows.get("mug-light-front");
+    assert.equal(before.curve, 0.7);
+    await updateTemplateArea(deps, admin, mugSlot, { left: 2000, top: 100, width: 300 }, 0.25);
+    const after = rows.get("mug-light-front");
+    assert.equal(after.imageUrl, before.imageUrl);
+    assert.deepEqual(after.area, fitTemplateArea("mug", { left: 2000, top: 100, width: 300 }));
+    assert.equal(after.curve, 0.25);
+    assert.notEqual(after.warp.map, before.warp.map);
+    assert.deepEqual([...files.keys()].sort(), [after.imageUrl, after.warp.map, after.warp.shade].sort());
+  });
+
+  it("gives a sticker photo no warp and refuses an area before any photo", async () => {
+    const { deps, rows } = fakes();
+    const sticker = { kind: "sticker", tone: "light", side: "front" };
+    await assert.rejects(() => updateTemplateArea(deps, admin, sticker, { left: 0, top: 0, width: 300 }, null), /Subí una foto/);
+    await uploadTemplatePhoto(deps, admin, sticker, await photo());
+    assert.equal(rows.get("sticker-light-front").warp, null);
+  });
+
+  it("stores nothing for a photo that cannot be used, and cleans up when saving fails", async () => {
+    const bad = fakes();
+    const tiny = await sharp({ create: { width: 200, height: 200, channels: 3, background: "#fff" } }).png().toBuffer();
+    await assert.rejects(() => uploadTemplatePhoto(bad.deps, admin, shirtSlot, tiny), TemplatePhotoError);
+    assert.equal(bad.files.size, 0);
+    const failing = fakes({ failSave: true });
+    const good = await photo();
+    await assert.rejects(() => uploadTemplatePhoto(failing.deps, admin, shirtSlot, good), /db down/);
+    assert.equal(failing.files.size, 0);
+  });
+
+  it("goes back to the built-in image and deletes the uploaded files", async () => {
+    const { deps, rows, files } = fakes();
+    await uploadTemplatePhoto(deps, admin, shirtSlot, await photo());
+    await resetTemplate(deps, admin, shirtSlot);
+    assert.equal(rows.size, 0);
+    assert.equal(files.size, 0);
+    await assert.rejects(() => resetTemplate(deps, admin, shirtSlot), AdminDataError);
+  });
+});
