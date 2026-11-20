@@ -1,4 +1,5 @@
 import { themes } from "@/data/products";
+import { DESIGN_STATUS_LABELS, isMockupKind, MOCKUP_KIND_LABELS, type DesignStatus } from "@/lib/designs/kinds";
 import { formatPrice } from "@/lib/format";
 import type { AdminProduct, AuditEntry } from "@/server/admin/repository";
 import { getCategoryRepository } from "@/server/admin/session";
@@ -110,6 +111,12 @@ function describe(entry: AuditEntry): string {
     "promotion.activate": "Promoción activada",
     "promotion.deactivate": "Promoción pausada",
     "promotion.delete": "Promoción eliminada",
+    "design.create": "Diseño creado",
+    "design.update": "Diseño actualizado",
+    "design.image": "Imagen del diseño actualizada",
+    "design.status": `Diseño ${DESIGN_STATUS_LABELS[changes.after as DesignStatus]?.toLowerCase() ?? changes.after}`,
+    "design.delete": "Diseño eliminado",
+    "design.base": changes.productId ? "Producto base vinculado" : "Producto base desvinculado",
     "product.extras": "Venta y logística actualizadas",
     "product.duplicate": `Copia de ${changes.from}`,
     "product.import": `Planilla importada (${changes.sku})`,
@@ -142,6 +149,7 @@ export const AUDIT_AREAS = {
   point: "Puntos de venta",
   home: "Portada",
   promotion: "Promociones",
+  design: "Diseños",
   settings: "Ajustes",
   integration: "Integraciones",
   admin: "Accesos",
@@ -154,8 +162,10 @@ function subject(entry: AuditEntry): string {
   if (entry.entity === "integration") return `Integración ${entry.entityId}`;
   if (entry.entity === "home") return "Portada";
   if (entry.entity === "settings") return "Ajustes";
-  if ((entry.entity === "point" || entry.entity === "shipping" || entry.entity === "promotion") && typeof name === "string") return name;
-  if (entry.entity === "point" || entry.entity === "shipping" || entry.entity === "promotion") return AUDIT_AREAS[entry.entity];
+  if (entry.entity === "design" && isMockupKind(entry.entityId)) return `Base de ${MOCKUP_KIND_LABELS[entry.entityId]}`;
+  if (entry.entity === "point" || entry.entity === "shipping" || entry.entity === "promotion" || entry.entity === "design") {
+    return typeof name === "string" ? name : AUDIT_AREAS[entry.entity];
+  }
   return entry.entityId;
 }
 

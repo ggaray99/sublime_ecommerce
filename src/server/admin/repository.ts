@@ -44,7 +44,7 @@ export type AuditEntry = {
   createdAt: Date;
 };
 
-export type AuditEntity = "product" | "inventory" | "admin" | "category" | "integration" | "shipping" | "point" | "home" | "settings" | "promotion";
+export type AuditEntity = "product" | "inventory" | "admin" | "category" | "integration" | "shipping" | "point" | "home" | "settings" | "promotion" | "design";
 const AUDIT_ENTITY_ID = /^[a-z0-9-]{1,40}$/;
 
 export type ProductSearchResult = { items: AdminProduct[]; total: number; page: number; pageSize: number; pages: number };

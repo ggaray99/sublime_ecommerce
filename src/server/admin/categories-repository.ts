@@ -117,6 +117,10 @@ export function createCategoryRepository(sql: QueryFn) {
       if (current.productCount) {
         throw new AdminDataError("conflict", `Tiene ${current.productCount} productos: ocultala o mové los productos antes de eliminarla.`);
       }
+      const [{ designs }] = (await sql.query(`SELECT count(*)::int AS designs FROM designs WHERE category_id = $1`, [id])) as { designs: number }[];
+      if (designs) {
+        throw new AdminDataError("conflict", `Tiene ${designs} diseños: ocultala o mové los diseños antes de eliminarla.`);
+      }
       try {
         await sql.query(
           `WITH removed AS (
@@ -127,8 +131,8 @@ export function createCategoryRepository(sql: QueryFn) {
           [id, actor.authUserId, actor.email, JSON.stringify({ label: current.label })],
         );
       } catch (error) {
-        // A product was assigned between the check and the delete.
-        if ((error as { code?: string }).code === "23503") throw new AdminDataError("conflict", "La categoría tiene productos.");
+        // A product or design was assigned between the check and the delete.
+        if ((error as { code?: string }).code === "23503") throw new AdminDataError("conflict", "La categoría tiene productos o diseños.");
         throw error;
       }
       return current.imageUrl;
