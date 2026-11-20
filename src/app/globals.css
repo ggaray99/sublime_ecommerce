@@ -3974,20 +3974,6 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
   max-width: 100%;
 }
 
-/* Admin "Soportes": the templates of a kind, each with its print area editor. */
-.template-editor-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
-  gap: 20px;
-  margin-top: 16px;
-}
-
-.template-editor {
-  display: grid;
-  gap: 12px;
-  align-content: start;
-}
-
 .template-editor__title {
   display: flex;
   flex-wrap: wrap;
@@ -3999,7 +3985,6 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
 .template-editor__stage {
   position: relative;
   width: 100%;
-  max-width: 320px;
   aspect-ratio: 1;
   /* Same grey as the store's mockup stage. */
   background: #d9d9d9;
@@ -4042,11 +4027,53 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
   width: 100%;
 }
 
-.template-editor-details {
-  margin-top: 16px;
+
+/* Admin page of one base kind's images: editor and preview side by side, controls next to them. */
+.template-workspace {
+  display: grid;
+  gap: 20px;
 }
 
-.template-editor-details summary {
-  cursor: pointer;
-  font-weight: 700;
+.template-workspace__pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+}
+
+.template-editor {
+  display: grid;
+  gap: 24px;
+}
+
+.template-editor__views {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.template-editor__view {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.template-editor__view .mockup-stage {
+  border: 2px solid var(--black);
+}
+
+.template-editor__controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 20px 32px;
+  align-items: start;
+}
+
+.template-editor__controls > form:last-child:not(.template-editor__form) {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 559px) {
+  .template-editor__views {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

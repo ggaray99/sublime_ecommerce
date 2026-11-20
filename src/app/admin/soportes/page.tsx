@@ -8,15 +8,11 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable, productStatusLabel } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { MOCKUP_KIND_LABELS, MOCKUP_KINDS } from "@/lib/designs/kinds";
-import { MOCKUP_SIDE_LABELS, mockupTemplate, MOCKUPS, slotKey, TEMPLATE_SLOTS, type MockupTone, type TemplateOverrides } from "@/lib/designs/mockups";
+import { mockupTemplate, slotKey, TEMPLATE_SLOTS, type TemplateOverrides } from "@/lib/designs/mockups";
 import type { AdminProduct } from "@/server/admin/repository";
 import type { ProductStatus } from "@/server/admin/validation";
 import { adminAvailable, getAdminRepository, getCurrentAdmin, getDesignRepository, getMockupTemplateRepository } from "@/server/admin/session";
-import { hasMediaStorage } from "@/server/media/public-files";
 import { MockupBaseForm, type BaseOption } from "./base-form";
-import { TemplateEditor } from "./template-editor";
-
-const TONE_LABELS: Record<MockupTone, string> = { light: "Blanco", dark: "Negro" };
 
 export const metadata: Metadata = {
   title: "Soportes · Administración",
@@ -45,11 +41,9 @@ async function MockupBases() {
     allProducts(),
     getMockupTemplateRepository().listTemplates(),
   ]);
-  const stored = new Map(templates.map((template) => [slotKey(template), template]));
   const overrides: TemplateOverrides = Object.fromEntries(
     templates.map((template) => [slotKey(template), { src: template.imageUrl, area: template.area, ...(template.warp ? { warp: template.warp } : {}) }]),
   );
-  const storage = hasMediaStorage();
   const options: BaseOption[] = products.map((product) => ({ value: product.id, label: `${product.name} (${statusLabel(product.status)})` }));
 
   return (
@@ -70,14 +64,17 @@ async function MockupBases() {
           {MOCKUP_KINDS.map((kind) => {
             const base = bases[kind];
             const template = mockupTemplate(kind, "light", "front", overrides);
-            const slots = TEMPLATE_SLOTS.filter((slot) => slot.kind === kind);
-            const single = slots.length === 1;
+            const slots = TEMPLATE_SLOTS.filter((slot) => slot.kind === kind).length;
+            const own = templates.filter((stored) => stored.kind === kind).length;
             return (
               <li key={kind} className="address-card">
                 <Image src={template.src} alt="" width={240} height={240} className="image-admin__thumb" />
                 <p className="address-card__title">
                   {MOCKUP_KIND_LABELS[kind]}
                   {!base && <span className="badge badge--pending">Sin producto base</span>}
+                  <span className={`badge ${own ? "badge--ok" : "badge--pending"}`}>
+                    {own ? `${own} de ${slots} ${slots === 1 ? "imagen propia" : "imágenes propias"}` : "Imágenes originales"}
+                  </span>
                 </p>
                 {base ? (
                   <p className="muted">
@@ -88,32 +85,11 @@ async function MockupBases() {
                   <p className="muted">Los diseños no se pueden comprar en este soporte hasta que elijas su producto base.</p>
                 )}
                 <MockupBaseForm kind={kind} label={MOCKUP_KIND_LABELS[kind]} current={base?.legacyId ?? ""} options={options} />
-                <details className="template-editor-details">
-                  <summary>Imágenes de {MOCKUP_KIND_LABELS[kind].toLowerCase()}</summary>
-                  <div className="template-editor-list">
-                    {slots.map((slot) => {
-                      const key = slotKey(slot);
-                      const current = stored.get(key);
-                      const used = mockupTemplate(slot.kind, slot.tone, slot.side, overrides);
-                      const label = single
-                        ? "Imagen"
-                        : `${MOCKUPS[kind].tones.length > 1 ? TONE_LABELS[slot.tone] : ""}${MOCKUPS[kind].tones.length > 1 && MOCKUPS[kind].sides.length > 1 ? " · " : ""}${MOCKUPS[kind].sides.length > 1 ? MOCKUP_SIDE_LABELS[slot.side] : ""}`;
-                      return (
-                        <TemplateEditor
-                          // A new photo or saved area starts the editor over from the stored values.
-                          key={`${key}-${used.src}-${used.area.left}-${used.area.top}-${used.area.width}-${current?.curve ?? ""}`}
-                          slot={slot}
-                          label={label}
-                          src={used.src}
-                          area={used.area}
-                          custom={Boolean(current)}
-                          curve={current?.curve ?? null}
-                          storage={storage}
-                        />
-                      );
-                    })}
-                  </div>
-                </details>
+                <p>
+                  <Link className="btn btn--ghost" href={`/admin/soportes/${kind}`}>
+                    Editar imágenes
+                  </Link>
+                </p>
               </li>
             );
           })}
