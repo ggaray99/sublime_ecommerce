@@ -6,7 +6,7 @@ import { JsonLd } from "@/components/json-ld";
 import { site } from "@/data/site";
 import { MOCKUP_KIND_LABELS } from "@/lib/designs/kinds";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
-import { getStorefrontDesign, getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
+import { getMockupTemplateOverrides, getStorefrontDesign, getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
 import { designOffer } from "../offer";
 
 export async function generateStaticParams() {
@@ -39,7 +39,8 @@ export default async function DesignPage({ params }: PageProps<"/disenos/[slug]"
   const { slug } = await params;
   const design = await getStorefrontDesign(slug);
   if (!design) notFound();
-  const { bases } = designOffer(design, await getStorefrontProducts());
+  const [products, overrides] = await Promise.all([getStorefrontProducts(), getMockupTemplateOverrides()]);
+  const { bases } = designOffer(design, products);
   if (!bases.length) notFound();
 
   const options: DesignBaseOption[] = bases.map(({ kind, product }) => ({
@@ -73,6 +74,7 @@ export default async function DesignPage({ params }: PageProps<"/disenos/[slug]"
       <DesignMockup
         design={{ id: design.id, name: design.name, imageUrl: design.imageUrl, width: design.width, height: design.height, opaque: design.opaque }}
         bases={options}
+        overrides={overrides}
       />
 
       <JsonLd

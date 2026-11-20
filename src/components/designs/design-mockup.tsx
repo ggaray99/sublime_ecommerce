@@ -7,7 +7,7 @@ import { showToast } from "@/components/cart/toast-store";
 import type { ProductVariant } from "@/data/products";
 import { MAX_QUANTITY } from "@/lib/cart";
 import { MOCKUP_KIND_LABELS, type MockupKind } from "@/lib/designs/kinds";
-import { MOCKUP_SIDE_LABELS, MOCKUPS, toneOfVariant, type MockupSide } from "@/lib/designs/mockups";
+import { MOCKUP_SIDE_LABELS, MOCKUPS, toneOfVariant, type MockupSide, type TemplateOverrides } from "@/lib/designs/mockups";
 import { formatPrice } from "@/lib/format";
 import { MockupStage } from "./mockup-stage";
 
@@ -26,6 +26,8 @@ export type DesignBaseOption = {
 type Props = {
   design: { id: string; name: string; imageUrl: string; width: number; height: number; opaque: boolean };
   bases: DesignBaseOption[];
+  /** Templates uploaded in Admin › Soportes. */
+  overrides?: TemplateOverrides;
 };
 
 const inStock = (stock: number | null | undefined) => stock === undefined || stock === null || stock > 0;
@@ -37,7 +39,7 @@ const firstSelection = (base: DesignBaseOption) => ({ ...((base.variants.find((v
  * Live preview of a design on each base product it is sold on, with the base
  * product's options (talle, color…), price and stock, and the add-to-cart button.
  */
-export function DesignMockup({ design, bases }: Props) {
+export function DesignMockup({ design, bases, overrides }: Props) {
   const id = useId();
   const [kind, setKind] = useState<MockupKind>(bases[0].kind);
   const [side, setSide] = useState<MockupSide>("front");
@@ -90,6 +92,7 @@ export function DesignMockup({ design, bases }: Props) {
           alt={`${design.name} en ${kindLabel.toLowerCase()}${sides.length > 1 ? `, ${MOCKUP_SIDE_LABELS[shownSide].toLowerCase()}` : ""}`}
           sizes="(max-width: 899px) 100vw, 560px"
           preload
+          overrides={overrides}
         />
         <p className="fine-print">Vista previa ilustrativa: el estampado final puede variar levemente en tamaño y color.</p>
       </div>

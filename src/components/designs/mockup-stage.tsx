@@ -9,6 +9,7 @@ import {
   type MockupSide,
   type MockupTemplate,
   type MockupTone,
+  type TemplateOverrides,
   type Warp,
 } from "@/lib/designs/mockups";
 
@@ -25,6 +26,8 @@ type Props = {
   sizes: string;
   preload?: boolean;
   className?: string;
+  /** Templates uploaded in Admin › Soportes, which replace the built-in ones. */
+  overrides?: TemplateOverrides;
 };
 
 /**
@@ -33,8 +36,8 @@ type Props = {
  * product (fabric folds, the mug's curve) with an SVG filter; the rest lay it flat.
  * Pure markup, so it renders on the server (listing) and in the live preview.
  */
-export function MockupStage({ kind, tone, side, imageUrl, width, height, alt, sizes, preload = false, className }: Props) {
-  const template = mockupTemplate(kind, tone, side);
+export function MockupStage({ kind, tone, side, imageUrl, width, height, alt, sizes, preload = false, className, overrides }: Props) {
+  const template = mockupTemplate(kind, tone, side, overrides);
   const aspect = width > 0 && height > 0 ? width / height : 1;
   const placement = defaultPlacement(kind, aspect);
   return (

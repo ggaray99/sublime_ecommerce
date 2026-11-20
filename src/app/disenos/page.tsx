@@ -5,7 +5,7 @@ import { PageIntro } from "@/components/page-intro";
 import { MOCKUP_KIND_LABELS } from "@/lib/designs/kinds";
 import { toneOfVariant } from "@/lib/designs/mockups";
 import { formatPrice } from "@/lib/format";
-import { getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
+import { getMockupTemplateOverrides, getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
 import { designOffer } from "./offer";
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DesignsPage() {
-  const [designs, products] = await Promise.all([getStorefrontDesigns(), getStorefrontProducts()]);
+  const [designs, products, overrides] = await Promise.all([getStorefrontDesigns(), getStorefrontProducts(), getMockupTemplateOverrides()]);
   const offers = designs.map((design) => ({ design, ...designOffer(design, products) })).filter((offer) => offer.bases.length);
 
   return (
@@ -51,6 +51,7 @@ export default async function DesignsPage() {
                       alt=""
                       sizes="(max-width: 359px) 100vw, (max-width: 639px) 50vw, (max-width: 1199px) 33vw, 25vw"
                       preload={index < 4}
+                      overrides={overrides}
                     />
                   </Link>
                   <div className="product-card__body">
