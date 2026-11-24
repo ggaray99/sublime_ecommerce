@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { writePsdBuffer } from "ag-psd";
 import sharp from "sharp";
-import { formatFileSize, precheckDesignFile } from "../src/lib/designs/upload.ts";
+import nextConfig from "../next.config.ts";
+import { DESIGN_MAX_BYTES, formatFileSize, precheckDesignFile } from "../src/lib/designs/upload.ts";
 import { checkDesignFile, DesignFileError, prepareDesignFile, PREVIEW_MAX_PX } from "../src/server/designs/files.ts";
 
 const transparentPng = (width, height) =>
@@ -87,5 +88,19 @@ describe("checking a design file right after it is picked", () => {
   it("shows file sizes in KB or MB", () => {
     assert.equal(formatFileSize(830 * 1024), "830 KB");
     assert.equal(formatFileSize(2.4 * 1024 * 1024), "2,4 MB");
+  });
+});
+
+describe("upload size limits", () => {
+  const MB = 1024 * 1024;
+  const bytes = (value) => (typeof value === "number" ? value : Number.parseFloat(value) * MB);
+
+  // src/proxy.ts runs on /admin: Next.js cuts request bodies above proxyClientMaxBodySize
+  // (10 MB by default), so a 10.7 MB design reached the Server Action truncated and crashed the page.
+  it("lets a design file of the advertised maximum through the proxy and the Server Action", () => {
+    const { proxyClientMaxBodySize, serverActions } = nextConfig.experimental ?? {};
+    assert.ok(proxyClientMaxBodySize, "proxyClientMaxBodySize must be set (default 10 MB is below the design limit)");
+    assert.ok(bytes(proxyClientMaxBodySize) > DESIGN_MAX_BYTES);
+    assert.ok(bytes(serverActions.bodySizeLimit) > DESIGN_MAX_BYTES);
   });
 });

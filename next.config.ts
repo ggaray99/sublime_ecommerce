@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
       // Custom Lab originals can reach 15 MB (each upload validator keeps its own limit).
       bodySizeLimit: "16mb",
     },
+    // src/proxy.ts runs on every page, /admin included, and Next.js truncates proxied
+    // request bodies above this size (10 MB by default): keep it at the Server Action limit.
+    proxyClientMaxBodySize: "16mb",
   },
   turbopack: {
     rules: {
