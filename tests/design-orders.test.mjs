@@ -259,6 +259,20 @@ describe("design lines on PostgreSQL (PGlite)", () => {
       assert.deepEqual(quote.lines.map((line) => [line.sku, line.designId]), [["SUB-P08-BLANCO", published]]);
     });
 
+    it("a base product without active variants answers unknown_product, as before colors", async () => {
+      await db.query("UPDATE product_variants SET active = false WHERE product_id = (SELECT id FROM products WHERE legacy_id = 'p08')");
+      try {
+        const quote = await quoteCart([{ productId: "p08", quantity: 1, designId: published }], deps);
+        assert.equal(quote.valid, false);
+        assert.deepEqual(
+          quote.issues.map((issue) => [issue.productId, issue.code, issue.message]),
+          [["p08", "unknown_product", "El producto no existe o no está disponible."]],
+        );
+      } finally {
+        await db.query("UPDATE product_variants SET active = true WHERE product_id = (SELECT id FROM products WHERE legacy_id = 'p08')");
+      }
+    });
+
     it("a design on a kind without colors (mug) quotes as before", async () => {
       const quote = await quoteCart([{ productId: "p09", quantity: 2, designId: mugDesign }], deps);
       assert.equal(quote.valid, true);

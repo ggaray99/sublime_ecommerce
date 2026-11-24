@@ -74,7 +74,9 @@ export function createPostgresDesignOffers(sql: QueryFn): DesignOfferRepository 
       )) as { id: string; name: string; bases: OfferedBaseRow[]; skus: Partial<Record<MockupKind, Record<string, Record<string, string>> | null>> }[];
       return new Map(
         rows.flatMap((row) => {
-          const bases = offerableBases(row.bases).map(({ kind, productId, colors }) => ({
+          // A base without active variants stays: the quote then reports the product itself
+          // as unavailable (unknown_product), as it did before colors existed.
+          const bases = row.bases.filter((base) => !base.variants?.length || offerableBases([base]).length).map(({ kind, productId, colors }) => ({
             kind,
             productId,
             colors,
