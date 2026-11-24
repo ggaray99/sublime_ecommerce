@@ -1,4 +1,4 @@
-import { slotKey, type Box, type TemplateOverrides, type TemplateSlot } from "../../lib/designs/mockups.ts";
+import { isTemplateSlot, slotKey, type Box, type TemplateOverrides, type TemplateSlot } from "../../lib/designs/mockups.ts";
 import { AdminDataError, type Admin } from "../admin/repository.ts";
 import type { QueryFn } from "../customers/repository.ts";
 
@@ -53,7 +53,17 @@ const logTemplate = (action: string, first: number) =>
   `INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
    SELECT $${first}, $${first + 1}, '${action}', 'design', kind || '-' || tone || '-' || side, $${first + 2}::jsonb`;
 
-/** Uploaded mockup templates (Admin › Soportes); the slot is checked by the caller. */
+export const UNKNOWN_SLOT = "Ese soporte no existe: elegí un color de la lista (o la base clara u oscura) y un lado del soporte.";
+
+/**
+ * Throws unless the slot is one the kinds declare: a generic light/dark slot, or
+ * a garment color key on a kind that comes in colors (tshirt, tank).
+ */
+export function assertTemplateSlot(slot: TemplateSlot): void {
+  if (!isTemplateSlot(slot.kind, slot.tone, slot.side)) throw new AdminDataError("not_found", UNKNOWN_SLOT);
+}
+
+/** Uploaded mockup templates (Admin › Soportes), by slot: generic light/dark or a garment color. */
 export function createMockupTemplateRepository(sql: QueryFn) {
   async function getTemplate(slot: TemplateSlot): Promise<StoredTemplate | null> {
     const rows = (await sql.query(`SELECT ${COLUMNS} FROM mockup_templates WHERE kind = $1 AND tone = $2 AND side = $3`, [
@@ -73,6 +83,7 @@ export function createMockupTemplateRepository(sql: QueryFn) {
 
     /** Creates or replaces the slot's template; returns the previous one, whose files the caller deletes. */
     async saveTemplate(actor: Admin, slot: TemplateSlot, input: TemplateInput): Promise<StoredTemplate | null> {
+      assertTemplateSlot(slot);
       const previous = await getTemplate(slot);
       const { area, warp } = input;
       const changes = JSON.stringify({ imageUrl: input.imageUrl, area, curve: input.curve });
@@ -108,8 +119,9 @@ export function createMockupTemplateRepository(sql: QueryFn) {
       return previous;
     },
 
-    /** Back to the built-in template; returns the removed one, whose files the caller deletes. */
+    /** Back to the fallback (a color: its light/dark template; light/dark: the built-in one); returns the removed one, whose files the caller deletes. */
     async deleteTemplate(actor: Admin, slot: TemplateSlot): Promise<StoredTemplate> {
+      assertTemplateSlot(slot);
       const current = await getTemplate(slot);
       if (!current) throw new AdminDataError("not_found", "Ese soporte ya usa la imagen original.");
       await sql.query(

@@ -7,7 +7,7 @@ import { showToast } from "@/components/cart/toast-store";
 import type { ProductVariant } from "@/data/products";
 import { MAX_QUANTITY } from "@/lib/cart";
 import { MOCKUP_KIND_LABELS, type MockupKind } from "@/lib/designs/kinds";
-import { MOCKUP_SIDE_LABELS, MOCKUPS, toneOfVariant, type MockupSide, type TemplateOverrides } from "@/lib/designs/mockups";
+import { colorKey, MOCKUP_SIDE_LABELS, MOCKUPS, toneOfVariant, variantColor, type MockupSide, type TemplateOverrides } from "@/lib/designs/mockups";
 import { formatPrice } from "@/lib/format";
 import { MockupStage } from "./mockup-stage";
 
@@ -17,7 +17,7 @@ export type DesignBaseOption = {
   productId: string;
   optionNames: string[];
   variants: ProductVariant[];
-  /** Products without variants: their own price and stock. */
+  /** Only the variants in colors enabled for the design. Products without variants: their own price and stock. */
   price: number | null;
   stock: number | null | undefined;
   purchasable: boolean;
@@ -68,6 +68,7 @@ export function DesignMockup({ design, bases, overrides }: Props) {
   const sides = MOCKUPS[base.kind].sides;
   const shownSide = sides.includes(side) ? side : sides[0];
   const tone = toneOfVariant(selection);
+  const color = colorKey(variantColor(selection) ?? "") || null;
   const kindLabel = MOCKUP_KIND_LABELS[base.kind];
   const lineName = `${design.name} · ${kindLabel}`;
   const optionLabel = base.optionNames.map((name) => `${name} ${selection[name]}`).join(" · ");
@@ -85,6 +86,7 @@ export function DesignMockup({ design, bases, overrides }: Props) {
           className="mockup-stage--large"
           kind={base.kind}
           tone={tone}
+          color={color}
           side={shownSide}
           imageUrl={design.imageUrl}
           width={design.width}

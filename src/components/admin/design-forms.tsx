@@ -10,12 +10,26 @@ import {
   uploadDesignFileAction,
 } from "@/app/admin/disenos/actions";
 import { MOCKUP_KIND_LABELS, MOCKUP_KINDS, type DesignStatus, type MockupKind } from "@/lib/designs/kinds";
+import type { GarmentColor } from "@/lib/designs/mockups";
 import { formatFileSize, precheckDesignFile } from "@/lib/designs/upload";
 import type { AdminFormState } from "@/server/admin/guard";
 import { ConfirmButton } from "./confirm-button";
 import { Checkbox, Field, Status, type Option } from "./forms";
 
-export type DesignFormValues = { name: string; slug: string; description: string; categoryId: string; kinds: MockupKind[] };
+export type DesignFormValues = {
+  name: string;
+  slug: string;
+  description: string;
+  categoryId: string;
+  kinds: MockupKind[];
+  /** Checked color keys per kind; a kind that comes in colors and is missing here starts with all of them checked. */
+  colors: Partial<Record<MockupKind, string[]>>;
+};
+
+/** The colors each kind's base product comes in; kinds without colors are missing. */
+export type KindColorOptions = Partial<Record<MockupKind, GarmentColor[]>>;
+
+const COLORS_HINT = "Los colores salen de las variantes «Color» del producto base. Destildá los colores donde el diseño no queda bien.";
 
 const ACCEPT = ".png,.jpg,.jpeg,.webp,.psd";
 const FILE_HINT =
@@ -163,46 +177,102 @@ function DesignFileField({ state, label, required }: { state: AdminFormState; la
   );
 }
 
-/** One checkbox per base product; at least one is needed to publish. */
-function KindsField({ state, checked }: { state: AdminFormState; checked: MockupKind[] }) {
+/**
+ * One checkbox per base product; at least one is needed to publish. A product
+ * that comes in colors nests one checkbox per color; colors of an unchecked
+ * product are ignored when saving.
+ */
+function KindsField({
+  state,
+  checked,
+  colors,
+  kindColors,
+}: {
+  state: AdminFormState;
+  checked: MockupKind[];
+  colors: Partial<Record<MockupKind, string[]>>;
+  kindColors: KindColorOptions;
+}) {
   const id = useId();
   const error = state.fields?.kinds;
+  const colorError = state.fields?.colors;
   return (
-    <fieldset className="admin-fieldset" aria-describedby={[`${id}-hint`, error ? `${id}-error` : ""].filter(Boolean).join(" ")}>
+    <fieldset
+      className="admin-fieldset"
+      aria-describedby={[`${id}-hint`, error ? `${id}-error` : "", colorError ? `${id}-colors-error` : ""].filter(Boolean).join(" ")}
+    >
       <legend>Disponible en</legend>
       <p className="field__hint" id={`${id}-hint`}>
         Elegí al menos un producto para poder publicarlo.
       </p>
-      {MOCKUP_KINDS.map((kind) => (
-        <div key={kind} className="field field--check">
-          <input id={`${id}-${kind}`} name="kinds" type="checkbox" value={kind} defaultChecked={checked.includes(kind)} />
-          <label htmlFor={`${id}-${kind}`}>{MOCKUP_KIND_LABELS[kind]}</label>
-        </div>
-      ))}
+      {MOCKUP_KINDS.map((kind) => {
+        const options = kindColors[kind] ?? [];
+        const picked = colors[kind] ?? options.map((color) => color.key);
+        return (
+          <div key={kind}>
+            <div className="field field--check">
+              <input id={`${id}-${kind}`} name="kinds" type="checkbox" value={kind} defaultChecked={checked.includes(kind)} />
+              <label htmlFor={`${id}-${kind}`}>{MOCKUP_KIND_LABELS[kind]}</label>
+            </div>
+            {options.length > 0 && (
+              <fieldset className="admin-fieldset" aria-describedby={`${id}-${kind}-colors-hint`}>
+                <legend>Colores de {MOCKUP_KIND_LABELS[kind].toLowerCase()}</legend>
+                <p className="field__hint" id={`${id}-${kind}-colors-hint`}>
+                  {COLORS_HINT}
+                </p>
+                {options.map((color) => (
+                  <div key={color.key} className="field field--check">
+                    <input
+                      id={`${id}-${kind}-${color.key}`}
+                      name={`colors-${kind}`}
+                      type="checkbox"
+                      value={color.key}
+                      defaultChecked={picked.includes(color.key)}
+                    />
+                    <label htmlFor={`${id}-${kind}-${color.key}`}>{color.label}</label>
+                  </div>
+                ))}
+              </fieldset>
+            )}
+          </div>
+        );
+      })}
       {error && (
         <p className="field__error" id={`${id}-error`}>
           {error}
+        </p>
+      )}
+      {colorError && (
+        <p className="field__error" id={`${id}-colors-error`}>
+          {colorError}
         </p>
       )}
     </fieldset>
   );
 }
 
-/** Data and base products of a design. Creating also takes the file and an optional "publish now". */
+/** Data, base products and colors of a design. Creating also takes the file and an optional "publish now". */
 export function DesignForm({
   mode,
   designId,
   initial,
   categories,
+  kindColors,
 }: {
   mode: "create" | "edit";
   designId?: string;
   initial: DesignFormValues;
   categories: Option[];
+  kindColors: KindColorOptions;
 }) {
   const [state, action, pending] = useActionState(mode === "create" ? createDesignAction : updateDesignAction, {});
-  const value = (key: Exclude<keyof DesignFormValues, "kinds">) => state.values?.[key] ?? initial[key];
+  const value = (key: Exclude<keyof DesignFormValues, "kinds" | "colors">) => state.values?.[key] ?? initial[key];
   const kinds = state.values ? (state.values.kinds.split(",").filter(Boolean) as MockupKind[]) : initial.kinds;
+  // After a failed save, what was checked; a kind with every color unchecked stays that way.
+  const colors: DesignFormValues["colors"] = state.values
+    ? Object.fromEntries(MOCKUP_KINDS.map((kind) => [kind, (state.values?.[`colors-${kind}`] ?? "").split(",").filter(Boolean)]))
+    : initial.colors;
+  const colorsKey = MOCKUP_KINDS.map((kind) => `${kind}:${(colors[kind] ?? []).join("+")}`).join(",");
   const categoryOptions = [{ value: "", label: "Sin categoría" }, ...categories];
   return (
     <form action={action} className="quote-form" noValidate>
@@ -220,7 +290,7 @@ export function DesignForm({
         <Field name="categoryId" label="Categoría" state={state} defaultValue={value("categoryId")} options={categoryOptions} />
       </div>
       <Field name="description" label="Descripción" state={state} defaultValue={value("description")} multiline />
-      <KindsField key={kinds.join(",")} state={state} checked={kinds} />
+      <KindsField key={`${kinds.join(",")}|${colorsKey}`} state={state} checked={kinds} colors={colors} kindColors={kindColors} />
       {mode === "create" && (
         <>
           <DesignFileField state={state} label="Archivo del diseño" required />

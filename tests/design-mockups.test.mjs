@@ -13,7 +13,12 @@ import {
   MOCKUPS,
   mockupTemplate,
   TEMPLATE_PX,
+  colorKey,
+  garmentColors,
+  isTemplateSlot,
+  toneOfColor,
   toneOfVariant,
+  variantColor,
 } from "../src/lib/designs/mockups.ts";
 import { printArea, shirtTemplateSrc } from "../src/lib/lab/tshirt.ts";
 
@@ -142,5 +147,54 @@ describe("placement", () => {
     const p = clampMockupPlacement("mug", { scale: 1, x: 0.5, y: 0.5 }, 0.1);
     const heightFraction = designBox("mug", p, 0.1).height;
     assert.ok(heightFraction <= 1 + 1e-9, `height ${heightFraction}`);
+  });
+});
+
+describe("garment colors", () => {
+  it("keys a color name without case, accents or spaces", () => {
+    assert.equal(colorKey("Negro"), "negro");
+    assert.equal(colorKey("  Verde Agua "), "verde-agua");
+    assert.equal(colorKey("Azul Océano"), "azul-oceano");
+    assert.equal(colorKey("!!!"), "");
+  });
+
+  it("reads the Color option of a variant, ignoring case and accents in its name", () => {
+    assert.equal(variantColor({ Talle: "M", Color: "Crema" }), "Crema");
+    assert.equal(variantColor({ COLOR: " Negro " }), "Negro");
+    assert.equal(variantColor({ Talle: "M" }), null);
+  });
+
+  it("lists distinct colors in variant order", () => {
+    const variants = [{ options: { Color: "Blanco", Talle: "S" } }, { options: { Color: "Crema", Talle: "S" } }, { options: { color: "blanco", Talle: "M" } }, { options: { Talle: "L" } }];
+    assert.deepEqual(garmentColors(variants), [
+      { key: "blanco", label: "Blanco" },
+      { key: "crema", label: "Crema" },
+    ]);
+  });
+
+  it("uses the dark template for dark colors without their own photo", () => {
+    assert.equal(toneOfColor("Negro"), "dark");
+    assert.equal(toneOfColor("Azul marino"), "dark");
+    assert.equal(toneOfColor("Crema"), "light");
+    assert.equal(toneOfColor(null), "light");
+  });
+
+  it("prefers the color's own uploaded photo, then the tone's, then the built-in one", () => {
+    const own = { src: "/media/soportes/crema.png", area: { left: 1, top: 2, width: 300, height: 400 } };
+    const light = { src: "/media/soportes/light.png", area: { left: 3, top: 4, width: 300, height: 400 } };
+    assert.equal(mockupTemplate("tshirt", "light", "front", { "tshirt-crema-front": own, "tshirt-light-front": light }, "crema").src, own.src);
+    assert.equal(mockupTemplate("tshirt", "light", "front", { "tshirt-light-front": light }, "crema").src, light.src);
+    assert.equal(mockupTemplate("tshirt", "light", "front", {}, "crema").src, MOCKUPS.tshirt.templates["light-front"].src);
+    assert.equal(mockupTemplate("tshirt", "light", "front", { "tshirt-crema-front": own }, "crema").blend, "multiply");
+    // Single-tone kinds ignore colors.
+    assert.equal(mockupTemplate("mug", "light", "front", { "mug-crema-front": own }, "crema").src, MOCKUPS.mug.templates["light-front"].src);
+  });
+
+  it("accepts color slots only on kinds that come in colors", () => {
+    assert.equal(isTemplateSlot("tshirt", "crema", "front"), true);
+    assert.equal(isTemplateSlot("tshirt", "light", "back"), true);
+    assert.equal(isTemplateSlot("tshirt", "Crema", "front"), false);
+    assert.equal(isTemplateSlot("mug", "crema", "front"), false);
+    assert.equal(isTemplateSlot("mug", "light", "back"), false);
   });
 });

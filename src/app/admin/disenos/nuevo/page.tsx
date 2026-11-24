@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { DesignForm } from "@/components/admin/design-forms";
 import { AdminUnavailable, loadCategoryOptions } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
-import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
+import { adminAvailable, getCurrentAdmin, getDesignRepository } from "@/server/admin/session";
 import { hasPrivateStorage } from "@/server/media/private-files";
 import { hasMediaStorage } from "@/server/media/public-files";
 
@@ -19,7 +19,7 @@ async function NewDesign() {
   await connection();
   if (!adminAvailable()) return <AdminUnavailable />;
   if (!(await getCurrentAdmin())) notFound();
-  const categories = await loadCategoryOptions();
+  const [categories, kindColors] = await Promise.all([loadCategoryOptions(), getDesignRepository().listKindColors()]);
 
   return (
     <div className="account">
@@ -34,7 +34,13 @@ async function NewDesign() {
               Se crea en borrador salvo que marques &quot;Publicar ahora&quot;. Guardamos el archivo en alta resolución para producción
               y una versión liviana para la tienda.
             </p>
-            <DesignForm mode="create" initial={{ name: "", slug: "", description: "", categoryId: "", kinds: [] }} categories={categories} />
+            {/* Every color of each product starts checked (no entry = all). */}
+            <DesignForm
+              mode="create"
+              initial={{ name: "", slug: "", description: "", categoryId: "", kinds: [], colors: {} }}
+              categories={categories}
+              kindColors={kindColors}
+            />
           </>
         ) : (
           <p className="panel panel--muted">La carga de diseños no está configurada en este entorno (falta MEDIA_ROOT).</p>

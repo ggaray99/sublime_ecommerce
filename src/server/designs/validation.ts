@@ -1,4 +1,5 @@
-import { isMockupKind, MOCKUP_KINDS, type MockupKind } from "../../lib/designs/kinds.ts";
+import { isMockupKind, MOCKUP_KIND_LABELS, MOCKUP_KINDS, type MockupKind } from "../../lib/designs/kinds.ts";
+import type { GarmentColor } from "../../lib/designs/mockups.ts";
 import { slugify } from "../admin/validation.ts";
 import type { FieldErrors, Validated } from "../customers/validation.ts";
 
@@ -8,7 +9,15 @@ export type DesignInput = {
   description: string;
   categoryId: string | null;
   kinds: MockupKind[];
+  /**
+   * The garment color keys (see colorKey) the design is offered on, per kind. A
+   * kind without an entry is offered on every color of its base product.
+   */
+  colors: Partial<Record<MockupKind, string[]>>;
 };
+
+/** The colors each kind's base product comes in (listKindColors); kinds without colors are missing. */
+export type KindColors = Partial<Record<MockupKind, GarmentColor[]>>;
 
 type Data = Record<string, unknown>;
 
@@ -24,8 +33,18 @@ function values(value: unknown): string[] {
   return typeof value === "string" && value ? [value] : [];
 }
 
-/** Name, URL, description, category and the base products a design is offered on. */
-export function parseDesignInput(data: Data): Validated<DesignInput> {
+/** The colors posted for a kind: one "colors-<kind>" entry per checked box, or `colors: { kind: [...] }` from JSON. */
+function postedColors(data: Data, kind: MockupKind): string[] {
+  const nested = data.colors && typeof data.colors === "object" ? (data.colors as Data)[kind] : undefined;
+  return [...values(data[`colors-${kind}`]), ...values(nested)];
+}
+
+/**
+ * Name, URL, description, category, the base products a design is offered on
+ * and, for each checked kind whose base product comes in colors, the colors.
+ * Colors of unchecked kinds are ignored.
+ */
+export function parseDesignInput(data: Data, kindColors: KindColors = {}): Validated<DesignInput> {
   const errors: FieldErrors<DesignInput> = {};
   const name = str(data, "name");
   if (!name) errors.name = "Poné un nombre para el diseño.";
@@ -45,6 +64,22 @@ export function parseDesignInput(data: Data): Validated<DesignInput> {
   // Stable order, no duplicates.
   const kinds = MOCKUP_KINDS.filter((kind) => picked.includes(kind));
 
+  const colors: DesignInput["colors"] = {};
+  for (const kind of kinds) {
+    const available = kindColors[kind] ?? [];
+    const posted = postedColors(data, kind);
+    const noun = MOCKUP_KIND_LABELS[kind].toLowerCase();
+    const unknown = posted.find((key) => !available.some((color) => color.key === key));
+    if (unknown !== undefined) {
+      errors.colors ??= `Elegí colores de la lista: «${unknown.slice(0, 40)}» no es un color de ${noun}.`;
+    } else if (available.length) {
+      // Base product order, no duplicates.
+      const chosen = available.filter((color) => posted.includes(color.key)).map((color) => color.key);
+      if (chosen.length) colors[kind] = chosen;
+      else errors.colors ??= `Elegí al menos un color de ${noun}.`;
+    }
+  }
+
   if (Object.keys(errors).length) return { ok: false, errors };
-  return { ok: true, value: { name, slug, description, categoryId, kinds } };
+  return { ok: true, value: { name, slug, description, categoryId, kinds, colors } };
 }

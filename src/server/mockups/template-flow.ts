@@ -8,7 +8,7 @@ import {
   type TemplateSlot,
 } from "../../lib/designs/mockups.ts";
 import { AdminDataError, type Admin } from "../admin/repository.ts";
-import { templateFiles, type MockupTemplateRepository, type StoredTemplate } from "./templates-repository.ts";
+import { assertTemplateSlot, templateFiles, type MockupTemplateRepository, type StoredTemplate } from "./templates-repository.ts";
 import { cylinderWarp, fabricWarp, prepareTemplatePhoto } from "./warp.ts";
 
 /** What the Soportes actions pass in: the repository and the public media disk. */
@@ -51,10 +51,13 @@ async function saveWithFiles(deps: TemplateFlowDeps, actor: Admin, slot: Templat
 }
 
 /**
- * A new photo for a slot. Throws TemplatePhotoError for a photo that cannot be
+ * A new photo for a slot (generic light/dark or a garment color; the warp is
+ * built the same way for both). Throws AdminDataError for a slot that does not
+ * exist and TemplatePhotoError for a photo that cannot be
  * used. A slot that already had a photo keeps its print area and mug curve.
  */
 export async function uploadTemplatePhoto(deps: TemplateFlowDeps, actor: Admin, slot: TemplateSlot, bytes: Uint8Array): Promise<void> {
+  assertTemplateSlot(slot);
   const image = await prepareTemplatePhoto(bytes);
   const current = await deps.repo.getTemplate(slot);
   const area = current?.area ?? startingArea(slot);
@@ -78,6 +81,7 @@ export async function updateTemplateArea(
   box: { left: number; top: number; width: number },
   curve: number | null,
 ): Promise<void> {
+  assertTemplateSlot(slot);
   const current = await deps.repo.getTemplate(slot);
   if (!current) throw new AdminDataError("not_found", "Subí una foto antes de marcar la zona de estampa.");
   const image = await deps.read(current.imageUrl);
@@ -88,8 +92,9 @@ export async function updateTemplateArea(
   await saveWithFiles(deps, actor, slot, { imageUrl: current.imageUrl, area, warp, curve: mugCurve }, templateFiles({ imageUrl: "", warp }));
 }
 
-/** Back to the built-in template; the uploaded files are deleted. */
+/** Removes the uploaded photo (a color falls back to its light/dark template); the files are deleted. */
 export async function resetTemplate(deps: TemplateFlowDeps, actor: Admin, slot: TemplateSlot): Promise<void> {
+  assertTemplateSlot(slot);
   const removed = await deps.repo.deleteTemplate(actor, slot);
   await deps.remove(templateFiles(removed));
 }

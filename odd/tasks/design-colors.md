@@ -1,0 +1,20 @@
+# Design colors: catalog designs on any garment color, with per-color mockups
+Branch `feat/design-catalog` (stacked). Delivery: `ask-on-risk`; QA (`feat/vps-self-hosting`) only when the user says so, never production. Runner: `node --test` (PGlite), plus `npm.cmd run lint` and `npm.cmd run build` (build with `DATABASE_URL=` because `.env.local` points at an un-migrated remote DB).
+
+## Specs
+- **S1** Owner feedback (Facu): "cuando lo cargo necesito la opcion de elegir que es apto para remera (negra) sino te deja elegir para mockups blancos y a veces no queda bien". The design form lets the admin pick, per base product that has colors, which garment colors the design is offered on.
+- **S2** User: "hacé lo de la remera negra como color de remera" / "la idea es que soporte cualquier color de remera, ponele que mañana quiere empezar a ofrecer diseños sobre una remera color crema, deberia poder". Colors are not hardcoded: they are the values of the base product's variant option named "Color" (any case/accents). Adding a variant `Color: Crema` to the base product makes crema available everywhere, with no code change.
+- **S3** User: "fijate que cuando hacemos los personalizados ya hay mockups base de remera negra, ahora en los otros es lo mismo, ya hay algo cargado negro y sino se cargara". Admin › Soportes can upload a template photo per color (kind × color × side). A color without its own photo falls back to the existing light/dark template (uploaded or built-in), chosen by how dark the color name is.
+- **S4** The store's design page offers only the colors enabled for that design and shows that color's mockup; the cart quote rejects a design line whose variant color is not enabled for the design.
+- **S5** Assumption: designs created before this change (no colors saved) stay offered on every color of the base product. Kinds whose base product has no Color option (mug, sticker) are unaffected.
+
+## Tasks
+- T1 S2,S3,S5 inline — foundation: migration 0022 (template tone accepts color keys; `design_colors` table), color helpers in `src/lib/designs/mockups.ts` (colorKey, variantColor, tone of a color, template lookup by color), `listKindColors` in the designs repository. Status: done. Evidence: `node --test tests/design-mockups.test.mjs tests/designs.test.mjs tests/mockup-templates.test.mjs` 54/54. RED not observed first (tests written right after the helpers).
+- T2 S3 delegated (parallel unit A, disjoint surface: Soportes admin + templates repository/flow) — per-color template slots in Admin › Soportes. Status: done (writer: 43/43 mockup tests, RED seen on slot rejection).
+- T3 S1,S4,S5 delegated (parallel unit B, disjoint surface: design form/validation/repository/offers/quote/storefront) — per-design colors, store picker and quote check. Status: done (writer: 59/59, RED seen on 10 tests).
+
+## Log
+- L1 (2026-11-24) User: "dale, hacé lo de la remera negra como color de remera" then "fijate que cuando hacemos los personalizados ya hay mockups base de remera negra, ahora en los otros es lo mismo, ya hay algo cargado negro y sino se cargara, la idea es que soporte cualquier color de remera, ponele que mañana quiere empezar a ofrecer diseños sobre una remera color crema, deberia poder".
+- L2 Route: T1 inline (shared helpers both units need); T2 and T3 are independent units with disjoint edit surfaces, several hundred lines each → Writer trigger (a) parallelism. Risk: item 1 (migration on mockup_templates CHECK + new table; no existing rows rewritten).
+- L3 (2026-11-24) T2 and T3 returned. Seam check: `npm.cmd test` 482/482, lint clean, `DATABASE_URL= npm.cmd run build` OK. One commit holds T1–T3 (the units share repository.ts, so they do not split into commits that typecheck alone).
+- L4 Decision taken by the writer, to confirm with the user: colors are saved explicitly, so a color added later (e.g. Crema) is not switched on for designs that already have saved colors; legacy designs without rows get every color. Not covered by tests: the store's variant filter (`src/app/disenos/offer.ts`) and the React form; parent reviewed the filter diff.

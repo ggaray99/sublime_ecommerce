@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { isMockupKind, MOCKUP_KIND_LABELS } from "@/lib/designs/kinds";
-import { isTemplateSlot, type TemplateSlot } from "@/lib/designs/mockups";
+import { isTemplateSlot, MOCKUP_TONES, type TemplateSlot } from "@/lib/designs/mockups";
 import { catalogChanged, dataError, formValues, requireAdmin, type AdminFormState } from "@/server/admin/guard";
 import { getDesignRepository, getMockupTemplateRepository } from "@/server/admin/session";
 import { deleteMediaFile, readMediaFile, saveMediaFile } from "@/server/media/disk";
 import { hasMediaStorage } from "@/server/media/public-files";
+import { UNKNOWN_SLOT } from "@/server/mockups/templates-repository";
 import { resetTemplate, updateTemplateArea, uploadTemplatePhoto, type TemplateFlowDeps } from "@/server/mockups/template-flow";
 import { TemplatePhotoError } from "@/server/mockups/warp";
 
@@ -38,11 +39,16 @@ const templateDeps = (): TemplateFlowDeps => ({
   },
 });
 
-/** The kind × tone × side a Soportes form is about, or null when it is not one the kinds declare. */
+/**
+ * The kind × tone × side a Soportes form is about: a generic light/dark slot or a
+ * garment color key of a kind that comes in colors; null for anything else.
+ */
 function readSlot(form: FormData): TemplateSlot | null {
   const [kind, tone, side] = ["kind", "tone", "side"].map((key) => String(form.get(key) ?? ""));
   return isTemplateSlot(kind, tone, side) ? ({ kind, tone, side } as TemplateSlot) : null;
 }
+
+const hasGenericTone = (slot: TemplateSlot) => (MOCKUP_TONES as readonly string[]).includes(slot.tone);
 
 function templateChanged() {
   catalogChanged("/admin/soportes", "/disenos");
@@ -54,7 +60,7 @@ export async function uploadTemplatePhotoAction(_state: AdminFormState, form: Fo
   const admin = await requireAdmin();
   if (!hasMediaStorage()) return { error: NO_STORAGE };
   const slot = readSlot(form);
-  if (!slot) return { error: "Ese soporte no existe." };
+  if (!slot) return { error: UNKNOWN_SLOT };
   const file = form.get("file");
   if (!(file instanceof File) || !file.size) return { fields: { file: "Elegí la foto." } };
   try {
@@ -72,7 +78,7 @@ export async function saveTemplateAreaAction(_state: AdminFormState, form: FormD
   const admin = await requireAdmin();
   if (!hasMediaStorage()) return { error: NO_STORAGE };
   const slot = readSlot(form);
-  if (!slot) return { error: "Ese soporte no existe." };
+  if (!slot) return { error: UNKNOWN_SLOT };
   const number = (key: string) => Number(form.get(key));
   const curve = form.has("curve") ? number("curve") / 100 : null;
   try {
@@ -88,12 +94,12 @@ export async function saveTemplateAreaAction(_state: AdminFormState, form: FormD
 export async function resetTemplateAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
   const admin = await requireAdmin();
   const slot = readSlot(form);
-  if (!slot) return { error: "Ese soporte no existe." };
+  if (!slot) return { error: UNKNOWN_SLOT };
   try {
     await resetTemplate(templateDeps(), admin, slot);
   } catch (error) {
     return dataError(error);
   }
   templateChanged();
-  return { ok: "Se restableció la imagen original." };
+  return { ok: hasGenericTone(slot) ? "Se restableció la imagen original." : "Se quitó la foto propia: el color vuelve a usar la base." };
 }

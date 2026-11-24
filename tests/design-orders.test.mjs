@@ -220,6 +220,56 @@ describe("design lines on PostgreSQL (PGlite)", () => {
     assert.deepEqual(holds.rows, [{ quantity: 3 }]);
   });
 
+  describe("garment colors", () => {
+    const COLOR_MESSAGE = "Ese color no está disponible para este diseño.";
+    let blackOnly;
+    let mugDesign;
+
+    before(async () => {
+      const query = { query: async (text, params) => (await db.query(text, params)).rows };
+      const designs = createDesignRepository(query);
+      const [{ id: p08 }] = (await db.query("SELECT id FROM products WHERE legacy_id = 'p08'")).rows;
+      for (const [sku, color] of [["SUB-P08-BLANCO", "Blanco"], ["SUB-P08-NEGRO", "Negro"]]) {
+        await db.query("INSERT INTO product_variants (product_id, sku, options, price_minor) VALUES ($1, $2, $3, 890000)", [p08, sku, { Color: color }]);
+      }
+      blackOnly = await designs.createDesign(admin, { name: "Noche", slug: "noche", description: "", categoryId: null, kinds: ["tshirt"], colors: { tshirt: ["negro"] } });
+      await designs.setDesignImage(admin, blackOnly, image);
+      await designs.setDesignStatus(admin, blackOnly, "published");
+      mugDesign = await designs.createDesign(admin, { name: "Taza feliz", slug: "taza-feliz", description: "", categoryId: null, kinds: ["mug"], colors: {} });
+      await designs.setDesignImage(admin, mugDesign, image);
+      await designs.setDesignStatus(admin, mugDesign, "published");
+    });
+
+    it("accepts an enabled color and rejects a color the design is not offered on", async () => {
+      const quote = await quoteCart(
+        [
+          { productId: "p08", sku: "SUB-P08-NEGRO", quantity: 1, designId: blackOnly },
+          { productId: "p08", sku: "SUB-P08-BLANCO", quantity: 1, designId: blackOnly },
+        ],
+        deps,
+      );
+      assert.equal(quote.valid, false);
+      assert.deepEqual(quote.lines.map((line) => [line.sku, line.name, line.designId]), [["SUB-P08-NEGRO", "Noche · Remera", blackOnly]]);
+      assert.deepEqual(quote.issues, [{ productId: "p08", sku: "SUB-P08-BLANCO", designId: blackOnly, code: "design_unavailable", message: COLOR_MESSAGE }]);
+    });
+
+    it("a design without saved colors is offered on every color", async () => {
+      const quote = await quoteCart([{ productId: "p08", sku: "SUB-P08-BLANCO", quantity: 1, designId: published }], deps);
+      assert.equal(quote.valid, true);
+      assert.deepEqual(quote.lines.map((line) => [line.sku, line.designId]), [["SUB-P08-BLANCO", published]]);
+    });
+
+    it("a design on a kind without colors (mug) quotes as before", async () => {
+      const quote = await quoteCart([{ productId: "p09", quantity: 2, designId: mugDesign }], deps);
+      assert.equal(quote.valid, true);
+      assert.deepEqual(quote.issues, []);
+      assert.deepEqual(
+        quote.lines.map((line) => [line.productId, line.sku, line.name, line.quantity, line.designId, line.designName]),
+        [["p09", "SUB-P09", "Taza feliz · Taza", 2, mugDesign, "Taza feliz"]],
+      );
+    });
+  });
+
   it("an order whose design was unpublished meanwhile is refused", async () => {
     await db.query("UPDATE designs SET status = 'archived' WHERE id = $1", [published]);
     const result = await checkout({ ...contact, idempotencyKey: key(), lines: [{ productId: "p08", quantity: 1, designId: published }] }, null, deps);

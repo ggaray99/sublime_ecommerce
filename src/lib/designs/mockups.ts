@@ -134,9 +134,12 @@ export const MOCKUPS: Record<MockupKind, KindMockup> = {
   },
 };
 
-/** One template of a kind: a color tone and a side. */
-export type TemplateSlot = { kind: MockupKind; tone: MockupTone; side: MockupSide };
-export type TemplateSlotKey = `${MockupKind}-${MockupTone}-${MockupSide}`;
+/**
+ * One template of a kind: a tone and a side. The tone is "light" or "dark" (the
+ * generic templates) or a garment color key (see colorKey) for a color's own photo.
+ */
+export type TemplateSlot = { kind: MockupKind; tone: string; side: MockupSide };
+export type TemplateSlotKey = `${MockupKind}-${string}-${MockupSide}`;
 
 /** An uploaded template that replaces the built-in one of its slot. */
 export type TemplateOverride = { src: string; area: Box; warp?: Warp };
@@ -144,23 +147,42 @@ export type TemplateOverrides = Partial<Record<TemplateSlotKey, TemplateOverride
 
 export const slotKey = ({ kind, tone, side }: TemplateSlot): TemplateSlotKey => `${kind}-${tone}-${side}`;
 
-/** Every slot the kinds declare, in kind, tone, side order. */
+/** The generic tone a slot's tone stands for: itself, or the tone of its color key. */
+export const slotTone = (tone: string): MockupTone =>
+  (MOCKUP_TONES as readonly string[]).includes(tone) ? (tone as MockupTone) : toneOfColor(tone);
+
+/** Every generic (light / dark) slot the kinds declare, in kind, tone, side order. */
 export const TEMPLATE_SLOTS: TemplateSlot[] = (Object.keys(MOCKUPS) as MockupKind[]).flatMap((kind) =>
   MOCKUPS[kind].tones.flatMap((tone) => MOCKUPS[kind].sides.map((side) => ({ kind, tone, side }))),
 );
 
+/** Kinds that come in several garment colors (their base product has a Color option). */
+export const hasGarmentColors = (kind: MockupKind) => MOCKUPS[kind].tones.length > 1;
+
+/** A generic slot, or a color slot of a kind that comes in colors. */
 export const isTemplateSlot = (kind: string, tone: string, side: string): kind is MockupKind =>
-  TEMPLATE_SLOTS.some((slot) => slot.kind === kind && slot.tone === tone && slot.side === side);
+  TEMPLATE_SLOTS.some((slot) => slot.kind === kind && slot.tone === tone && slot.side === side) ||
+  (TEMPLATE_SLOTS.some((slot) => slot.kind === kind && slot.side === side) &&
+    hasGarmentColors(kind as MockupKind) &&
+    COLOR_KEY.test(tone));
 
 /**
  * The template for a kind; a tone or side the kind does not have falls back to
- * its first one. An uploaded template for that slot wins over the built-in one.
+ * its first one. With a garment `color` (its key), that color's uploaded photo
+ * wins; otherwise the uploaded template of the tone, then the built-in one.
  */
-export function mockupTemplate(kind: MockupKind, tone: MockupTone, side: MockupSide, overrides?: TemplateOverrides): MockupTemplate {
+export function mockupTemplate(
+  kind: MockupKind,
+  tone: MockupTone,
+  side: MockupSide,
+  overrides?: TemplateOverrides,
+  color?: string | null,
+): MockupTemplate {
   const mockup = MOCKUPS[kind];
   const t = mockup.tones.includes(tone) ? tone : mockup.tones[0];
   const s = mockup.sides.includes(side) ? side : mockup.sides[0];
-  const template = overrides?.[slotKey({ kind, tone: t, side: s })] ?? mockup.templates[`${t}-${s}`]!;
+  const own = color && hasGarmentColors(kind) ? overrides?.[slotKey({ kind, tone: color, side: s })] : undefined;
+  const template = own ?? overrides?.[slotKey({ kind, tone: t, side: s })] ?? mockup.templates[`${t}-${s}`]!;
   return { ...template, blend: t === "light" && mockup.multiplyOnLight ? "multiply" : "normal" };
 }
 
@@ -185,7 +207,7 @@ export function fitTemplateArea(kind: MockupKind, box: { left: number; top: numb
 
 /** Where the print area starts on a newly uploaded photo: the built-in one, refitted to the print proportion. */
 export function startingArea(slot: TemplateSlot): Box {
-  const { area } = mockupTemplate(slot.kind, slot.tone, slot.side);
+  const { area } = mockupTemplate(slot.kind, slotTone(slot.tone), slot.side);
   const fitted = fitTemplateArea(slot.kind, { left: area.left, top: area.top, width: area.width });
   // The built-in mug area bounds the whole rendered band; on a photo start with the front of the mug.
   return slot.kind === "mug" ? fitTemplateArea("mug", { left: 340, top: 330, width: 400 }) : fitted;
@@ -195,15 +217,49 @@ export function startingArea(slot: TemplateSlot): Box {
 export const DEFAULT_MUG_CURVE = 0.7;
 
 const normalize = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-const DARK_WORDS = ["negro", "negra", "black", "oscuro"];
+const DARK_WORDS = ["negro", "negra", "black", "oscuro", "oscura", "marino"];
 
-/** "dark" when the variant's Color option is black or dark, so the preview uses the dark template. */
-export function toneOfVariant(options: Record<string, string>): MockupTone {
-  const color = Object.entries(options).find(([name]) => normalize(name).trim() === "color")?.[1];
+/** A garment color key: lowercase, no accents, words joined by "-" (same rule as the database CHECK). */
+export const COLOR_KEY = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** "Verde Agua" → "verde-agua", "Negro" → "negro"; "" when the name has no letters or digits. */
+export function colorKey(name: string): string {
+  return normalize(name)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/, "");
+}
+
+/** The value of the variant's option named "Color" (any case or accents), or null. */
+export function variantColor(options: Record<string, string>): string | null {
+  const value = Object.entries(options).find(([name]) => normalize(name).trim() === "color")?.[1]?.trim();
+  return value ? value : null;
+}
+
+/** "dark" when the color name is black or dark, so a color without its own photo uses the dark template. */
+export function toneOfColor(color: string | null): MockupTone {
   if (!color) return "light";
   const value = normalize(color);
   return DARK_WORDS.some((word) => value.includes(word)) ? "dark" : "light";
 }
+
+/** A garment color: its key (stored) and the name the base product's variants show. */
+export type GarmentColor = { key: string; label: string };
+
+/** The distinct colors of a list of variants, in their order; variants without a Color option add none. */
+export function garmentColors(variants: readonly { options: Record<string, string> }[]): GarmentColor[] {
+  const colors = new Map<string, GarmentColor>();
+  for (const { options } of variants) {
+    const label = variantColor(options);
+    const key = label ? colorKey(label) : "";
+    if (key && !colors.has(key)) colors.set(key, { key, label: label! });
+  }
+  return [...colors.values()];
+}
+
+/** "dark" when the variant's Color option is black or dark, so the preview uses the dark template. */
+export const toneOfVariant = (options: Record<string, string>): MockupTone => toneOfColor(variantColor(options));
 
 /**
  * Same rules as the T-shirt lab: the design keeps its aspect ratio, its width is

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { MockupStage } from "@/components/designs/mockup-stage";
 import { PageIntro } from "@/components/page-intro";
 import { MOCKUP_KIND_LABELS } from "@/lib/designs/kinds";
-import { toneOfVariant } from "@/lib/designs/mockups";
+import { colorKey, toneOfVariant, variantColor } from "@/lib/designs/mockups";
 import { formatPrice } from "@/lib/format";
 import { getMockupTemplateOverrides, getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
 import { designOffer } from "./offer";
@@ -36,6 +36,8 @@ export default async function DesignsPage() {
         <ul className="product-grid design-grid">
           {offers.map(({ design, bases, from }, index) => {
             const first = bases[0];
+            // The first variant in a color enabled for the design (designOffer keeps only those).
+            const options = first.product.variants?.[0]?.options ?? {};
             const href = `/disenos/${design.slug}`;
             return (
               <li key={design.id}>
@@ -43,7 +45,8 @@ export default async function DesignsPage() {
                   <Link href={href} className="product-card__media design-card__media" tabIndex={-1} aria-hidden="true">
                     <MockupStage
                       kind={first.kind}
-                      tone={toneOfVariant(first.product.variants?.[0]?.options ?? {})}
+                      tone={toneOfVariant(options)}
+                      color={colorKey(variantColor(options) ?? "") || null}
                       side="front"
                       imageUrl={design.imageUrl}
                       width={design.width}

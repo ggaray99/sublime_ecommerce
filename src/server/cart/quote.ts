@@ -1,5 +1,5 @@
 import type { CatalogRepository } from "../catalog/repository.ts";
-import { designLineName, type DesignOfferRepository } from "../designs/offers.ts";
+import { designLineName, offersSku, type DesignOfferRepository } from "../designs/offers.ts";
 import type { InventoryRepository } from "../inventory/repository.ts";
 import { DEFAULT_CURRENCY, multiplyMinor, type Currency } from "../money.ts";
 
@@ -57,6 +57,7 @@ export type QuoteDeps = {
 };
 
 const DESIGN_UNAVAILABLE = "Este diseño ya no está disponible en ese producto.";
+const COLOR_UNAVAILABLE = "Ese color no está disponible para este diseño.";
 
 /**
  * Recomputes a cart on the server from catalog prices and availability.
@@ -79,12 +80,13 @@ export async function quoteCart(lines: readonly QuoteRequestLine[], deps: QuoteD
     deps.catalog.findVariantsBySkus([...new Set(requestedLines.flatMap((line) => (line.sku ? [line.sku] : [])))]),
     designIds.length && deps.designs ? deps.designs.findOffers(designIds) : Promise.resolve(new Map<string, never>()),
   ]);
-  // The design must be published and offered on a kind whose base product is this one.
+  // The design must be published and offered on a kind whose base product is this one;
+  // the variant's color is checked once the variant is known.
   const designFor = (line: { productId: string; designId?: string }) => {
     if (!line.designId) return undefined;
     const offer = offers.get(line.designId);
     const base = offer?.bases.find((candidate) => candidate.productId === line.productId);
-    return offer && base ? { id: offer.id, name: offer.name, lineName: designLineName(offer.name, base.kind) } : null;
+    return offer && base ? { id: offer.id, name: offer.name, base, lineName: designLineName(offer.name, base.kind) } : null;
   };
   const resolve = (line: { productId: string; sku?: string }) => {
     if (!line.sku) return defaults.get(line.productId);
@@ -109,6 +111,10 @@ export async function quoteCart(lines: readonly QuoteRequestLine[], deps: QuoteD
     }
     if (!variant || !variant.active) {
       issues.push({ productId, sku, code: "unknown_product", message: "El producto no existe o no está disponible." });
+      continue;
+    }
+    if (design && !offersSku(design.base, variant.sku)) {
+      issues.push({ productId, sku: variant.sku, designId: design.id, code: "design_unavailable", message: COLOR_UNAVAILABLE });
       continue;
     }
     if (variant.hasOptions && !sku) {

@@ -1,4 +1,5 @@
 import { MOCKUP_KINDS, type DesignStatus, type MockupKind } from "../../lib/designs/kinds.ts";
+import { colorKey, garmentColors, variantColor, type GarmentColor } from "../../lib/designs/mockups.ts";
 import { AdminDataError, type Admin } from "../admin/repository.ts";
 import type { QueryFn } from "../customers/repository.ts";
 import type { DesignInput } from "./validation.ts";
@@ -20,7 +21,19 @@ export type AdminDesign = DesignInput & {
 
 export type MockupBase = { kind: MockupKind; productId: string; legacyId: string; name: string; status: string };
 
-/** What the store needs to show a design; `productId` is the storefront id of each base product. */
+/**
+ * Whether a design is offered on a variant: variants without a Color option
+ * always are; otherwise its color key must be enabled (`colors` null = every color).
+ */
+export function colorEnabled(colors: readonly string[] | null | undefined, options: Record<string, string>): boolean {
+  const color = variantColor(options);
+  return !color || !colors || colors.includes(colorKey(color));
+}
+
+/**
+ * What the store needs to show a design; `productId` is the storefront id of each
+ * base product and `colors` the color keys enabled on it (null = every color).
+ */
 export type StorefrontDesign = {
   id: string;
   slug: string;
@@ -32,7 +45,7 @@ export type StorefrontDesign = {
   width: number;
   height: number;
   opaque: boolean;
-  bases: { kind: MockupKind; productId: string }[];
+  bases: { kind: MockupKind; productId: string; colors: string[] | null }[];
 };
 
 type DesignRow = {
@@ -49,6 +62,7 @@ type DesignRow = {
   image_height: number | null;
   opaque: boolean;
   kinds: MockupKind[] | null;
+  colors: Partial<Record<MockupKind, string[]>> | null;
   order_count: number;
   updated_at: Date;
 };
@@ -61,6 +75,9 @@ const SELECT_DESIGNS = `
   SELECT d.id, d.slug, d.name, d.description, d.category_id, c.label AS category_label, d.status,
          d.image_url, d.source_path, d.image_width, d.image_height, d.opaque, d.updated_at,
          (SELECT array_agg(b.kind ORDER BY array_position($1::text[], b.kind)) FROM design_bases b WHERE b.design_id = d.id) AS kinds,
+         (SELECT json_object_agg(kind, colors) FROM (
+            SELECT dc.kind, array_agg(dc.color ORDER BY dc.color) AS colors FROM design_colors dc WHERE dc.design_id = d.id GROUP BY dc.kind
+          ) per_kind) AS colors,
          (SELECT count(*) FROM order_items oi WHERE oi.design_id = d.id)::int AS order_count
   FROM designs d
   LEFT JOIN categories c ON c.id = d.category_id`;
@@ -73,6 +90,7 @@ const toDesign = (row: DesignRow): AdminDesign => ({
   categoryId: row.category_id,
   categoryLabel: row.category_label,
   kinds: row.kinds ?? [],
+  colors: row.colors ?? {},
   status: row.status,
   imageUrl: row.image_url,
   sourcePath: row.source_path,
@@ -93,6 +111,12 @@ function asAdminError(error: unknown): never {
   throw error;
 }
 
+/** The (kind, color) pairs of a design input, as two parallel arrays for unnest(). */
+function colorPairs(input: DesignInput): [MockupKind[], string[]] {
+  const pairs = input.kinds.flatMap((kind) => (input.colors?.[kind] ?? []).map((color) => [kind, color] as const));
+  return [pairs.map(([kind]) => kind), pairs.map(([, color]) => color)];
+}
+
 function assertId(id: string) {
   if (!ID.test(id)) throw new AdminDataError("not_found", "El diseño no existe.");
 }
@@ -107,8 +131,9 @@ const logDesign = (action: string, first: number) => `
 
 /**
  * Design administration. A design is offered on one or more mockup kinds; each
- * kind sells through the product linked to it in `mockup_bases`. Every change
- * writes its audit entry in the same statement.
+ * kind sells through the product linked to it in `mockup_bases`, on the garment
+ * colors saved in `design_colors` (none saved = every color). Every change writes
+ * its audit entry in the same statement.
  */
 export function createDesignRepository(sql: QueryFn) {
   async function getDesign(id: string): Promise<AdminDesign> {
@@ -137,9 +162,12 @@ export function createDesignRepository(sql: QueryFn) {
              INSERT INTO designs (slug, name, description, category_id) VALUES ($1, $2, $3, $4) RETURNING id
            ), bases AS (
              INSERT INTO design_bases (design_id, kind) SELECT id, kind FROM created, unnest($5::text[]) AS kind
-           ), logged AS (${logDesign("design.create", 6)} FROM created)
+           ), colors AS (
+             INSERT INTO design_colors (design_id, kind, color)
+             SELECT id, pair.kind, pair.color FROM created, unnest($6::text[], $7::text[]) AS pair (kind, color)
+           ), logged AS (${logDesign("design.create", 8)} FROM created)
            SELECT id FROM created`,
-          [input.slug, input.name, input.description, input.categoryId, input.kinds, actor.authUserId, actor.email, JSON.stringify(input)],
+          [input.slug, input.name, input.description, input.categoryId, input.kinds, ...colorPairs(input), actor.authUserId, actor.email, JSON.stringify(input)],
         )) as { id: string }[];
         return row.id;
       } catch (error) {
@@ -147,13 +175,13 @@ export function createDesignRepository(sql: QueryFn) {
       }
     },
 
-    /** Saves the data and base products. A published design must keep at least one. */
+    /** Saves the data, base products and colors. A published design must keep at least one base product. */
     async updateDesign(actor: Admin, id: string, input: DesignInput): Promise<void> {
       const current = await getDesign(id);
       if (current.status === "published" && !input.kinds.length) {
         throw new AdminDataError("conflict", "Un diseño publicado tiene que estar disponible en al menos un producto.");
       }
-      const before = { name: current.name, slug: current.slug, description: current.description, categoryId: current.categoryId, kinds: current.kinds };
+      const before = { name: current.name, slug: current.slug, description: current.description, categoryId: current.categoryId, kinds: current.kinds, colors: current.colors };
       try {
         await sql.query(
           `WITH updated AS (
@@ -162,9 +190,16 @@ export function createDesignRepository(sql: QueryFn) {
              DELETE FROM design_bases WHERE design_id IN (SELECT id FROM updated) AND NOT (kind = ANY ($6::text[]))
            ), added AS (
              INSERT INTO design_bases (design_id, kind) SELECT id, kind FROM updated, unnest($6::text[]) AS kind ON CONFLICT DO NOTHING
-           ), logged AS (${logDesign("design.update", 7)} FROM updated)
+           ), colors_cleared AS (
+             DELETE FROM design_colors WHERE design_id IN (SELECT id FROM updated)
+               AND (kind, color) NOT IN (SELECT * FROM unnest($7::text[], $8::text[]))
+           ), colors_added AS (
+             INSERT INTO design_colors (design_id, kind, color)
+             SELECT id, pair.kind, pair.color FROM updated, unnest($7::text[], $8::text[]) AS pair (kind, color) ON CONFLICT DO NOTHING
+           ), logged AS (${logDesign("design.update", 9)} FROM updated)
            SELECT id FROM updated`,
-          [id, input.slug, input.name, input.description, input.categoryId, input.kinds, actor.authUserId, actor.email, JSON.stringify({ name: input.name, before, after: input })],
+          [id, input.slug, input.name, input.description, input.categoryId, input.kinds, ...colorPairs(input), actor.authUserId, actor.email,
+            JSON.stringify({ name: input.name, before, after: input })],
         );
       } catch (error) {
         asAdminError(error);
@@ -229,6 +264,21 @@ export function createDesignRepository(sql: QueryFn) {
     },
 
     /**
+     * The garment colors of each kind's base product: the Color option of its
+     * active variants, in variant order. Kinds without a base or without colors are missing.
+     */
+    async listKindColors(): Promise<Partial<Record<MockupKind, GarmentColor[]>>> {
+      const rows = (await sql.query(
+        `SELECT m.kind, v.options
+         FROM mockup_bases m JOIN product_variants v ON v.product_id = m.product_id AND v.active
+         ORDER BY m.kind, v.sort_order, v.created_at`,
+      )) as { kind: MockupKind; options: Record<string, string> }[];
+      const byKind = new Map<MockupKind, { options: Record<string, string> }[]>();
+      for (const row of rows) byKind.set(row.kind, [...(byKind.get(row.kind) ?? []), row]);
+      return Object.fromEntries([...byKind].map(([kind, variants]) => [kind, garmentColors(variants)]).filter(([, colors]) => colors.length));
+    },
+
+    /**
      * Links a product to a kind, or unlinks the kind with `null`. Takes the
      * catalog id (`legacy_id`) the rest of the admin and the store use.
      */
@@ -269,16 +319,34 @@ export function createDesignRepository(sql: QueryFn) {
 
 export type DesignRepository = ReturnType<typeof createDesignRepository>;
 
+/** A base as BASES_JSON returns it. */
+export type OfferedBaseRow = { kind: MockupKind; productId: string; colors: string[] | null; variants: Record<string, string>[] | null };
+
+/** Bases that still have an active variant in an enabled color (or without a Color option). */
+export const offerableBases = <T extends OfferedBaseRow>(bases: readonly T[]): T[] =>
+  bases.filter((base) => (base.variants ?? []).some((options) => colorEnabled(base.colors, options)));
+
+/**
+ * The bases of a design as JSON, one object per kind in kind order: `colors` the
+ * enabled color keys (null = every color) and `variants` the options of the base
+ * product's active variants. Expects the aliases d, b and p, and the kind order in $1.
+ */
+export const BASES_JSON = `json_agg(json_build_object(
+    'kind', b.kind, 'productId', p.legacy_id,
+    'colors', (SELECT json_agg(dc.color ORDER BY dc.color) FROM design_colors dc WHERE dc.design_id = d.id AND dc.kind = b.kind),
+    'variants', (SELECT json_agg(v.options) FROM product_variants v WHERE v.product_id = p.id AND v.active)
+  ) ORDER BY array_position($1::text[], b.kind))`;
+
 /**
  * Published designs with the kinds they can be bought on right now: the kind has
- * a linked product that is active, in a visible category, with active variants.
- * Designs left with no such kind are not shown.
+ * a linked product that is active, in a visible category, with an active variant
+ * in a color enabled for the design. Designs left with no such kind are not shown.
  */
 export async function listStorefrontDesigns(sql: QueryFn): Promise<StorefrontDesign[]> {
   const rows = (await sql.query(
     `SELECT d.id, d.slug, d.name, d.description, d.category_id, c.label AS category_label,
             d.image_url, d.image_width, d.image_height, d.opaque,
-            json_agg(json_build_object('kind', b.kind, 'productId', p.legacy_id) ORDER BY array_position($1::text[], b.kind)) AS bases
+            ${BASES_JSON} AS bases
      FROM designs d
      LEFT JOIN categories c ON c.id = d.category_id
      JOIN design_bases b ON b.design_id = d.id
@@ -290,8 +358,11 @@ export async function listStorefrontDesigns(sql: QueryFn): Promise<StorefrontDes
      GROUP BY d.id, c.label
      ORDER BY d.sort_order, d.created_at DESC`,
     [KIND_ORDER],
-  )) as (Omit<DesignRow, "kinds" | "order_count" | "status" | "source_path" | "updated_at"> & { bases: StorefrontDesign["bases"] })[];
-  return rows.map((row) => ({
+  )) as (Omit<DesignRow, "kinds" | "colors" | "order_count" | "status" | "source_path" | "updated_at"> & { bases: OfferedBaseRow[] })[];
+  return rows.flatMap((row) => {
+    const bases = offerableBases(row.bases).map(({ kind, productId, colors }) => ({ kind, productId, colors }));
+    return bases.length ? [{ row, bases }] : [];
+  }).map(({ row, bases }) => ({
     id: row.id,
     slug: row.slug,
     name: row.name,
@@ -302,7 +373,7 @@ export async function listStorefrontDesigns(sql: QueryFn): Promise<StorefrontDes
     width: row.image_width ?? 1,
     height: row.image_height ?? 1,
     opaque: row.opaque,
-    bases: row.bases,
+    bases,
   }));
 }
 

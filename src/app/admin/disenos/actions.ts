@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { DESIGN_STATUS_LABELS, DESIGN_STATUSES, type DesignStatus } from "@/lib/designs/kinds";
+import { DESIGN_STATUS_LABELS, DESIGN_STATUSES, MOCKUP_KINDS, type DesignStatus } from "@/lib/designs/kinds";
 import { catalogChanged, dataError, formValues, requireAdmin, type AdminFormState } from "@/server/admin/guard";
 import { getDesignRepository } from "@/server/admin/session";
 import { createDesignWithFile, deleteDesignWithFiles, replaceDesignFile, type DesignFlowDeps } from "@/server/designs/admin-flow";
@@ -25,11 +25,20 @@ const flowDeps = (): DesignFlowDeps => ({
 
 const designPaths = (id?: string) => ["/admin/disenos", ...(id ? [`/admin/disenos/${id}`] : []), "/disenos"];
 
-/** Text fields plus the checked base products, which arrive as one "kinds" entry per box. */
-function readForm(form: FormData) {
+/**
+ * Text fields plus the checked base products and colors, which arrive as one
+ * "kinds" / "colors-<kind>" entry per box. Colors are checked against the base products'.
+ */
+async function readForm(form: FormData) {
   const kinds = form.getAll("kinds").map(String);
-  const values: Record<string, string> = { ...formValues(form), kinds: kinds.join(",") };
-  return { values, parsed: parseDesignInput({ ...values, kinds }) };
+  const colors = Object.fromEntries(MOCKUP_KINDS.map((kind) => [`colors-${kind}`, form.getAll(`colors-${kind}`).map(String)]));
+  const values: Record<string, string> = {
+    ...formValues(form),
+    kinds: kinds.join(","),
+    ...Object.fromEntries(Object.entries(colors).map(([name, keys]) => [name, keys.join(",")])),
+  };
+  const kindColors = await getDesignRepository().listKindColors();
+  return { values, parsed: parseDesignInput({ ...values, kinds, ...colors }, kindColors) };
 }
 
 async function readFile(form: FormData): Promise<Uint8Array | null> {
@@ -46,7 +55,7 @@ function flowError(error: unknown, values?: Record<string, string>): AdminFormSt
 
 export async function createDesignAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
   const admin = await requireAdmin();
-  const { values, parsed } = readForm(form);
+  const { values, parsed } = await readForm(form);
   if (!storageReady()) return { error: NO_STORAGE, values };
   const bytes = await readFile(form);
   if (!parsed.ok || !bytes) {
@@ -65,7 +74,7 @@ export async function createDesignAction(_state: AdminFormState, form: FormData)
 
 export async function updateDesignAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
   const admin = await requireAdmin();
-  const { values, parsed } = readForm(form);
+  const { values, parsed } = await readForm(form);
   if (!parsed.ok) return { fields: parsed.errors, values };
   const id = values.designId ?? "";
   try {

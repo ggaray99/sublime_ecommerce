@@ -134,6 +134,55 @@ describe("mockup template repository", () => {
     const [log] = await sql.query(`SELECT entity_id FROM audit_logs WHERE action = 'design.template_reset'`);
     assert.equal(log.entity_id, "tshirt-dark-back");
   });
+
+  it("saves a garment color's own photo in its slot, serves it by color and resets it", async () => {
+    const crema = { kind: "tshirt", tone: "crema", side: "front" };
+    assert.equal(await repo.saveTemplate(admin, crema, shirtInput({ imageUrl: file("crema") })), null);
+    const saved = await repo.getTemplate(crema);
+    assert.deepEqual({ ...saved, updatedAt: undefined }, { ...crema, ...shirtInput({ imageUrl: file("crema") }), updatedAt: undefined });
+    const overrides = await listTemplateOverrides(sql);
+    assert.deepEqual(overrides["tshirt-crema-front"], { src: file("crema"), area: shirtInput().area, warp: shirtInput().warp });
+    assert.equal(mockupTemplate("tshirt", "light", "front", overrides, "crema").src, file("crema"));
+    const [log] = await sql.query(`SELECT entity_id FROM audit_logs WHERE action = 'design.template' AND entity_id = 'tshirt-crema-front'`);
+    assert.deepEqual(log, { entity_id: "tshirt-crema-front" });
+
+    const removed = await repo.deleteTemplate(admin, crema);
+    assert.equal(removed.imageUrl, file("crema"));
+    assert.equal(await repo.getTemplate(crema), null);
+    const after = await listTemplateOverrides(sql);
+    assert.equal(after["tshirt-crema-front"], undefined);
+    assert.notEqual(mockupTemplate("tshirt", "light", "front", after, "crema").src, file("crema"));
+    const [reset] = await sql.query(`SELECT entity_id FROM audit_logs WHERE action = 'design.template_reset' AND entity_id = 'tshirt-crema-front'`);
+    assert.deepEqual(reset, { entity_id: "tshirt-crema-front" });
+  });
+
+  it("refuses a tone that is neither light, dark nor a color key, and colors on kinds without colors", async () => {
+    const count = async () => (await sql.query(`SELECT count(*)::int AS n FROM mockup_templates`))[0].n;
+    const logs = async () => (await sql.query(`SELECT count(*)::int AS n FROM audit_logs`))[0].n;
+    const [rows, logged] = [await count(), await logs()];
+    for (const slot of [
+      { kind: "tshirt", tone: "Crema", side: "front" },
+      { kind: "mug", tone: "negro", side: "front" },
+      { kind: "sticker", tone: "dark", side: "front" },
+      { kind: "tshirt", tone: "crema", side: "costado" },
+    ]) {
+      await assert.rejects(() => repo.saveTemplate(admin, slot, shirtInput()), (error) => error instanceof AdminDataError && /no existe/.test(error.message));
+      await assert.rejects(() => repo.deleteTemplate(admin, slot), (error) => error instanceof AdminDataError && /no existe/.test(error.message));
+    }
+    assert.equal(await count(), rows);
+    assert.equal(await logs(), logged);
+  });
+
+  it("still saves and resets the generic light and dark templates as before", async () => {
+    const tankLight = { kind: "tank", tone: "light", side: "front" };
+    assert.equal(await repo.saveTemplate(admin, tankLight, shirtInput({ imageUrl: file("musculosa") })), null);
+    assert.equal((await listTemplateOverrides(sql))["tank-light-front"].src, file("musculosa"));
+    assert.equal(mockupTemplate("tank", "light", "front", await listTemplateOverrides(sql), "blanco").src, file("musculosa"));
+    assert.equal((await repo.deleteTemplate(admin, tankLight)).imageUrl, file("musculosa"));
+    assert.equal(await repo.getTemplate(tankLight), null);
+    const actions = await sql.query(`SELECT action FROM audit_logs WHERE entity_id = 'tank-light-front' ORDER BY id`);
+    assert.deepEqual(actions.map((row) => row.action), ["design.template", "design.template_reset"]);
+  });
 });
 
 describe("uploaded template photos and their warps", async () => {
@@ -309,5 +358,34 @@ describe("Soportes flow: upload, print area and reset", async () => {
     assert.equal(rows.size, 0);
     assert.equal(files.size, 0);
     await assert.rejects(() => resetTemplate(deps, admin, shirtSlot), AdminDataError);
+  });
+
+  it("uploads a garment color's own photo with that color's tone area and a fabric warp", async () => {
+    const { deps, rows, files } = fakes();
+    const negro = { kind: "tshirt", tone: "negro", side: "front" };
+    await uploadTemplatePhoto(deps, admin, negro, await photo());
+    const saved = rows.get("tshirt-negro-front");
+    assert.deepEqual(saved.area, startingArea({ kind: "tshirt", tone: "dark", side: "front" }));
+    assert.equal(saved.warp.scale, 10);
+    assert.ok([saved.imageUrl, saved.warp.map, saved.warp.shade].every((url) => url.startsWith("/media/soportes/tshirt-negro-front")));
+    await updateTemplateArea(deps, admin, negro, { left: 380, top: 280, width: 300 }, null);
+    assert.deepEqual(rows.get("tshirt-negro-front").area, fitTemplateArea("tshirt", { left: 380, top: 280, width: 300 }));
+    await resetTemplate(deps, admin, negro);
+    assert.equal(rows.size, 0);
+    assert.equal(files.size, 0);
+  });
+
+  it("refuses a slot that does not exist before storing any file", async () => {
+    const { deps, rows, files } = fakes();
+    for (const slot of [
+      { kind: "tshirt", tone: "Crema", side: "front" },
+      { kind: "mug", tone: "negro", side: "front" },
+    ]) {
+      await assert.rejects(() => uploadTemplatePhoto(deps, admin, slot, new Uint8Array()), (error) => error instanceof AdminDataError && /no existe/.test(error.message));
+      await assert.rejects(() => updateTemplateArea(deps, admin, slot, { left: 0, top: 0, width: 300 }, null), AdminDataError);
+      await assert.rejects(() => resetTemplate(deps, admin, slot), (error) => error instanceof AdminDataError && /no existe/.test(error.message));
+    }
+    assert.equal(rows.size, 0);
+    assert.equal(files.size, 0);
   });
 });

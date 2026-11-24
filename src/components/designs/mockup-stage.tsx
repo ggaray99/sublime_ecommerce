@@ -16,6 +16,8 @@ import {
 type Props = {
   kind: MockupKind;
   tone: MockupTone;
+  /** Garment color key (see colorKey): its own uploaded template wins over the tone's. */
+  color?: string | null;
   side: MockupSide;
   imageUrl: string;
   /** Design file size in pixels: its aspect ratio decides how it fits the print area. */
@@ -36,8 +38,8 @@ type Props = {
  * product (fabric folds, the mug's curve) with an SVG filter; the rest lay it flat.
  * Pure markup, so it renders on the server (listing) and in the live preview.
  */
-export function MockupStage({ kind, tone, side, imageUrl, width, height, alt, sizes, preload = false, className, overrides }: Props) {
-  const template = mockupTemplate(kind, tone, side, overrides);
+export function MockupStage({ kind, tone, color, side, imageUrl, width, height, alt, sizes, preload = false, className, overrides }: Props) {
+  const template = mockupTemplate(kind, tone, side, overrides, color);
   const aspect = width > 0 && height > 0 ? width / height : 1;
   const placement = defaultPlacement(kind, aspect);
   return (

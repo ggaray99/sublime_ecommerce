@@ -32,9 +32,10 @@ async function DesignAdmin({ params, searchParams }: Pick<Props, "params" | "sea
     if (error instanceof AdminDataError) notFound();
     throw error;
   });
-  const [categories, bases, audit, query] = await Promise.all([
+  const [categories, bases, kindColors, audit, query] = await Promise.all([
     loadCategoryOptions(),
     repo.listMockupBases(),
+    repo.listKindColors(),
     getAdminRepository().listAudit({ entity: "design", entityId: id, limit: 20 }),
     searchParams,
   ]);
@@ -81,8 +82,11 @@ async function DesignAdmin({ params, searchParams }: Pick<Props, "params" | "sea
             description: design.description,
             categoryId: design.categoryId ?? "",
             kinds: design.kinds,
+            // A kind without saved colors (designs from before colors) shows every color checked.
+            colors: design.colors,
           }}
           categories={categories}
+          kindColors={kindColors}
         />
       </section>
 

@@ -13,6 +13,7 @@ import {
   MIN_AREA_PX,
   MOCKUP_SIDE_LABELS,
   slotKey,
+  slotTone,
   TEMPLATE_PX,
   type Box,
   type MockupSide,
@@ -33,9 +34,12 @@ export type SlotView = {
   custom: boolean;
   /** Mug only, 0–1. */
   curve: number | null;
+  /** A color without its own photo: what the store shows instead, e.g. "Sin foto propia: se muestra la base oscura." */
+  fallback: string | null;
 };
 
-const TONE_LABELS: Record<MockupTone, string> = { light: "Blanco", dark: "Negro" };
+/** One entry of the Color picker: a garment color key (its own photo) or a generic light/dark template. */
+export type ToneOption = { value: string; label: string; color: boolean };
 
 /** A demo design for the preview, in the version made for light or dark products. */
 const SAMPLE = { width: 2400, height: 3040, src: (tone: MockupTone) => `/lab/designs/gato-mutante-${tone === "dark" ? "oscuro" : "claro"}.png` };
@@ -73,17 +77,19 @@ function Picker<T extends string>({ legend, value, options, labels, onChange }: 
  * Admin page of one base kind's images: pick the color and side, then change its
  * photo, mark the print area and see a demo design on it, like a design's page.
  */
-export function TemplateWorkspace({ kind, slots, storage }: { kind: MockupKind; slots: SlotView[]; storage: boolean }) {
-  const tones = [...new Set(slots.map(({ slot }) => slot.tone))];
+export function TemplateWorkspace({ kind, tones, slots, storage }: { kind: MockupKind; tones: ToneOption[]; slots: SlotView[]; storage: boolean }) {
+  const toneValues = tones.map((option) => option.value);
+  const toneLabels = Object.fromEntries(tones.map((option) => [option.value, option.label]));
   const sides = [...new Set(slots.map(({ slot }) => slot.side))];
-  const [tone, setTone] = useState<MockupTone>(tones[0]);
+  const [tone, setTone] = useState<string>(toneValues[0]);
   const [side, setSide] = useState<MockupSide>(sides[0]);
   const view = slots.find(({ slot }) => slot.tone === tone && slot.side === side) ?? slots[0];
+  const color = tones.find((option) => option.value === view.slot.tone)?.color ?? false;
   return (
     <div className="template-workspace">
       {(tones.length > 1 || sides.length > 1) && (
         <div className="template-workspace__pickers">
-          {tones.length > 1 && <Picker legend="Color" value={tone} options={tones} labels={TONE_LABELS} onChange={setTone} />}
+          {tones.length > 1 && <Picker legend="Color" value={tone} options={toneValues} labels={toneLabels} onChange={setTone} />}
           {sides.length > 1 && <Picker legend="Lado" value={side} options={sides} labels={MOCKUP_SIDE_LABELS} onChange={setSide} />}
         </div>
       )}
@@ -92,6 +98,8 @@ export function TemplateWorkspace({ kind, slots, storage }: { kind: MockupKind; 
         key={`${slotKey(view.slot)}-${view.src}-${view.area.left}-${view.area.top}-${view.area.width}-${view.curve ?? ""}`}
         kind={kind}
         view={view}
+        toneLabel={toneLabels[view.slot.tone] ?? view.slot.tone}
+        color={color}
         storage={storage}
       />
     </div>
@@ -99,8 +107,8 @@ export function TemplateWorkspace({ kind, slots, storage }: { kind: MockupKind; 
 }
 
 /** One template: its photo with the draggable print area, a preview with a demo design and the forms that change it. */
-function TemplateEditor({ kind, view, storage }: { kind: MockupKind; view: SlotView; storage: boolean }) {
-  const { slot, src, area, custom, curve } = view;
+function TemplateEditor({ kind, view, toneLabel, color, storage }: { kind: MockupKind; view: SlotView; toneLabel: string; color: boolean; storage: boolean }) {
+  const { slot, src, area, custom, curve, fallback } = view;
   const id = useId();
   const [box, setBox] = useState(area);
   const [curvePct, setCurvePct] = useState(Math.round((curve ?? DEFAULT_MUG_CURVE) * 100));
@@ -111,9 +119,16 @@ function TemplateEditor({ kind, view, storage }: { kind: MockupKind; view: SlotV
   const [resetState, reset] = useActionState(resetTemplateAction, {});
   const maxWidth = fitTemplateArea(kind, { left: 0, top: 0, width: TEMPLATE_PX }).width;
   const changed = box.left !== area.left || box.top !== area.top || box.width !== area.width || (curve !== null && curvePct !== Math.round(curve * 100));
-  const label = `${TONE_LABELS[slot.tone]} · ${MOCKUP_SIDE_LABELS[slot.side]}`;
+  const label = `${toneLabel} · ${MOCKUP_SIDE_LABELS[slot.side]}`;
+  // A color previews on its light/dark base, with the photo shown here standing in for that base.
+  const tone: MockupTone = slotTone(slot.tone);
   // The preview follows the box as it moves; the folds or the curve update once saved.
-  const preview: TemplateOverrides = { [slotKey(slot)]: { src, area: box, ...(view.warp ? { warp: view.warp } : {}) } };
+  const preview: TemplateOverrides = { [slotKey({ kind, tone, side: slot.side })]: { src, area: box, ...(view.warp ? { warp: view.warp } : {}) } };
+  const badge = custom ? "Foto propia" : color ? "Sin foto propia" : "Imagen original";
+  const resetLabel = color ? "Quitar la foto propia" : "Volver a la imagen original";
+  const resetMessage = color
+    ? `¿Quitar la foto propia de ${label.toLowerCase()}? La foto subida se borra y el color vuelve a usar la base ${tone === "dark" ? "oscura" : "clara"}.`
+    : `¿Volver a la imagen original de ${label.toLowerCase()}? La foto subida se borra.`;
 
   const move = (left: number, top: number, width = box.width) => setBox(fitTemplateArea(kind, { left, top, width }));
 
@@ -146,8 +161,9 @@ function TemplateEditor({ kind, view, storage }: { kind: MockupKind; view: SlotV
     <div className="template-editor">
       <p className="template-editor__title">
         {label}
-        <span className={`badge ${custom ? "badge--ok" : "badge--pending"}`}>{custom ? "Foto propia" : "Imagen original"}</span>
+        <span className={`badge ${custom ? "badge--ok" : "badge--pending"}`}>{badge}</span>
       </p>
+      {fallback && <p className="muted">{fallback} Subí una foto de este color para usarla en su lugar.</p>}
       <div className="template-editor__views">
         <figure className="template-editor__view">
           <div ref={stage} className="template-editor__stage">
@@ -173,15 +189,17 @@ function TemplateEditor({ kind, view, storage }: { kind: MockupKind; view: SlotV
             )}
           </div>
           <figcaption className="fine-print">
-            {custom ? "Arrastrá la zona de estampa (o movela con las flechas del teclado)." : "Imagen original: subí una foto propia para mover la zona de estampa."}
+            {custom
+              ? "Arrastrá la zona de estampa (o movela con las flechas del teclado)."
+              : `${fallback ? "Imagen de la base" : "Imagen original"}: subí una foto propia para mover la zona de estampa.`}
           </figcaption>
         </figure>
         <figure className="template-editor__view">
           <MockupStage
             kind={kind}
-            tone={slot.tone}
+            tone={tone}
             side={slot.side}
-            imageUrl={SAMPLE.src(slot.tone)}
+            imageUrl={SAMPLE.src(tone)}
             width={SAMPLE.width}
             height={SAMPLE.height}
             alt={`Vista previa con un diseño de ejemplo en ${label.toLowerCase()}`}
@@ -271,9 +289,7 @@ function TemplateEditor({ kind, view, storage }: { kind: MockupKind; view: SlotV
           <form action={reset}>
             <Status state={resetState} />
             <SlotFields slot={slot} />
-            <ConfirmButton message={`¿Volver a la imagen original de ${label.toLowerCase()}? La foto subida se borra.`}>
-              Volver a la imagen original
-            </ConfirmButton>
+            <ConfirmButton message={resetMessage}>{resetLabel}</ConfirmButton>
           </form>
         )}
       </div>
