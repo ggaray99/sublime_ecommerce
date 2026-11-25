@@ -38,7 +38,8 @@ const shirtInput = (overrides = {}) => ({
 
 describe("template slots and print areas", () => {
   it("lists one slot per tone and side each kind declares", () => {
-    assert.equal(TEMPLATE_SLOTS.length, 10);
+    // tshirt, oversize and tank: 2 tones × 2 sides; mug and sticker: 1.
+    assert.equal(TEMPLATE_SLOTS.length, 14);
     assert.ok(isTemplateSlot("tank", "dark", "back"));
     assert.ok(isTemplateSlot("mug", "light", "front"));
     assert.equal(isTemplateSlot("mug", "dark", "front"), false);
@@ -182,6 +183,46 @@ describe("mockup template repository", () => {
     assert.equal(await repo.getTemplate(tankLight), null);
     const actions = await sql.query(`SELECT action FROM audit_logs WHERE entity_id = 'tank-light-front' ORDER BY id`);
     assert.deepEqual(actions.map((row) => row.action), ["design.template", "design.template_reset"]);
+  });
+});
+
+describe("oversize T-shirt templates in the database", () => {
+  let db;
+  let repo;
+  let sql;
+
+  before(async () => {
+    db = new PGlite();
+    for (const text of [...sqlFiles("migrations"), ...sqlFiles("seed")]) await db.exec(text);
+    sql = { query: async (text, params) => (await db.query(text, params)).rows };
+    repo = createMockupTemplateRepository(sql);
+  });
+
+  after(async () => {
+    await db.close();
+  });
+
+  it("stores an oversize generic slot and a color slot, and serves them instead of the T-shirt fallback", async () => {
+    const dark = { kind: "oversize", tone: "dark", side: "front" };
+    const crema = { kind: "oversize", tone: "crema", side: "back" };
+    assert.equal(await repo.saveTemplate(admin, dark, shirtInput({ imageUrl: file("oversize-negra") })), null);
+    assert.equal(await repo.saveTemplate(admin, crema, shirtInput({ imageUrl: file("oversize-crema") })), null);
+    const overrides = await listTemplateOverrides(sql);
+    assert.equal(mockupTemplate("oversize", "dark", "front", overrides).src, file("oversize-negra"));
+    assert.equal(mockupTemplate("oversize", "light", "back", overrides, "crema").src, file("oversize-crema"));
+    // The classic T-shirt keeps its own templates.
+    assert.equal(mockupTemplate("tshirt", "dark", "front", overrides).src, MOCKUPS.tshirt.templates["dark-front"].src);
+    const logs = await sql.query(`SELECT entity_id FROM audit_logs WHERE action = 'design.template' ORDER BY id`);
+    assert.deepEqual(logs.map((row) => row.entity_id), ["oversize-dark-front", "oversize-crema-back"]);
+    assert.equal((await repo.deleteTemplate(admin, dark)).imageUrl, file("oversize-negra"));
+    assert.equal(mockupTemplate("oversize", "dark", "front", await listTemplateOverrides(sql)).src, MOCKUPS.tshirt.templates["dark-front"].src);
+  });
+
+  it("still refuses a kind the catalog does not have", async () => {
+    await assert.rejects(
+      () => sql.query(`INSERT INTO mockup_templates (kind, tone, side, image_url, area_left, area_top, area_width, area_height) VALUES ('gorra', 'light', 'front', $1, 0, 0, 100, 100)`, [file("gorra")]),
+      /mockup_templates_kind_check/,
+    );
   });
 });
 

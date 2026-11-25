@@ -1,0 +1,19 @@
+# Owner feedback batch 1: compact design form, themes, oversize, size guides
+Branch `feat/design-catalog` (stacked). Delivery: `ask-on-risk`; QA (`feat/vps-self-hosting`) only when the user says so, never production. Runner: `node --test` (PGlite), plus `npm.cmd run lint` and `DATABASE_URL= npm.cmd run build`.
+
+## Specs
+- **S1** Owner: "necesito que el menú para completar las características del diseño ocupen menos dimensión." The admin design form (new and edit) takes noticeably less vertical space: two-column layout on wide screens, base products and their colors as compact inline choices, a smaller file preview. Same fields, same validation, keyboard and screen-reader friendly.
+- **S2** Owner: "poder elegir las temáticas de diseñs. y poder agregar alguna nueva." Designs get themes (temáticas), separate from the existing product "Categoría" (kept as is). A design can have several themes; the form lists existing themes as checkboxes and lets the admin add a new theme inline ("Nueva temática") without leaving the form. Assumption: themes are only for designs; renaming/deleting themes is out of scope for this batch.
+- **S3** Owner: "los talles pueden ser del S AL XXXL. Corte clásico / S AL XL. en OVERSIZE / s al XXL. en musculosas". A new base product kind "Remera oversize" (key `oversize`) next to the classic T-shirt, tank, mug and sticker; the classic one is labelled "Remera clásica". Talles are variants of each kind's base product (data the admin loads in Productos: classic S–XXXL, oversize S–XL, tank S–XXL); no code hardcodes size lists. Oversize has colors like the T-shirt and, until a photo is uploaded in Soportes, uses the T-shirt templates.
+- **S4** Owner: "puedo cargar la tabla guía de talles." Each kind can have a size-guide table the admin edits (column headers, rows, optional note) in Admin › Soportes of that kind; the store's design page shows the guide of the selected kind ("Guía de talles") when it has one.
+
+## Tasks
+- T1 S1,S2 delegated (unit A: design form + themes; migration 0023_design_themes.sql). Status: done (16 theme tests, RED seen).
+- T2 S3 delegated (unit B: oversize kind; migration 0024_oversize_kind.sql). Status: done (11 tests RED first; previous-kinds snapshot unchanged).
+- T3 S4 delegated (unit C: size guides; migration 0025_size_guides.sql). Status: done (16 tests, RED seen).
+
+## Log
+- L1 (2026-11-25) Owner's txt (pasted by the user): "necesito que el menú para completar las características del diseño ocupen menos dimensión. también en diseño se podría aplicar filtro de producto( remera, negra) temática. los talles pueden ser del S AL XXXL. Corte clásico S AL XL. en OVERSIZE s al XXL. en musculosas poder elegir las temáticas de diseñs. y poder agregar alguna nueva. puedo cargar la tabla guía de talles." User: "dale, arrancá con la tanda chica" (batch = compact form, themes, sizes per cut with oversize, size guide). Filters and the unified configurator are later batches.
+- L2 Route: three independent units with disjoint edit surfaces and their own migrations, each several hundred lines → Writer trigger (a) parallelism; parent context is also near the backstop. Risk: item 1 (three additive migrations; 0024 widens kind CHECKs).
+- L3 (2026-11-25) All three units returned. Parent updated two label assertions in tests/designs.test.mjs ("remera" → "remera clásica", from the S3 relabel). Seam check: `npm.cmd test` 524/524, lint clean, build OK. Commits: size guides alone; themes + compact form + oversize together (they share designs repository/validation and tests/designs.test.mjs).
+- L4 Open points: an uploaded classic T-shirt photo is not reused for oversize (built-in T-shirt photos are); the store shows every offered kind's size guide, not only the selected one; no rename/delete UI for themes; no browser check of the compact form or the guide editor yet.

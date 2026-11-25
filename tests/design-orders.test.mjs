@@ -141,7 +141,7 @@ describe("design lines on PostgreSQL (PGlite)", () => {
     const [line] = quote.lines;
     assert.deepEqual(
       [line.productId, line.sku, line.name, line.unitPriceMinor, line.lineTotalMinor, line.designId, line.designName],
-      ["p08", "SUB-P08", "Gato astronauta · Remera", 890000, 2 * 890000, published, "Gato astronauta"],
+      ["p08", "SUB-P08", "Gato astronauta · Remera clásica", 890000, 2 * 890000, published, "Gato astronauta"],
     );
     assert.equal(quote.subtotalMinor, 2 * 890000);
   });
@@ -178,7 +178,7 @@ describe("design lines on PostgreSQL (PGlite)", () => {
       ["SUB-P08", 2, undefined],
       ["SUB-P08", 1, published],
     ]);
-    assert.equal(quote.lines[1].name, "Gato astronauta · Remera");
+    assert.equal(quote.lines[1].name, "Gato astronauta · Remera clásica");
     assert.notEqual(quote.lines[0].name, quote.lines[1].name);
     const short = await quoteCart([{ productId: "p08", quantity: 3 }, { productId: "p08", quantity: 3, designId: published }], deps);
     assert.equal(short.valid, false);
@@ -207,8 +207,8 @@ describe("design lines on PostgreSQL (PGlite)", () => {
         ["SUB-P08", 1, null, null],
       ],
     );
-    assert.equal(byQuantity[0].name, "Gato astronauta · Remera");
-    assert.notEqual(byQuantity[1].name, "Gato astronauta · Remera");
+    assert.equal(byQuantity[0].name, "Gato astronauta · Remera clásica");
+    assert.notEqual(byQuantity[1].name, "Gato astronauta · Remera clásica");
     const { rows } = await db.query("SELECT design_id, design_name FROM order_items WHERE order_id = $1 ORDER BY quantity DESC", [order.id]);
     assert.deepEqual(rows, [
       { design_id: published, design_name: "Gato astronauta" },
@@ -249,7 +249,7 @@ describe("design lines on PostgreSQL (PGlite)", () => {
         deps,
       );
       assert.equal(quote.valid, false);
-      assert.deepEqual(quote.lines.map((line) => [line.sku, line.name, line.designId]), [["SUB-P08-NEGRO", "Noche · Remera", blackOnly]]);
+      assert.deepEqual(quote.lines.map((line) => [line.sku, line.name, line.designId]), [["SUB-P08-NEGRO", "Noche · Remera clásica", blackOnly]]);
       assert.deepEqual(quote.issues, [{ productId: "p08", sku: "SUB-P08-BLANCO", designId: blackOnly, code: "design_unavailable", message: COLOR_MESSAGE }]);
     });
 

@@ -2,12 +2,15 @@ import { MOCKUP_KINDS, type DesignStatus, type MockupKind } from "../../lib/desi
 import { colorKey, garmentColors, variantColor, type GarmentColor } from "../../lib/designs/mockups.ts";
 import { AdminDataError, type Admin } from "../admin/repository.ts";
 import type { QueryFn } from "../customers/repository.ts";
+import { parseThemeLabel, type DesignTheme } from "./themes.ts";
 import type { DesignInput } from "./validation.ts";
 
 export type DesignImage = { imageUrl: string; sourcePath: string; width: number; height: number; opaque: boolean };
 
 export type AdminDesign = DesignInput & {
   id: string;
+  /** The themes of `themeIds`, in the same order. */
+  themes: DesignTheme[];
   categoryLabel: string | null;
   status: DesignStatus;
   imageUrl: string;
@@ -46,6 +49,8 @@ export type StorefrontDesign = {
   height: number;
   opaque: boolean;
   bases: { kind: MockupKind; productId: string; colors: string[] | null }[];
+  /** The design's themes in list order; empty without themes. */
+  themes: { slug: string; label: string }[];
 };
 
 type DesignRow = {
@@ -63,6 +68,7 @@ type DesignRow = {
   opaque: boolean;
   kinds: MockupKind[] | null;
   colors: Partial<Record<MockupKind, string[]>> | null;
+  themes: DesignTheme[] | null;
   order_count: number;
   updated_at: Date;
 };
@@ -71,6 +77,13 @@ const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CATALOG_ID = /^[a-z0-9-]{1,40}$/;
 const KIND_ORDER = [...MOCKUP_KINDS];
 
+/** Theme list order: by sort_order, then label. Expects the alias t. */
+const THEME_ORDER = "t.sort_order, t.label, t.slug";
+
+/** A design's themes as JSON in list order (null without themes). Expects the alias d. */
+const themesJson = (fields: string) => `(SELECT json_agg(json_build_object(${fields}) ORDER BY ${THEME_ORDER})
+    FROM design_theme_links l JOIN design_themes t ON t.id = l.theme_id WHERE l.design_id = d.id)`;
+
 const SELECT_DESIGNS = `
   SELECT d.id, d.slug, d.name, d.description, d.category_id, c.label AS category_label, d.status,
          d.image_url, d.source_path, d.image_width, d.image_height, d.opaque, d.updated_at,
@@ -78,6 +91,7 @@ const SELECT_DESIGNS = `
          (SELECT json_object_agg(kind, colors) FROM (
             SELECT dc.kind, array_agg(dc.color ORDER BY dc.color) AS colors FROM design_colors dc WHERE dc.design_id = d.id GROUP BY dc.kind
           ) per_kind) AS colors,
+         ${themesJson("'id', t.id, 'slug', t.slug, 'label', t.label")} AS themes,
          (SELECT count(*) FROM order_items oi WHERE oi.design_id = d.id)::int AS order_count
   FROM designs d
   LEFT JOIN categories c ON c.id = d.category_id`;
@@ -91,6 +105,8 @@ const toDesign = (row: DesignRow): AdminDesign => ({
   categoryLabel: row.category_label,
   kinds: row.kinds ?? [],
   colors: row.colors ?? {},
+  themeIds: (row.themes ?? []).map((theme) => theme.id),
+  themes: row.themes ?? [],
   status: row.status,
   imageUrl: row.image_url,
   sourcePath: row.source_path,
@@ -108,7 +124,17 @@ const constraint = (error: unknown) => (error as { constraint?: string }).constr
 function asAdminError(error: unknown): never {
   if (code(error) === "23505" && constraint(error).includes("slug")) throw new AdminDataError("conflict", "Ya hay un diseño con esa dirección (slug).");
   if (code(error) === "23503" && constraint(error).includes("category")) throw new AdminDataError("not_found", "La categoría no existe.");
+  if (code(error) === "23503" && constraint(error).includes("theme")) throw new AdminDataError("not_found", THEME_NOT_FOUND);
   throw error;
+}
+
+const THEME_NOT_FOUND = "La temática no existe.";
+
+/** The theme ids of an input; callers from before themes send none. A malformed id is an unknown theme. */
+function themeIdsOf(input: DesignInput): string[] {
+  const ids = input.themeIds ?? [];
+  if (ids.some((id) => !ID.test(id))) throw new AdminDataError("not_found", THEME_NOT_FOUND);
+  return ids;
 }
 
 /** The (kind, color) pairs of a design input, as two parallel arrays for unnest(). */
@@ -156,6 +182,7 @@ export function createDesignRepository(sql: QueryFn) {
 
     /** Creates a draft and returns its id. */
     async createDesign(actor: Admin, input: DesignInput): Promise<string> {
+      const themeIds = themeIdsOf(input);
       try {
         const [row] = (await sql.query(
           `WITH created AS (
@@ -165,9 +192,12 @@ export function createDesignRepository(sql: QueryFn) {
            ), colors AS (
              INSERT INTO design_colors (design_id, kind, color)
              SELECT id, pair.kind, pair.color FROM created, unnest($6::text[], $7::text[]) AS pair (kind, color)
+           ), themes AS (
+             INSERT INTO design_theme_links (design_id, theme_id) SELECT id, theme FROM created, unnest($11::uuid[]) AS theme
            ), logged AS (${logDesign("design.create", 8)} FROM created)
            SELECT id FROM created`,
-          [input.slug, input.name, input.description, input.categoryId, input.kinds, ...colorPairs(input), actor.authUserId, actor.email, JSON.stringify(input)],
+          [input.slug, input.name, input.description, input.categoryId, input.kinds, ...colorPairs(input), actor.authUserId, actor.email, JSON.stringify(input),
+            themeIds],
         )) as { id: string }[];
         return row.id;
       } catch (error) {
@@ -177,11 +207,12 @@ export function createDesignRepository(sql: QueryFn) {
 
     /** Saves the data, base products and colors. A published design must keep at least one base product. */
     async updateDesign(actor: Admin, id: string, input: DesignInput): Promise<void> {
+      const themeIds = themeIdsOf(input);
       const current = await getDesign(id);
       if (current.status === "published" && !input.kinds.length) {
         throw new AdminDataError("conflict", "Un diseño publicado tiene que estar disponible en al menos un producto.");
       }
-      const before = { name: current.name, slug: current.slug, description: current.description, categoryId: current.categoryId, kinds: current.kinds, colors: current.colors };
+      const before = { name: current.name, slug: current.slug, description: current.description, categoryId: current.categoryId, kinds: current.kinds, colors: current.colors, themeIds: current.themeIds };
       try {
         await sql.query(
           `WITH updated AS (
@@ -196,10 +227,14 @@ export function createDesignRepository(sql: QueryFn) {
            ), colors_added AS (
              INSERT INTO design_colors (design_id, kind, color)
              SELECT id, pair.kind, pair.color FROM updated, unnest($7::text[], $8::text[]) AS pair (kind, color) ON CONFLICT DO NOTHING
+           ), themes_cleared AS (
+             DELETE FROM design_theme_links WHERE design_id IN (SELECT id FROM updated) AND NOT (theme_id = ANY ($12::uuid[]))
+           ), themes_added AS (
+             INSERT INTO design_theme_links (design_id, theme_id) SELECT id, theme FROM updated, unnest($12::uuid[]) AS theme ON CONFLICT DO NOTHING
            ), logged AS (${logDesign("design.update", 9)} FROM updated)
            SELECT id FROM updated`,
           [id, input.slug, input.name, input.description, input.categoryId, input.kinds, ...colorPairs(input), actor.authUserId, actor.email,
-            JSON.stringify({ name: input.name, before, after: input })],
+            JSON.stringify({ name: input.name, before, after: input }), themeIds],
         );
       } catch (error) {
         asAdminError(error);
@@ -250,6 +285,35 @@ export function createDesignRepository(sql: QueryFn) {
         throw error;
       }
       return { imageUrl: current.imageUrl, sourcePath: current.sourcePath };
+    },
+
+    /** Every design theme, in list order. */
+    async listThemes(): Promise<DesignTheme[]> {
+      return (await sql.query(`SELECT t.id, t.slug, t.label FROM design_themes t ORDER BY ${THEME_ORDER}`)) as DesignTheme[];
+    },
+
+    /**
+     * Creates a theme from a label and returns it. A label whose slug already
+     * exists (it only differs in case, accents or punctuation) returns that theme
+     * instead of a duplicate, and logs nothing.
+     */
+    async createTheme(actor: Admin, label: string): Promise<DesignTheme> {
+      const parsed = parseThemeLabel(label);
+      if (!parsed.ok) throw new AdminDataError("conflict", parsed.error);
+      const [row] = (await sql.query(
+        `WITH created AS (
+           INSERT INTO design_themes (slug, label) VALUES ($1, $2) ON CONFLICT (slug) DO NOTHING RETURNING id, slug, label
+         ), logged AS (
+           INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
+           SELECT $3, $4, 'design.theme_create', 'design', id::text, jsonb_build_object('label', label, 'slug', slug) FROM created
+         )
+         SELECT id, slug, label FROM created`,
+        [parsed.slug, parsed.label, actor.authUserId, actor.email],
+      )) as DesignTheme[];
+      if (row) return row;
+      // Already there, maybe created a moment ago by another admin.
+      const [existing] = (await sql.query(`SELECT id, slug, label FROM design_themes WHERE slug = $1`, [parsed.slug])) as DesignTheme[];
+      return existing;
     },
 
     /** The product each mockup kind sells through; kinds without one are missing. */
@@ -346,7 +410,8 @@ export async function listStorefrontDesigns(sql: QueryFn): Promise<StorefrontDes
   const rows = (await sql.query(
     `SELECT d.id, d.slug, d.name, d.description, d.category_id, c.label AS category_label,
             d.image_url, d.image_width, d.image_height, d.opaque,
-            ${BASES_JSON} AS bases
+            ${BASES_JSON} AS bases,
+            ${themesJson("'slug', t.slug, 'label', t.label")} AS themes
      FROM designs d
      LEFT JOIN categories c ON c.id = d.category_id
      JOIN design_bases b ON b.design_id = d.id
@@ -358,7 +423,10 @@ export async function listStorefrontDesigns(sql: QueryFn): Promise<StorefrontDes
      GROUP BY d.id, c.label
      ORDER BY d.sort_order, d.created_at DESC`,
     [KIND_ORDER],
-  )) as (Omit<DesignRow, "kinds" | "colors" | "order_count" | "status" | "source_path" | "updated_at"> & { bases: OfferedBaseRow[] })[];
+  )) as (Omit<DesignRow, "kinds" | "colors" | "themes" | "order_count" | "status" | "source_path" | "updated_at"> & {
+    bases: OfferedBaseRow[];
+    themes: { slug: string; label: string }[] | null;
+  })[];
   return rows.flatMap((row) => {
     const bases = offerableBases(row.bases).map(({ kind, productId, colors }) => ({ kind, productId, colors }));
     return bases.length ? [{ row, bases }] : [];
@@ -374,6 +442,7 @@ export async function listStorefrontDesigns(sql: QueryFn): Promise<StorefrontDes
     height: row.image_height ?? 1,
     opaque: row.opaque,
     bases,
+    themes: row.themes ?? [],
   }));
 }
 

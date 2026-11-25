@@ -14,6 +14,8 @@ export type DesignInput = {
    * kind without an entry is offered on every color of its base product.
    */
   colors: Partial<Record<MockupKind, string[]>>;
+  /** The design's themes (temáticas), as design_themes ids in the order of the theme list. */
+  themeIds: string[];
 };
 
 /** The colors each kind's base product comes in (listKindColors); kinds without colors are missing. */
@@ -24,6 +26,7 @@ type Data = Record<string, unknown>;
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const CATEGORY_ID = /^[a-z0-9-]{1,40}$/;
 const MAX_DESCRIPTION = 2000;
+const THEME_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const str = (data: Data, key: string) => (typeof data[key] === "string" ? (data[key] as string).trim() : "");
 
@@ -42,9 +45,11 @@ function postedColors(data: Data, kind: MockupKind): string[] {
 /**
  * Name, URL, description, category, the base products a design is offered on
  * and, for each checked kind whose base product comes in colors, the colors.
- * Colors of unchecked kinds are ignored.
+ * Colors of unchecked kinds are ignored. Themes arrive as one "themes" entry per
+ * checked box (or `themeIds` from JSON); with `themes` (listThemes) they must be
+ * in that list and keep its order, otherwise only their format is checked.
  */
-export function parseDesignInput(data: Data, kindColors: KindColors = {}): Validated<DesignInput> {
+export function parseDesignInput(data: Data, kindColors: KindColors = {}, themes?: readonly { id: string }[]): Validated<DesignInput> {
   const errors: FieldErrors<DesignInput> = {};
   const name = str(data, "name");
   if (!name) errors.name = "Poné un nombre para el diseño.";
@@ -80,6 +85,13 @@ export function parseDesignInput(data: Data, kindColors: KindColors = {}): Valid
     }
   }
 
+  const pickedThemes = [...values(data.themes), ...values(data.themeIds)];
+  if (pickedThemes.some((id) => !THEME_ID.test(id) || (themes && !themes.some((theme) => theme.id === id)))) {
+    errors.themeIds = "Elegí temáticas de la lista.";
+  }
+  // Theme list order (or first-posted order without a list), no duplicates.
+  const themeIds = themes ? themes.map((theme) => theme.id).filter((id) => pickedThemes.includes(id)) : [...new Set(pickedThemes)];
+
   if (Object.keys(errors).length) return { ok: false, errors };
-  return { ok: true, value: { name, slug, description, categoryId, kinds, colors } };
+  return { ok: true, value: { name, slug, description, categoryId, kinds, colors, themeIds } };
 }

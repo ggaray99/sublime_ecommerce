@@ -4,7 +4,7 @@
  * Shared by the browser (live preview) and the server.
  *
  * Every template is a TEMPLATE_PX square. The T-shirt reuses the Custom Lab
- * templates; the tank top photos, the rendered mug, the sticker surface and every
+ * templates, and so does the oversize T-shirt until its own photos are uploaded; the tank top photos, the rendered mug, the sticker surface and every
  * warp map come from scripts/generate-mockups.mjs (run it again after changing a
  * template, a print area or a warp scale).
  *
@@ -88,20 +88,24 @@ const tank = (tone: MockupTone, side: MockupSide) => ({
 const MUG_AREA: Box = { left: 200, top: 200, width: 700, height: 700 };
 const MUG_WARP_PX = 1000;
 
-export const MOCKUPS: Record<MockupKind, KindMockup> = {
-  tshirt: {
-    sides: ["front", "back"],
-    tones: ["light", "dark"],
-    printCm: PRINT_AREA_CM,
-    start: { scale: 0.7, y: 0.35 },
-    multiplyOnLight: true,
-    templates: {
-      "light-front": shirt("light", "front"),
-      "light-back": shirt("light", "back"),
-      "dark-front": shirt("dark", "front"),
-      "dark-back": shirt("dark", "back"),
-    },
+/** The classic T-shirt; the oversize one shares its photos, print size and start until Soportes has oversize photos. */
+const SHIRT_MOCKUP: KindMockup = {
+  sides: ["front", "back"],
+  tones: ["light", "dark"],
+  printCm: PRINT_AREA_CM,
+  start: { scale: 0.7, y: 0.35 },
+  multiplyOnLight: true,
+  templates: {
+    "light-front": shirt("light", "front"),
+    "light-back": shirt("light", "back"),
+    "dark-front": shirt("dark", "front"),
+    "dark-back": shirt("dark", "back"),
   },
+};
+
+export const MOCKUPS: Record<MockupKind, KindMockup> = {
+  tshirt: SHIRT_MOCKUP,
+  oversize: SHIRT_MOCKUP,
   tank: {
     sides: ["front", "back"],
     tones: ["light", "dark"],

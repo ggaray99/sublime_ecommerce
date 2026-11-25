@@ -19,7 +19,8 @@ async function NewDesign() {
   await connection();
   if (!adminAvailable()) return <AdminUnavailable />;
   if (!(await getCurrentAdmin())) notFound();
-  const [categories, kindColors] = await Promise.all([loadCategoryOptions(), getDesignRepository().listKindColors()]);
+  const repo = getDesignRepository();
+  const [categories, themes, kindColors] = await Promise.all([loadCategoryOptions(), repo.listThemes(), repo.listKindColors()]);
 
   return (
     <div className="account">
@@ -37,8 +38,9 @@ async function NewDesign() {
             {/* Every color of each product starts checked (no entry = all). */}
             <DesignForm
               mode="create"
-              initial={{ name: "", slug: "", description: "", categoryId: "", kinds: [], colors: {} }}
+              initial={{ name: "", slug: "", description: "", categoryId: "", kinds: [], colors: {}, themeIds: [] }}
               categories={categories}
+              themes={themes}
               kindColors={kindColors}
             />
           </>

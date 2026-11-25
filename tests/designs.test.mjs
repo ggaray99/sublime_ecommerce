@@ -39,6 +39,7 @@ describe("design validation", () => {
       categoryId: null,
       kinds: ["tshirt", "mug"],
       colors: {},
+      themeIds: [],
     });
   });
 
@@ -57,7 +58,7 @@ describe("design validation", () => {
   it("needs at least one color on a checked kind that comes in colors", () => {
     const result = parseDesignInput({ name: "Ola", kinds: ["tshirt", "tank"], "colors-tank": "blanco" }, KIND_COLORS);
     assert.equal(result.ok, false);
-    assert.equal(result.errors.colors, "Elegí al menos un color de remera.");
+    assert.equal(result.errors.colors, "Elegí al menos un color de remera clásica.");
     const tank = parseDesignInput({ name: "Ola", kinds: ["tank"] }, KIND_COLORS);
     assert.equal(tank.errors.colors, "Elegí al menos un color de musculosa.");
   });
@@ -65,7 +66,7 @@ describe("design validation", () => {
   it("rejects a color the base product does not have", () => {
     const result = parseDesignInput({ name: "Ola", kinds: ["tshirt"], "colors-tshirt": ["negro", "violeta"] }, KIND_COLORS);
     assert.equal(result.ok, false);
-    assert.equal(result.errors.colors, "Elegí colores de la lista: «violeta» no es un color de remera.");
+    assert.equal(result.errors.colors, "Elegí colores de la lista: «violeta» no es un color de remera clásica.");
   });
 
   it("a design on kinds without colors (mug, sticker) saves as before", () => {
@@ -321,5 +322,80 @@ describe("design colors", () => {
     assert.equal((await listStorefrontDesigns(sql)).some((design) => design.id === black), false);
     assert.equal((await offers.findOffers([black])).has(black), false);
     await db.query(`UPDATE product_variants SET active = true WHERE sku = 'COLOR-NEGRO-M'`);
+  });
+});
+
+describe("oversize T-shirt kind", () => {
+  let db;
+  let sql;
+  let designs;
+  let offers;
+  let classic;
+  let oversize;
+
+  before(async () => {
+    db = new PGlite();
+    for (const file of [...sqlFiles("migrations"), ...sqlFiles("seed")]) await db.exec(file);
+    sql = { query: async (text, params) => (await db.query(text, params)).rows };
+    designs = createDesignRepository(sql);
+    offers = createPostgresDesignOffers(sql);
+    // Two active products become the classic and the oversize T-shirt bases, both in white and black.
+    [classic, oversize] = (await db.query(
+      `SELECT p.id, p.legacy_id FROM products p
+       WHERE p.status = 'active' AND EXISTS (SELECT 1 FROM product_variants v WHERE v.product_id = p.id AND v.active)
+       ORDER BY p.legacy_id LIMIT 2`,
+    )).rows;
+    for (const [product, prefix] of [[classic, "CLASICA"], [oversize, "OVERSIZE"]]) {
+      await db.query(`UPDATE product_variants SET active = false WHERE product_id = $1`, [product.id]);
+      for (const [sku, color] of [[`${prefix}-BLANCO-M`, "Blanco"], [`${prefix}-NEGRO-M`, "Negro"]]) {
+        await db.query(`INSERT INTO product_variants (product_id, sku, options, price_minor) VALUES ($1, $2, $3, 1000)`, [product.id, sku, { Color: color, Talle: "M" }]);
+      }
+    }
+    await designs.setMockupBase(admin, "tshirt", classic.legacy_id);
+    await designs.setMockupBase(admin, "oversize", oversize.legacy_id);
+  });
+
+  after(async () => {
+    await db.close();
+  });
+
+  it("links a base product to the oversize kind and reads its colors from the variants", async () => {
+    const bases = await designs.listMockupBases();
+    assert.equal(bases.oversize.legacyId, oversize.legacy_id);
+    assert.equal(bases.tshirt.legacyId, classic.legacy_id);
+    const colors = await designs.listKindColors();
+    assert.deepEqual(colors.oversize, [
+      { key: "blanco", label: "Blanco" },
+      { key: "negro", label: "Negro" },
+    ]);
+  });
+
+  it("offers a design on the classic and the oversize T-shirt, kinds in catalog order", async () => {
+    const kindColors = await designs.listKindColors();
+    const parsed = parseDesignInput({ name: "Ola", kinds: ["oversize", "tshirt"], "colors-oversize": "negro", "colors-tshirt": "blanco" }, kindColors);
+    assert.equal(parsed.ok, true);
+    assert.deepEqual(parsed.value.kinds, ["tshirt", "oversize"]);
+    const id = await designs.createDesign(admin, input({ slug: "ola", kinds: ["oversize", "tshirt"], colors: { oversize: ["negro"], tshirt: ["blanco"] } }));
+    await designs.setDesignImage(admin, id, image);
+    await designs.setDesignStatus(admin, id, "published");
+    const design = await designs.getDesign(id);
+    assert.deepEqual(design.kinds, ["tshirt", "oversize"]);
+    assert.deepEqual(design.colors, { oversize: ["negro"], tshirt: ["blanco"] });
+    const offer = (await offers.findOffers([id])).get(id);
+    assert.deepEqual(offer.bases.map((base) => [base.kind, base.colors]), [["tshirt", ["blanco"]], ["oversize", ["negro"]]]);
+    const listed = (await listStorefrontDesigns(sql)).find((item) => item.id === id);
+    assert.deepEqual(listed.bases, [
+      { kind: "tshirt", productId: classic.legacy_id, colors: ["blanco"] },
+      { kind: "oversize", productId: oversize.legacy_id, colors: ["negro"] },
+    ]);
+  });
+
+  it("still refuses a kind the catalog does not have in the database", async () => {
+    const [{ id }] = (await db.query(`SELECT id FROM designs WHERE slug = 'ola'`)).rows;
+    await assert.rejects(() => db.query(`INSERT INTO design_bases (design_id, kind) VALUES ($1, 'gorra')`, [id]), /design_bases_kind_check/);
+    await assert.rejects(
+      () => db.query(`INSERT INTO mockup_bases (kind, product_id) SELECT 'gorra', id FROM products WHERE legacy_id = $1`, [classic.legacy_id]),
+      /mockup_bases_kind_check/,
+    );
   });
 });

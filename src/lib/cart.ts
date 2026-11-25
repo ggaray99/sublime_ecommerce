@@ -75,7 +75,7 @@ export const lineKey = (productId: string, sku?: string, designId?: string) => `
 
 export type CartItem = {
   product: Product;
-  /** Design printed on the base product; `name` is the line name ("Gato astronauta · Remera"). */
+  /** Design printed on the base product; `name` is the line name ("Gato astronauta · Remera clásica"). */
   design?: { id: string; slug: string; name: string; imageUrl: string; kind: MockupKind };
   /** Chosen variant of a product with options. */
   variant?: ProductVariant;

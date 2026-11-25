@@ -24,7 +24,12 @@ export type DesignFormValues = {
   kinds: MockupKind[];
   /** Checked color keys per kind; a kind that comes in colors and is missing here starts with all of them checked. */
   colors: Partial<Record<MockupKind, string[]>>;
+  /** Checked theme ids. */
+  themeIds: string[];
 };
+
+/** A design theme offered as a checkbox. */
+export type ThemeOption = { id: string; label: string };
 
 /** The colors each kind's base product comes in; kinds without colors are missing. */
 export type KindColorOptions = Partial<Record<MockupKind, GarmentColor[]>>;
@@ -179,8 +184,8 @@ function DesignFileField({ state, label, required }: { state: AdminFormState; la
 
 /**
  * One checkbox per base product; at least one is needed to publish. A product
- * that comes in colors nests one checkbox per color; colors of an unchecked
- * product are ignored when saving.
+ * that comes in colors shows its colors inline, one checkbox each; colors of an
+ * unchecked product are ignored when saving.
  */
 function KindsField({
   state,
@@ -196,41 +201,38 @@ function KindsField({
   const id = useId();
   const error = state.fields?.kinds;
   const colorError = state.fields?.colors;
+  const hasColors = MOCKUP_KINDS.some((kind) => (kindColors[kind] ?? []).length > 0);
   return (
     <fieldset
-      className="admin-fieldset"
+      className="admin-fieldset design-form__kinds"
       aria-describedby={[`${id}-hint`, error ? `${id}-error` : "", colorError ? `${id}-colors-error` : ""].filter(Boolean).join(" ")}
     >
       <legend>Disponible en</legend>
       <p className="field__hint" id={`${id}-hint`}>
         Elegí al menos un producto para poder publicarlo.
       </p>
+      {hasColors && (
+        <p className="field__hint" id={`${id}-colors-hint`}>
+          {COLORS_HINT}
+        </p>
+      )}
       {MOCKUP_KINDS.map((kind) => {
         const options = kindColors[kind] ?? [];
         const picked = colors[kind] ?? options.map((color) => color.key);
         return (
-          <div key={kind}>
-            <div className="field field--check">
-              <input id={`${id}-${kind}`} name="kinds" type="checkbox" value={kind} defaultChecked={checked.includes(kind)} />
-              <label htmlFor={`${id}-${kind}`}>{MOCKUP_KIND_LABELS[kind]}</label>
-            </div>
+          <div key={kind} className="design-form__kind">
+            <label className="design-chip design-chip--strong">
+              <input name="kinds" type="checkbox" value={kind} defaultChecked={checked.includes(kind)} />
+              {MOCKUP_KIND_LABELS[kind]}
+            </label>
             {options.length > 0 && (
-              <fieldset className="admin-fieldset" aria-describedby={`${id}-${kind}-colors-hint`}>
-                <legend>Colores de {MOCKUP_KIND_LABELS[kind].toLowerCase()}</legend>
-                <p className="field__hint" id={`${id}-${kind}-colors-hint`}>
-                  {COLORS_HINT}
-                </p>
+              <fieldset className="design-form__colors" aria-describedby={`${id}-colors-hint`}>
+                <legend className="visually-hidden">Colores de {MOCKUP_KIND_LABELS[kind].toLowerCase()}</legend>
                 {options.map((color) => (
-                  <div key={color.key} className="field field--check">
-                    <input
-                      id={`${id}-${kind}-${color.key}`}
-                      name={`colors-${kind}`}
-                      type="checkbox"
-                      value={color.key}
-                      defaultChecked={picked.includes(color.key)}
-                    />
-                    <label htmlFor={`${id}-${kind}-${color.key}`}>{color.label}</label>
-                  </div>
+                  <label key={color.key} className="design-chip">
+                    <input name={`colors-${kind}`} type="checkbox" value={color.key} defaultChecked={picked.includes(color.key)} />
+                    {color.label}
+                  </label>
                 ))}
               </fieldset>
             )}
@@ -251,34 +253,108 @@ function KindsField({
   );
 }
 
-/** Data, base products and colors of a design. Creating also takes the file and an optional "publish now". */
+/**
+ * Existing themes as checkboxes, plus a text box to add a new one: it is created
+ * on save (or the one with the same name is reused) and linked to the design.
+ */
+function ThemesField({
+  state,
+  themes,
+  checked,
+  newTheme,
+}: {
+  state: AdminFormState;
+  themes: ThemeOption[];
+  checked: string[];
+  newTheme: string;
+}) {
+  const id = useId();
+  const error = state.fields?.themeIds;
+  const newError = state.fields?.newTheme;
+  return (
+    <fieldset
+      className="admin-fieldset design-form__themes"
+      aria-describedby={[themes.length ? "" : `${id}-empty`, error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined}
+    >
+      <legend>Temáticas</legend>
+      {themes.length > 0 ? (
+        <div className="design-form__chips">
+          {themes.map((theme) => (
+            <label key={theme.id} className="design-chip">
+              <input name="themes" type="checkbox" value={theme.id} defaultChecked={checked.includes(theme.id)} />
+              {theme.label}
+            </label>
+          ))}
+        </div>
+      ) : (
+        <p className="field__hint" id={`${id}-empty`}>
+          Todavía no hay temáticas: creá la primera acá abajo.
+        </p>
+      )}
+      <div className="field design-form__new-theme">
+        <label htmlFor={`${id}-new`}>Nueva temática</label>
+        <input
+          id={`${id}-new`}
+          name="newTheme"
+          type="text"
+          maxLength={60}
+          autoComplete="off"
+          defaultValue={newTheme}
+          placeholder="Ej.: Fútbol"
+          aria-invalid={Boolean(newError)}
+          aria-describedby={[`${id}-new-hint`, newError ? `${id}-new-error` : ""].filter(Boolean).join(" ")}
+        />
+        <p className="field__hint" id={`${id}-new-hint`}>
+          Opcional. Se crea al guardar y queda marcada; si ya existe, se usa esa.
+        </p>
+        {newError && (
+          <p className="field__error" id={`${id}-new-error`}>
+            {newError}
+          </p>
+        )}
+      </div>
+      {error && (
+        <p className="field__error" id={`${id}-error`}>
+          {error}
+        </p>
+      )}
+    </fieldset>
+  );
+}
+
+/** Data, themes, base products and colors of a design. Creating also takes the file and an optional "publish now". */
 export function DesignForm({
   mode,
   designId,
   initial,
   categories,
+  themes,
   kindColors,
 }: {
   mode: "create" | "edit";
   designId?: string;
   initial: DesignFormValues;
   categories: Option[];
+  themes: ThemeOption[];
   kindColors: KindColorOptions;
 }) {
   const [state, action, pending] = useActionState(mode === "create" ? createDesignAction : updateDesignAction, {});
-  const value = (key: Exclude<keyof DesignFormValues, "kinds" | "colors">) => state.values?.[key] ?? initial[key];
+  const value = (key: Exclude<keyof DesignFormValues, "kinds" | "colors" | "themeIds">) => state.values?.[key] ?? initial[key];
   const kinds = state.values ? (state.values.kinds.split(",").filter(Boolean) as MockupKind[]) : initial.kinds;
   // After a failed save, what was checked; a kind with every color unchecked stays that way.
   const colors: DesignFormValues["colors"] = state.values
     ? Object.fromEntries(MOCKUP_KINDS.map((kind) => [kind, (state.values?.[`colors-${kind}`] ?? "").split(",").filter(Boolean)]))
     : initial.colors;
   const colorsKey = MOCKUP_KINDS.map((kind) => `${kind}:${(colors[kind] ?? []).join("+")}`).join(",");
+  const themeIds = state.values ? (state.values.themes ?? "").split(",").filter(Boolean) : initial.themeIds;
+  const newTheme = state.values?.newTheme ?? "";
+  const themesKey = `${themes.map((theme) => theme.id).join(",")}|${themeIds.join(",")}|${newTheme}`;
   const categoryOptions = [{ value: "", label: "Sin categoría" }, ...categories];
   return (
-    <form action={action} className="quote-form" noValidate>
+    <form action={action} className="quote-form design-form" noValidate>
       <Status state={state} />
       {designId && <input type="hidden" name="designId" value={designId} />}
-      <div className="form-grid">
+      <div className="design-form__grid">
         <Field name="name" label="Nombre" state={state} defaultValue={value("name")} required />
         <Field
           name="slug"
@@ -287,9 +363,12 @@ export function DesignForm({
           defaultValue={value("slug")}
           hint={mode === "create" ? "Vacío = se genera desde el nombre." : "Cambiarla rompe los enlaces ya compartidos."}
         />
-        <Field name="categoryId" label="Categoría" state={state} defaultValue={value("categoryId")} options={categoryOptions} />
+        <div className="design-form__stack">
+          <Field name="categoryId" label="Categoría" state={state} defaultValue={value("categoryId")} options={categoryOptions} />
+          <Field name="description" label="Descripción" state={state} defaultValue={value("description")} multiline />
+        </div>
+        <ThemesField key={themesKey} state={state} themes={themes} checked={themeIds} newTheme={newTheme} />
       </div>
-      <Field name="description" label="Descripción" state={state} defaultValue={value("description")} multiline />
       <KindsField key={`${kinds.join(",")}|${colorsKey}`} state={state} checked={kinds} colors={colors} kindColors={kindColors} />
       {mode === "create" && (
         <>
@@ -312,7 +391,7 @@ export function DesignForm({
 export function DesignFileUpload({ designId }: { designId: string }) {
   const [state, action, pending] = useActionState(uploadDesignFileAction, {});
   return (
-    <form action={action} className="quote-form" noValidate>
+    <form action={action} className="quote-form design-form" noValidate>
       <Status state={state} />
       <input type="hidden" name="designId" value={designId} />
       <DesignFileField state={state} label="Cambiar archivo" />

@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import sharp from "sharp";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { MOCKUP_KINDS } from "../src/lib/designs/kinds.ts";
+import { designLineName, MOCKUP_KIND_LABELS, MOCKUP_KINDS } from "../src/lib/designs/kinds.ts";
 import {
   clampMockupPlacement,
   defaultPlacement,
@@ -15,6 +15,7 @@ import {
   TEMPLATE_PX,
   colorKey,
   garmentColors,
+  hasGarmentColors,
   isTemplateSlot,
   toneOfColor,
   toneOfVariant,
@@ -28,10 +29,12 @@ describe("mockup templates", () => {
   it("declares every kind, with sides and tones", () => {
     assert.deepEqual(Object.keys(MOCKUPS).sort(), [...MOCKUP_KINDS].sort());
     assert.deepEqual(MOCKUPS.tshirt.sides, ["front", "back"]);
+    assert.deepEqual(MOCKUPS.oversize.sides, ["front", "back"]);
     assert.deepEqual(MOCKUPS.tank.sides, ["front", "back"]);
     assert.deepEqual(MOCKUPS.mug.sides, ["front"]);
     assert.deepEqual(MOCKUPS.sticker.sides, ["front"]);
     assert.deepEqual(MOCKUPS.tshirt.tones, ["light", "dark"]);
+    assert.deepEqual(MOCKUPS.oversize.tones, ["light", "dark"]);
     assert.deepEqual(MOCKUPS.tank.tones, ["light", "dark"]);
   });
 
@@ -66,7 +69,7 @@ describe("mockup templates", () => {
   });
 
   it("bends the design onto garments and the mug with warp maps sized like the print area", async () => {
-    for (const kind of ["tshirt", "tank", "mug"]) {
+    for (const kind of ["tshirt", "oversize", "tank", "mug"]) {
       for (const tone of MOCKUPS[kind].tones) {
         for (const side of MOCKUPS[kind].sides) {
           const { warp, area } = mockupTemplate(kind, tone, side);
@@ -196,5 +199,71 @@ describe("garment colors", () => {
     assert.equal(isTemplateSlot("tshirt", "Crema", "front"), false);
     assert.equal(isTemplateSlot("mug", "crema", "front"), false);
     assert.equal(isTemplateSlot("mug", "light", "back"), false);
+  });
+});
+
+describe("oversize T-shirt kind", () => {
+  it("sits right after the classic T-shirt, with its own label", () => {
+    assert.deepEqual([...MOCKUP_KINDS], ["tshirt", "oversize", "tank", "mug", "sticker"]);
+    assert.deepEqual(MOCKUP_KIND_LABELS, { tshirt: "Remera clásica", oversize: "Remera oversize", tank: "Musculosa", mug: "Taza", sticker: "Sticker" });
+    assert.equal(designLineName("Gato astronauta", "oversize"), "Gato astronauta · Remera oversize");
+    assert.equal(designLineName("Gato astronauta", "tshirt"), "Gato astronauta · Remera clásica");
+  });
+
+  it("uses the T-shirt built-in templates, print size and start until oversize photos are uploaded", () => {
+    for (const tone of ["light", "dark"]) {
+      for (const side of ["front", "back"]) {
+        assert.deepEqual(mockupTemplate("oversize", tone, side), mockupTemplate("tshirt", tone, side), `${tone} ${side}`);
+      }
+    }
+    assert.deepEqual(MOCKUPS.oversize.printCm, MOCKUPS.tshirt.printCm);
+    assert.deepEqual(MOCKUPS.oversize.start, MOCKUPS.tshirt.start);
+    assert.deepEqual(defaultPlacement("oversize", 0.8), defaultPlacement("tshirt", 0.8));
+  });
+
+  it("comes in garment colors, and a color's own oversize photo wins over the T-shirt fallback", () => {
+    assert.equal(hasGarmentColors("oversize"), true);
+    assert.equal(isTemplateSlot("oversize", "crema", "back"), true);
+    assert.equal(isTemplateSlot("oversize", "dark", "front"), true);
+    const own = { src: "/media/soportes/oversize-crema.png", area: { left: 1, top: 2, width: 280, height: 350 } };
+    assert.equal(mockupTemplate("oversize", "light", "front", { "oversize-crema-front": own }, "crema").src, own.src);
+    // An uploaded classic T-shirt photo is not an oversize photo.
+    assert.equal(mockupTemplate("oversize", "light", "front", { "tshirt-light-front": own }).src, shirtTemplateSrc("white", "front"));
+  });
+
+  it("leaves the templates and print areas of the other kinds as they were", () => {
+    const pick = (kind, tone, side) => {
+      const { src, area, blend, warp } = mockupTemplate(kind, tone, side);
+      return [src, area, blend, warp?.scale ?? null];
+    };
+    assert.deepEqual(
+      [pick("tshirt", "light", "front"), pick("tshirt", "light", "back"), pick("tshirt", "dark", "front"), pick("tshirt", "dark", "back")],
+      [
+        ["/lab/shirts/white-front.png", { left: 400, top: 367, width: 282, height: 353 }, "multiply", 10],
+        ["/lab/shirts/white-back.png", { left: 401, top: 338, width: 277, height: 346 }, "multiply", 10],
+        ["/lab/shirts/black-front.png", { left: 397, top: 331, width: 287, height: 359 }, "normal", 10],
+        ["/lab/shirts/black-back.png", { left: 361, top: 263, width: 299, height: 374 }, "normal", 10],
+      ],
+    );
+    assert.deepEqual(
+      [pick("tank", "light", "front"), pick("tank", "light", "back"), pick("tank", "dark", "front"), pick("tank", "dark", "back")],
+      [
+        ["/lab/mockups/tank-white.png", { left: 410, top: 300, width: 260, height: 325 }, "multiply", 10],
+        ["/lab/mockups/tank-white.png", { left: 410, top: 270, width: 260, height: 325 }, "multiply", 10],
+        ["/lab/mockups/tank-black.png", { left: 410, top: 300, width: 260, height: 325 }, "normal", 10],
+        ["/lab/mockups/tank-black.png", { left: 410, top: 270, width: 260, height: 325 }, "normal", 10],
+      ],
+    );
+    assert.deepEqual(pick("mug", "light", "front"), ["/lab/mockups/mug-white.png", { left: 200, top: 200, width: 700, height: 700 }, "multiply", 1000]);
+    assert.deepEqual(pick("sticker", "light", "front"), ["/lab/mockups/sticker-surface.png", { left: 290, top: 290, width: 500, height: 500 }, "normal", null]);
+    assert.deepEqual(
+      ["tshirt", "tank", "mug", "sticker"].map((kind) => [MOCKUPS[kind].printCm, MOCKUPS[kind].start]),
+      [
+        [{ width: 28, height: 35 }, { scale: 0.7, y: 0.35 }],
+        [{ width: 24, height: 30 }, { scale: 0.7, y: 0.4 }],
+        [{ width: 9, height: 8 }, { scale: 0.8, y: 0.5 }],
+        [{ width: 8, height: 8 }, { scale: 1, y: 0.5 }],
+      ],
+    );
   });
 });
