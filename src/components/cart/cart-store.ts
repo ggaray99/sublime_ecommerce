@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import type { Product } from "@/data/products";
 import { addLine, parseCart, removeLine, setQuantity, summarizeCart, type CartDesign, type CartLine } from "@/lib/cart";
+import type { GarmentPlacement } from "@/lib/designs/mockups";
 
 const STORAGE_KEY = "sublime-demo-cart-v1";
 const EMPTY: CartLine[] = [];
@@ -56,15 +57,18 @@ function write(lines: CartLine[]) {
 }
 
 export const cartActions = {
-  /** `sku` picks the variant (size, color…) of products with options; `designId` the design printed on it. */
-  add(productId: string, quantity = 1, sku?: string, designId?: string) {
-    write(addLine(getSnapshot(), productId, quantity, sku, designId));
+  /**
+   * `sku` picks the variant (size, color…) of products with options; `designId` the
+   * design printed on it and `placement` where the customer placed that design.
+   */
+  add(productId: string, quantity = 1, sku?: string, designId?: string, placement?: GarmentPlacement) {
+    write(addLine(getSnapshot(), productId, quantity, sku, designId, placement));
   },
-  setQuantity(productId: string, quantity: number, sku?: string, designId?: string) {
-    write(setQuantity(getSnapshot(), productId, quantity, sku, designId));
+  setQuantity(productId: string, quantity: number, sku?: string, designId?: string, placement?: GarmentPlacement) {
+    write(setQuantity(getSnapshot(), productId, quantity, sku, designId, placement));
   },
-  remove(productId: string, sku?: string, designId?: string) {
-    write(removeLine(getSnapshot(), productId, sku, designId));
+  remove(productId: string, sku?: string, designId?: string, placement?: GarmentPlacement) {
+    write(removeLine(getSnapshot(), productId, sku, designId, placement));
   },
   clear() {
     write(EMPTY);

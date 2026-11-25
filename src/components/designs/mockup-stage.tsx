@@ -5,7 +5,10 @@ import {
   defaultPlacement,
   designBox,
   mockupTemplate,
+  placedBox,
   TEMPLATE_PX,
+  type Box,
+  type GarmentPlacement,
   type MockupSide,
   type MockupTemplate,
   type MockupTone,
@@ -30,7 +33,16 @@ type Props = {
   className?: string;
   /** Templates uploaded in Admin › Soportes, which replace the built-in ones. */
   overrides?: TemplateOverrides;
+  /** Where the customer placed the design (valid for this template); without it, the kind's starting spot. */
+  placement?: GarmentPlacement;
 };
+
+/** True when `inner` lies inside `outer` (half a pixel of slack for rounding). */
+const inside = (outer: Box, inner: Box) =>
+  inner.left >= outer.left - 0.5 &&
+  inner.top >= outer.top - 0.5 &&
+  inner.left + inner.width <= outer.left + outer.width + 0.5 &&
+  inner.top + inner.height <= outer.top + outer.height + 0.5;
 
 /**
  * A design laid over a base product template: the template photo, the print area
@@ -38,15 +50,52 @@ type Props = {
  * product (fabric folds, the mug's curve) with an SVG filter; the rest lay it flat.
  * Pure markup, so it renders on the server (listing) and in the live preview.
  */
-export function MockupStage({ kind, tone, color, side, imageUrl, width, height, alt, sizes, preload = false, className, overrides }: Props) {
+export function MockupStage(props: Props) {
+  const { kind, tone, color, side, imageUrl, width, height, alt, sizes, preload = false, className, overrides, placement: placed } = props;
   const template = mockupTemplate(kind, tone, side, overrides, color);
   const aspect = width > 0 && height > 0 ? width / height : 1;
-  const placement = defaultPlacement(kind, aspect);
+  // A design the customer moved off the print area is laid flat on the photo:
+  // the warp maps only cover the print area.
+  const free = placed ? placedBox(kind, template, placed, aspect) : null;
+  if (free && !inside(template.area, free)) {
+    const whole = { left: 0, top: 0, width: TEMPLATE_PX, height: TEMPLATE_PX };
+    return (
+      <div className={`mockup-stage${className ? ` ${className}` : ""}`} {...(alt ? { role: "img", "aria-label": alt } : { "aria-hidden": true })}>
+        <Image className="mockup-stage__photo" src={template.src} alt="" width={TEMPLATE_PX} height={TEMPLATE_PX} sizes={sizes} preload={preload} />
+        <div className="mockup-stage__area" style={areaStyle(whole)}>
+          <Image
+            className={["mockup-stage__design", template.blend === "multiply" && "is-multiply", kind === "sticker" && "is-sticker"].filter(Boolean).join(" ")}
+            src={imageUrl}
+            alt=""
+            width={width || 1000}
+            height={height || 1000}
+            sizes={sizes}
+            draggable={false}
+            style={{
+              width: `${(free.width / TEMPLATE_PX) * 100}%`,
+              left: `${((free.left + free.width / 2) / TEMPLATE_PX) * 100}%`,
+              top: `${((free.top + free.height / 2) / TEMPLATE_PX) * 100}%`,
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+  // Inside the print area: as fractions of the area, like the starting spot.
+  const box = free
+    ? {
+        left: (free.left - template.area.left) / template.area.width,
+        top: (free.top - template.area.top) / template.area.height,
+        width: free.width / template.area.width,
+        height: free.height / template.area.height,
+      }
+    : designBox(kind, defaultPlacement(kind, aspect), aspect);
+  const placement = { scale: box.width, x: box.left + box.width / 2, y: box.top + box.height / 2 };
   return (
     <div className={`mockup-stage${className ? ` ${className}` : ""}`} {...(alt ? { role: "img", "aria-label": alt } : { "aria-hidden": true })}>
       <Image className="mockup-stage__photo" src={template.src} alt="" width={TEMPLATE_PX} height={TEMPLATE_PX} sizes={sizes} preload={preload} />
       {template.warp ? (
-        <WarpedDesign template={template} warp={template.warp} imageUrl={imageUrl} box={designBox(kind, placement, aspect)} />
+        <WarpedDesign template={template} warp={template.warp} imageUrl={imageUrl} box={box} />
       ) : (
         <div className="mockup-stage__area" style={areaStyle(template.area)}>
           <Image

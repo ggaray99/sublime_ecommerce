@@ -11,7 +11,7 @@
  * Admin › Soportes can replace any of these built-in templates with an uploaded
  * photo (TemplateOverrides, stored in mockup_templates).
  */
-import { PRINT_AREA_CM, printArea, SCALE_RANGE, shirtTemplateSrc, TEMPLATE_PX, type Placement } from "../lab/tshirt.ts";
+import { garmentBox, PRINT_AREA_CM, printArea, SCALE_RANGE, shirtTemplateSrc, TEMPLATE_PX, type Placement } from "../lab/tshirt.ts";
 import type { MockupKind } from "./kinds.ts";
 
 export { TEMPLATE_PX, type Placement };
@@ -35,8 +35,14 @@ export type Warp = { map: string; shade: string; scale: number };
 
 export type MockupTemplate = {
   src: string;
-  /** Where the design can be placed, in template pixels. */
+  /** The print area, in template pixels: where a design starts, and the cm scale (its width is the kind's printCm width). */
   area: Box;
+  /**
+   * The garment zone, in template pixels: where the customer can move a design on
+   * the store's design page. It always holds the print area; on the mug and the
+   * sticker it is the print area itself.
+   */
+  garment: Box;
   /** "multiply" lets the fabric or ceramic show through the ink on light templates. */
   blend: "multiply" | "normal";
   warp?: Warp;
@@ -51,7 +57,9 @@ type KindMockup = {
   start: { scale: number; y: number };
   /** A sticker is white vinyl on top of the surface, so it never multiplies. */
   multiplyOnLight: boolean;
-  templates: Partial<Record<`${MockupTone}-${MockupSide}`, { src: string; area: Box; warp?: Warp }>>;
+  /** Garments let a design move over the whole garment zone; the mug and the sticker keep it in the print area. */
+  freePlacement: boolean;
+  templates: Partial<Record<`${MockupTone}-${MockupSide}`, { src: string; area: Box; garment: Box; warp?: Warp }>>;
 };
 
 /** A box centred horizontally at `centerX`, `width` wide, with the print proportion. */
@@ -73,7 +81,12 @@ const warp = (name: string, scale: number): Warp => ({
 
 const shirt = (tone: MockupTone, side: MockupSide) => {
   const color = tone === "dark" ? "black" : "white";
-  return { src: shirtTemplateSrc(color, side), area: printArea(color, side), warp: warp(`tshirt-${tone}-${side}`, FABRIC_WARP_PX) };
+  return {
+    src: shirtTemplateSrc(color, side),
+    area: printArea(color, side),
+    garment: garmentBox(color, side),
+    warp: warp(`tshirt-${tone}-${side}`, FABRIC_WARP_PX),
+  };
 };
 
 const tank = (tone: MockupTone, side: MockupSide) => ({
@@ -81,6 +94,8 @@ const tank = (tone: MockupTone, side: MockupSide) => ({
   src: `/lab/mockups/tank-${tone === "dark" ? "black" : "white"}.png`,
   // The tank top body spans x 288–792, y 157–922; the front neckline bottoms out near y 260.
   area: areaOf(540, side === "front" ? 300 : 270, 260, TANK_CM),
+  // The body below the straps and armholes, down to the hem.
+  garment: { left: 300, top: side === "front" ? 250 : 220, width: 480, height: (side === "front" ? 660 : 690) },
   warp: warp(`tank-${tone}-${side}`, FABRIC_WARP_PX),
 });
 
@@ -95,6 +110,7 @@ const SHIRT_MOCKUP: KindMockup = {
   printCm: PRINT_AREA_CM,
   start: { scale: 0.7, y: 0.35 },
   multiplyOnLight: true,
+  freePlacement: true,
   templates: {
     "light-front": shirt("light", "front"),
     "light-back": shirt("light", "back"),
@@ -112,6 +128,7 @@ export const MOCKUPS: Record<MockupKind, KindMockup> = {
     printCm: TANK_CM,
     start: { scale: 0.7, y: 0.4 },
     multiplyOnLight: true,
+    freePlacement: true,
     templates: {
       "light-front": tank("light", "front"),
       "light-back": tank("light", "back"),
@@ -125,8 +142,11 @@ export const MOCKUPS: Record<MockupKind, KindMockup> = {
     printCm: MUG_CM,
     start: { scale: 0.8, y: 0.5 },
     multiplyOnLight: true,
+    freePlacement: false,
     // The print band wraps around the body; the box only bounds it (see MUG_AREA).
-    templates: { "light-front": { src: "/lab/mockups/mug-white.png", area: MUG_AREA, warp: warp("mug-light-front", MUG_WARP_PX) } },
+    templates: {
+      "light-front": { src: "/lab/mockups/mug-white.png", area: MUG_AREA, garment: MUG_AREA, warp: warp("mug-light-front", MUG_WARP_PX) },
+    },
   },
   sticker: {
     sides: ["front"],
@@ -134,7 +154,10 @@ export const MOCKUPS: Record<MockupKind, KindMockup> = {
     printCm: STICKER_CM,
     start: { scale: 1, y: 0.5 },
     multiplyOnLight: false,
-    templates: { "light-front": { src: "/lab/mockups/sticker-surface.png", area: areaOf(540, 290, 500, STICKER_CM) } },
+    freePlacement: false,
+    templates: {
+      "light-front": { src: "/lab/mockups/sticker-surface.png", area: areaOf(540, 290, 500, STICKER_CM), garment: areaOf(540, 290, 500, STICKER_CM) },
+    },
   },
 };
 
@@ -145,8 +168,8 @@ export const MOCKUPS: Record<MockupKind, KindMockup> = {
 export type TemplateSlot = { kind: MockupKind; tone: string; side: MockupSide };
 export type TemplateSlotKey = `${MockupKind}-${string}-${MockupSide}`;
 
-/** An uploaded template that replaces the built-in one of its slot. */
-export type TemplateOverride = { src: string; area: Box; warp?: Warp };
+/** An uploaded template that replaces the built-in one of its slot; without its own garment zone it uses the built-in one. */
+export type TemplateOverride = { src: string; area: Box; garment?: Box; warp?: Warp };
 export type TemplateOverrides = Partial<Record<TemplateSlotKey, TemplateOverride>>;
 
 export const slotKey = ({ kind, tone, side }: TemplateSlot): TemplateSlotKey => `${kind}-${tone}-${side}`;
@@ -186,8 +209,22 @@ export function mockupTemplate(
   const t = mockup.tones.includes(tone) ? tone : mockup.tones[0];
   const s = mockup.sides.includes(side) ? side : mockup.sides[0];
   const own = color && hasGarmentColors(kind) ? overrides?.[slotKey({ kind, tone: color, side: s })] : undefined;
-  const template = own ?? overrides?.[slotKey({ kind, tone: t, side: s })] ?? mockup.templates[`${t}-${s}`]!;
-  return { ...template, blend: t === "light" && mockup.multiplyOnLight ? "multiply" : "normal" };
+  const builtIn = mockup.templates[`${t}-${s}`]!;
+  const template: TemplateOverride = own ?? overrides?.[slotKey({ kind, tone: t, side: s })] ?? builtIn;
+  const garment = mockup.freePlacement ? coverBox(template.garment ?? builtIn.garment, template.area) : template.area;
+  return { ...template, garment, blend: t === "light" && mockup.multiplyOnLight ? "multiply" : "normal" };
+}
+
+/** The smallest box that holds `box` and `inner`. */
+function coverBox(box: Box, inner: Box): Box {
+  const left = Math.min(box.left, inner.left);
+  const top = Math.min(box.top, inner.top);
+  return {
+    left,
+    top,
+    width: Math.max(box.left + box.width, inner.left + inner.width) - left,
+    height: Math.max(box.top + box.height, inner.top + inner.height) - top,
+  };
 }
 
 /** Smallest print area the admin can mark, in template pixels. */
@@ -308,3 +345,112 @@ export function designBox(kind: MockupKind, p: Placement, designAspect: number) 
   const height = (p.scale / aspect) * (printCm.width / printCm.height);
   return { left: p.x - p.scale / 2, top: p.y - height / 2, width: p.scale, height };
 }
+
+/** Printed width of a catalog design on the store's design page, in cm (the owner's base price covers up to 30 cm). */
+export const DESIGN_CM = { min: 4, max: 30 } as const;
+
+/**
+ * Where the customer placed a catalog design, in cm, independent of the photo:
+ * the side, the printed width, the horizontal offset of the design's centre from
+ * the garment's centre line (positive = to the right as seen) and the distance
+ * from the top of the garment zone (the collar) down to the design's top edge.
+ */
+export type GarmentPlacement = { side: MockupSide; widthCm: number; xCm: number; yCm: number };
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+const safeAspect = (aspect: number) => (aspect > 0 && Number.isFinite(aspect) ? aspect : 1);
+const finite = (n: number, fallback: number) => (Number.isFinite(n) ? n : fallback);
+
+/** Centimetres per template pixel on a template: its print area is the kind's printCm wide. */
+export const cmPerPx = (kind: MockupKind, template: MockupTemplate) => MOCKUPS[kind].printCm.width / template.area.width;
+
+/** The design's rectangle on the template, in template pixels. */
+export function placedBox(kind: MockupKind, template: MockupTemplate, p: GarmentPlacement, aspect: number): Box {
+  const perPx = cmPerPx(kind, template);
+  const width = p.widthCm / perPx;
+  const height = width / safeAspect(aspect);
+  const { garment } = template;
+  return { left: garment.left + garment.width / 2 + p.xCm / perPx - width / 2, top: garment.top + p.yCm / perPx, width, height };
+}
+
+/** A placement made valid: width between DESIGN_CM (and what fits), the whole design inside the garment zone. */
+export function clampGarmentPlacement(kind: MockupKind, template: MockupTemplate, p: GarmentPlacement, aspect: number): GarmentPlacement {
+  const perPx = cmPerPx(kind, template);
+  const ratio = safeAspect(aspect);
+  const garmentW = template.garment.width * perPx;
+  const garmentH = template.garment.height * perPx;
+  const max = Math.min(DESIGN_CM.max, garmentW, garmentH * ratio);
+  const min = Math.min(DESIGN_CM.min, max);
+  // Values are kept to 0.1 cm; limits round inwards so the rounded design still fits.
+  const floor1 = (n: number) => Math.floor(n * 10 + 1e-9) / 10;
+  const within = (n: number, low: number, high: number) => Math.min(high, Math.max(low, n));
+  const widthCm = within(round1(within(finite(p.widthCm, min), min, max)), floor1(min), floor1(max));
+  const maxX = floor1(Math.max(0, (garmentW - widthCm) / 2));
+  const maxY = floor1(Math.max(0, garmentH - widthCm / ratio));
+  return {
+    side: p.side,
+    widthCm,
+    xCm: within(round1(finite(p.xCm, 0)), -maxX, maxX),
+    yCm: within(round1(finite(p.yCm, 0)), 0, maxY),
+  };
+}
+
+/** Where a design starts on a side: centred on that side's print area, at the kind's usual size. */
+export function startPlacement(kind: MockupKind, template: MockupTemplate, side: MockupSide, aspect: number): GarmentPlacement {
+  const fraction = defaultPlacement(kind, aspect);
+  const { area, garment } = template;
+  const perPx = cmPerPx(kind, template);
+  const box = designBox(kind, fraction, aspect);
+  const centerX = area.left + fraction.x * area.width;
+  const top = area.top + box.top * area.height;
+  return clampGarmentPlacement(
+    kind,
+    template,
+    { side, widthCm: fraction.scale * area.width * perPx, xCm: (centerX - garment.left - garment.width / 2) * perPx, yCm: (top - garment.top) * perPx },
+    aspect,
+  );
+}
+
+/** The placement with the design's centre moved to a point of the template (in template pixels), kept valid. */
+export function placementAt(
+  kind: MockupKind,
+  template: MockupTemplate,
+  p: GarmentPlacement,
+  aspect: number,
+  center: { x: number; y: number },
+): GarmentPlacement {
+  const perPx = cmPerPx(kind, template);
+  const heightCm = p.widthCm / safeAspect(aspect);
+  const { garment } = template;
+  return clampGarmentPlacement(
+    kind,
+    template,
+    { ...p, xCm: (center.x - garment.left - garment.width / 2) * perPx, yCm: (center.y - garment.top) * perPx - heightCm / 2 },
+    aspect,
+  );
+}
+
+/** Printed height in cm of a placement. */
+export const placementHeightCm = (p: GarmentPlacement, aspect: number) => round1(p.widthCm / safeAspect(aspect));
+
+/** Loose bounds of a stored placement, in cm: the server cannot see the photo, so it only checks sane values. */
+export const PLACEMENT_BOUNDS = { xCm: 60, yCm: 100 } as const;
+
+/**
+ * A placement read from untrusted data (the browser's cart, a request), rounded
+ * to 0.1 cm; null when it is not exactly { side, widthCm, xCm, yCm } in bounds.
+ */
+export function parseGarmentPlacement(value: unknown): GarmentPlacement | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const { side, widthCm, xCm, yCm, ...rest } = value as Record<string, unknown>;
+  if (Object.keys(rest).length) return null;
+  if (!(MOCKUP_SIDES as readonly unknown[]).includes(side)) return null;
+  const numbers = [widthCm, xCm, yCm];
+  if (!numbers.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
+  const [w, x, y] = (numbers as number[]).map(round1);
+  if (w < 1 || w > DESIGN_CM.max || Math.abs(x) > PLACEMENT_BOUNDS.xCm || y < 0 || y > PLACEMENT_BOUNDS.yCm) return null;
+  return { side: side as MockupSide, widthCm: w, xCm: x === 0 ? 0 : x, yCm: y };
+}
+
+/** Stable text of a placement, so the same design placed differently makes separate cart lines. */
+export const placementKey = (p?: GarmentPlacement | null) => (p ? `${p.side}:${p.widthCm}:${p.xCm}:${p.yCm}` : "");

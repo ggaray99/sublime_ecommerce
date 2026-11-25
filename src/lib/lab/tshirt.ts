@@ -38,6 +38,9 @@ const GARMENT: Record<`${ShirtColor}-${ShirtSide}`, { left: number; top: number;
   "white-back": { left: 238, top: 175, width: 603, height: 740 },
 };
 
+/** The garment on the template photo (the whole shirt, collar to hem), in its pixels. */
+export const garmentBox = (color: ShirtColor, side: ShirtSide) => ({ ...GARMENT[`${color}-${side}`] });
+
 /** Print area on the template photo, in its pixels: centred on the chest (or upper back). */
 export function printArea(color: ShirtColor, side: ShirtSide) {
   const box = GARMENT[`${color}-${side}`];

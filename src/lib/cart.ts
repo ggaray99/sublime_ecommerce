@@ -1,35 +1,64 @@
 import type { Product, ProductVariant } from "../data/products";
 import { designLineName, type MockupKind } from "./designs/kinds.ts";
+import { parseGarmentPlacement, placementKey, type GarmentPlacement } from "./designs/mockups.ts";
 
 /**
- * Only product ids, variant SKUs, design ids and quantities are persisted: no personal data.
+ * Only product ids, variant SKUs, design ids, placements and quantities are persisted: no personal data.
  * `sku` identifies the variant (size, color…) of products that have options;
- * `designId` the published design printed on a base product (mug, T-shirt…).
+ * `designId` the published design printed on a base product (mug, T-shirt…), and
+ * `placement` where the customer placed it (side, size and position in cm).
  */
-export type CartLine = { productId: string; quantity: number; sku?: string; designId?: string };
+export type CartLine = { productId: string; quantity: number; sku?: string; designId?: string; placement?: GarmentPlacement };
 
 export const MAX_QUANTITY = 99;
 
 const DESIGN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const clamp = (quantity: number) => Math.min(MAX_QUANTITY, Math.max(1, Math.floor(quantity)));
-/** A line is a product + variant + design: the same product with two designs is two lines. */
-const sameLine = (line: CartLine, productId: string, sku?: string, designId?: string) =>
-  line.productId === productId && (line.sku ?? "") === (sku ?? "") && (line.designId ?? "") === (designId ?? "");
+/**
+ * A line is a product + variant + design + placement: the same product with two
+ * designs, or one design placed two ways, is two lines.
+ */
+const sameLine = (line: CartLine, productId: string, sku?: string, designId?: string, placement?: GarmentPlacement) =>
+  line.productId === productId &&
+  (line.sku ?? "") === (sku ?? "") &&
+  (line.designId ?? "") === (designId ?? "") &&
+  placementKey(line.placement) === placementKey(placement);
 
-export function addLine(lines: readonly CartLine[], productId: string, quantity = 1, sku?: string, designId?: string): CartLine[] {
-  const existing = lines.find((line) => sameLine(line, productId, sku, designId));
-  if (!existing) return [...lines, { productId, quantity: clamp(quantity), ...(sku ? { sku } : {}), ...(designId ? { designId } : {}) }];
-  return lines.map((line) => (sameLine(line, productId, sku, designId) ? { ...line, quantity: clamp(line.quantity + quantity) } : line));
+export function addLine(
+  lines: readonly CartLine[],
+  productId: string,
+  quantity = 1,
+  sku?: string,
+  designId?: string,
+  placement?: GarmentPlacement,
+): CartLine[] {
+  // A placement only means something with a design.
+  const placed = designId && placement ? placement : undefined;
+  const existing = lines.find((line) => sameLine(line, productId, sku, designId, placed));
+  if (!existing) {
+    return [
+      ...lines,
+      { productId, quantity: clamp(quantity), ...(sku ? { sku } : {}), ...(designId ? { designId } : {}), ...(placed ? { placement: { ...placed } } : {}) },
+    ];
+  }
+  return lines.map((line) => (sameLine(line, productId, sku, designId, placed) ? { ...line, quantity: clamp(line.quantity + quantity) } : line));
 }
 
-export function setQuantity(lines: readonly CartLine[], productId: string, quantity: number, sku?: string, designId?: string): CartLine[] {
+export function setQuantity(
+  lines: readonly CartLine[],
+  productId: string,
+  quantity: number,
+  sku?: string,
+  designId?: string,
+  placement?: GarmentPlacement,
+): CartLine[] {
   if (!Number.isFinite(quantity)) return [...lines];
-  return lines.map((line) => (sameLine(line, productId, sku, designId) ? { ...line, quantity: clamp(quantity) } : line));
+  return lines.map((line) => (sameLine(line, productId, sku, designId, placement) ? { ...line, quantity: clamp(quantity) } : line));
 }
 
-export function removeLine(lines: readonly CartLine[], productId: string, sku?: string, designId?: string): CartLine[] {
-  return lines.filter((line) => !sameLine(line, productId, sku, designId));
+export function removeLine(lines: readonly CartLine[], productId: string, sku?: string, designId?: string, placement?: GarmentPlacement): CartLine[] {
+  return lines.filter((line) => !sameLine(line, productId, sku, designId, placement));
 }
 
 const isDesignId = (value: unknown) => typeof value === "string" && DESIGN_ID.test(value);
@@ -52,12 +81,17 @@ export function parseCart(raw: string | null): CartLine[] {
           // Lines saved before designs existed have no designId and stay valid.
           ((line as CartLine).designId === undefined || isDesignId((line as CartLine).designId)),
       )
-      .map((line) => ({
-        productId: line.productId,
-        quantity: clamp(line.quantity),
-        ...(line.sku ? { sku: line.sku } : {}),
-        ...(line.designId ? { designId: line.designId } : {}),
-      }));
+      .map((line) => {
+        // Lines saved before placements existed (or with a broken one) keep the design's standard spot.
+        const placement = line.designId ? parseGarmentPlacement(line.placement) : null;
+        return {
+          productId: line.productId,
+          quantity: clamp(line.quantity),
+          ...(line.sku ? { sku: line.sku } : {}),
+          ...(line.designId ? { designId: line.designId } : {}),
+          ...(placement ? { placement } : {}),
+        };
+      });
   } catch {
     return [];
   }
@@ -70,7 +104,8 @@ export type CartDesign = { id: string; slug: string; name: string; imageUrl: str
 export const toCartDesign = ({ id, slug, name, imageUrl, bases }: CartDesign): CartDesign => ({ id, slug, name, imageUrl, bases });
 
 /** Stable key of a cart line (React lists). */
-export const lineKey = (productId: string, sku?: string, designId?: string) => `${productId}|${sku ?? ""}|${designId ?? ""}`;
+export const lineKey = (productId: string, sku?: string, designId?: string, placement?: GarmentPlacement) =>
+  `${productId}|${sku ?? ""}|${designId ?? ""}|${placementKey(placement)}`;
 
 
 export type CartItem = {
