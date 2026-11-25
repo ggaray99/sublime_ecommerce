@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
-import { addLine, parseCart, removeLine, setQuantity } from "../src/lib/cart.ts";
+import { addLine, parseCart, placementMeasures, placementSummary, removeLine, setQuantity, summarizeCart } from "../src/lib/cart.ts";
 import { quoteCart } from "../src/server/cart/quote.ts";
 import { parseQuoteRequest } from "../src/server/cart/validation.ts";
 import { createPostgresCatalogRepository } from "../src/server/catalog/postgres-repository.ts";
@@ -60,6 +60,50 @@ describe("cart lines with a design (browser)", () => {
   });
 });
 
+describe("placed design lines in the cart view", () => {
+  const product = { id: "p08", slug: "remera", name: "Remera", availableForDirectPurchase: true, price: 8900, stock: 5, images: [] };
+  const design = { id: DESIGN, slug: "gato", name: "Gato", imageUrl: "/media/disenos/gato.webp", width: 3000, height: 4000, bases: [{ kind: "tshirt", productId: "p08" }] };
+  const BACK = { side: "back", widthCm: 20, xCm: 0, yCm: 8 };
+
+  it("carries the placement of each line and keeps two placements as two items", () => {
+    const summary = summarizeCart(
+      [
+        { productId: "p08", quantity: 1, designId: DESIGN, placement: BACK },
+        { productId: "p08", quantity: 2, designId: DESIGN },
+      ],
+      [product],
+      [design],
+    );
+    assert.deepEqual(summary.items.map((item) => [item.quantity, item.placement]), [
+      [1, BACK],
+      [2, undefined],
+    ]);
+    assert.equal("placement" in summary.items[1], false);
+    assert.equal(summary.items[0].design.aspect, 0.75);
+  });
+
+  it("summarizes the side and size in cm with Argentine decimals", () => {
+    assert.equal(placementSummary(BACK, 0.75), "Espalda · 20 × 26,7 cm");
+    assert.equal(placementSummary({ side: "front", widthCm: 12.5, xCm: 0, yCm: 0 }), "Frente · 12,5 cm de ancho");
+  });
+
+  it("describes where the design goes for production", () => {
+    assert.deepEqual(placementMeasures({ side: "back", widthCm: 20, xCm: -3.5, yCm: 8.2 }, 0.75), {
+      side: "Espalda",
+      size: "20 × 26,7 cm",
+      horizontal: "3,5 cm a la izquierda del centro",
+      vertical: "8,2 cm debajo del cuello",
+    });
+    assert.deepEqual(placementMeasures({ side: "front", widthCm: 12, xCm: 0.4, yCm: 0 }), {
+      side: "Frente",
+      size: "12 cm de ancho",
+      horizontal: "centrado",
+      vertical: "0 cm debajo del cuello",
+    });
+    assert.equal(placementMeasures({ side: "front", widthCm: 12, xCm: 2, yCm: 5 }).horizontal, "2 cm a la derecha del centro");
+  });
+});
+
 describe("quote request with a design", () => {
   it("accepts a lowercase uuid designId", () => {
     assert.deepEqual(parseQuoteRequest({ lines: [{ productId: "p08", quantity: 1, designId: DESIGN }] }), {
@@ -74,6 +118,32 @@ describe("quote request with a design", () => {
     assert.deepEqual(result.errors.map((error) => [error.path, error.message]).sort(), [
       ["lines[0].designId", "Diseño inválido."],
       ["lines[0].designName", "Campo no admitido."],
+    ]);
+  });
+
+  it("accepts a valid placement on a design line", () => {
+    const placement = { side: "back", widthCm: 20, xCm: -3.5, yCm: 8 };
+    assert.deepEqual(parseQuoteRequest({ lines: [{ productId: "p08", quantity: 1, designId: DESIGN, placement }] }), {
+      ok: true,
+      lines: [{ productId: "p08", quantity: 1, designId: DESIGN, placement }],
+    });
+  });
+
+  it("rejects a malformed placement and a placement without a design", () => {
+    const malformed = parseQuoteRequest({
+      lines: [
+        { productId: "p08", quantity: 1, designId: DESIGN, placement: { side: "back", widthCm: 20, xCm: 0, yCm: 8, price: 0 } },
+        { productId: "p08", quantity: 1, designId: DESIGN, placement: { side: "left", widthCm: 20, xCm: 0, yCm: 8 } },
+        { productId: "p08", quantity: 1, designId: DESIGN, placement: { side: "back", widthCm: 300, xCm: 0, yCm: 8 } },
+        { productId: "p08", quantity: 1, placement: { side: "back", widthCm: 20, xCm: 0, yCm: 8 } },
+      ],
+    });
+    assert.equal(malformed.ok, false);
+    assert.deepEqual(malformed.errors.map((error) => [error.path, error.message]), [
+      ["lines[0].placement", "Ubicación inválida."],
+      ["lines[1].placement", "Ubicación inválida."],
+      ["lines[2].placement", "Ubicación inválida."],
+      ["lines[3].placement", "La ubicación necesita un diseño."],
     ]);
   });
 
@@ -218,6 +288,88 @@ describe("design lines on PostgreSQL (PGlite)", () => {
     assert.deepEqual(await stock("SUB-P08"), { on_hand: 5, reserved: 3 });
     const holds = await db.query("SELECT quantity FROM stock_reservations WHERE order_id = $1", [order.id]);
     assert.deepEqual(holds.rows, [{ quantity: 3 }]);
+  });
+
+  describe("design placement (side, width and position in cm)", () => {
+    const BACK = { side: "back", widthCm: 20, xCm: -3.5, yCm: 8 };
+    const FRONT = { side: "front", widthCm: 12, xCm: 0, yCm: 6 };
+    const PLACEMENT_MESSAGE = "Esa ubicación no está disponible para este producto.";
+    let mugArt;
+
+    before(async () => {
+      const query = { query: async (text, params) => (await db.query(text, params)).rows };
+      const designs = createDesignRepository(query);
+      mugArt = await designs.createDesign(admin, { name: "Taza ubicada", slug: "taza-ubicada", description: "", categoryId: null, kinds: ["mug"] });
+      await designs.setDesignImage(admin, mugArt, image);
+      await designs.setDesignStatus(admin, mugArt, "published");
+    });
+
+    it("keeps the same design placed two ways as two lines and merges equal placements", async () => {
+      const quote = await quoteCart(
+        [
+          { productId: "p08", quantity: 1, designId: published, placement: BACK },
+          { productId: "p08", quantity: 1, designId: published, placement: FRONT },
+          { productId: "p08", quantity: 1, designId: published, placement: { ...BACK } },
+        ],
+        deps,
+      );
+      assert.equal(quote.valid, true);
+      assert.deepEqual(
+        quote.lines.map((line) => [line.quantity, line.designId, line.placement]),
+        [
+          [2, published, { kind: "tshirt", ...BACK }],
+          [1, published, { kind: "tshirt", ...FRONT }],
+        ],
+      );
+      assert.equal(quote.subtotalMinor, 3 * 890000);
+    });
+
+    it("a placement on a kind without free placement (mug) is a line issue", async () => {
+      const quote = await quoteCart([{ productId: "p09", quantity: 1, designId: mugArt, placement: FRONT }], deps);
+      assert.equal(quote.valid, false);
+      assert.deepEqual(quote.lines, []);
+      assert.deepEqual(quote.issues, [{ productId: "p09", designId: mugArt, placement: FRONT, code: "placement_unavailable", message: PLACEMENT_MESSAGE }]);
+    });
+
+    it("a line without placement quotes and orders exactly as before", async () => {
+      const quote = await quoteCart([{ productId: "p08", quantity: 1, designId: published }], deps);
+      assert.equal(quote.valid, true);
+      assert.equal("placement" in quote.lines[0], false);
+      const result = await checkout({ ...contact, idempotencyKey: key(), lines: [{ productId: "p08", quantity: 1, designId: published }] }, null, deps);
+      assert.equal(result.ok, true);
+      const order = await orders.getOrder(result.order.id);
+      assert.equal(order.items[0].designPlacement, null);
+      const { rows } = await db.query("SELECT design_placement FROM order_items WHERE order_id = $1", [order.id]);
+      assert.deepEqual(rows, [{ design_placement: null }]);
+    });
+
+    it("placeOrder stores the placement with the server's kind and the order reads it back", async () => {
+      const result = await checkout(
+        { ...contact, idempotencyKey: key(), lines: [{ productId: "p08", quantity: 1, designId: published, placement: BACK }, { productId: "p08", quantity: 1 }] },
+        null,
+        deps,
+      );
+      assert.equal(result.ok, true);
+      const order = await orders.getOrder(result.order.id);
+      const placed = order.items.find((item) => item.designId === published);
+      const plain = order.items.find((item) => item.designId === null);
+      assert.deepEqual(placed.designPlacement, { kind: "tshirt", ...BACK });
+      assert.equal(plain.designPlacement, null);
+      const { rows } = await db.query("SELECT design_placement FROM order_items WHERE order_id = $1 AND design_id IS NOT NULL", [order.id]);
+      assert.deepEqual(rows, [{ design_placement: { kind: "tshirt", ...BACK } }]);
+    });
+
+    it("the order view finds each design's image, skipping unknown ids", async () => {
+      const art = await orders.findDesignArt([published, OTHER, "not-a-uuid"]);
+      assert.deepEqual([...art.values()], [{ id: published, slug: "gato-astronauta", imageUrl: image.imageUrl, width: 3000, height: 3000 }]);
+    });
+
+    it("the database refuses a placement without a design, or one that is not an object", async () => {
+      const [{ id }] = (await db.query("SELECT id FROM order_items WHERE design_id IS NULL LIMIT 1")).rows;
+      await assert.rejects(db.query(`UPDATE order_items SET design_placement = '{"side":"back"}' WHERE id = $1`, [id]), /check/i);
+      const [{ id: withDesign }] = (await db.query("SELECT id FROM order_items WHERE design_id IS NOT NULL LIMIT 1")).rows;
+      await assert.rejects(db.query(`UPDATE order_items SET design_placement = '[1]' WHERE id = $1`, [withDesign]), /check/i);
+    });
   });
 
   describe("garment colors", () => {

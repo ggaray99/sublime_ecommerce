@@ -3,7 +3,7 @@
 import type { Product } from "@/data/products";
 import Image from "next/image";
 import Link from "next/link";
-import { lineKey, MAX_QUANTITY, type CartDesign } from "@/lib/cart";
+import { lineKey, MAX_QUANTITY, placementSummary, type CartDesign } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
 import { categoryLabelOf } from "@/lib/catalog";
 import { cartActions, useCartSummary, useHydrated } from "./cart-store";
@@ -42,12 +42,12 @@ export function CartView({ catalog, designs = [], realCheckout = false }: { cata
           Artículos en el carrito
         </h2>
         <ul className="cart-list">
-          {items.map(({ product, design, variant, optionsLabel, quantity, unitPrice, stock, lineTotal }) => {
+          {items.map(({ product, design, placement, variant, optionsLabel, quantity, unitPrice, stock, lineTotal }) => {
             // Design lines link to the design and show its artwork; plain products, their own page.
             const href = design ? `/disenos/${design.slug}` : `/producto/${product.slug}`;
             const name = design?.name ?? product.name;
             return (
-            <li key={lineKey(product.id, variant?.sku, design?.id)} className="cart-item">
+            <li key={lineKey(product.id, variant?.sku, design?.id, placement)} className="cart-item">
               <Link href={href} className="cart-item__image" tabIndex={-1} aria-hidden="true">
                 <Image src={design?.imageUrl ?? product.images[0].src} alt="" width={160} height={160} />
               </Link>
@@ -57,6 +57,7 @@ export function CartView({ catalog, designs = [], realCheckout = false }: { cata
                   <Link href={href}>{name}</Link>
                 </h3>
                 {optionsLabel && <p className="cart-item__options">{optionsLabel}</p>}
+                {placement && <p className="cart-item__options">{placementSummary(placement, design?.aspect)}</p>}
                 <p className="muted">{formatPrice(unitPrice)} c/u</p>
                 {stock !== undefined && stock !== null && quantity > stock && (
                   <p className="field__error">{stock === 0 ? "Sin stock por ahora." : `Solo quedan ${stock} unidades.`}</p>
@@ -64,17 +65,17 @@ export function CartView({ catalog, designs = [], realCheckout = false }: { cata
               </div>
               <div className="cart-item__controls">
                 <QuantityStepper
-                  label={`Cantidad de ${name}${optionsLabel ? ` (${optionsLabel})` : ""}`}
+                  label={`Cantidad de ${name}${optionsLabel ? ` (${optionsLabel})` : ""}${placement ? ` (${placementSummary(placement, design?.aspect)})` : ""}`}
                   value={quantity}
                   min={1}
                   max={MAX_QUANTITY}
-                  onChange={(next) => cartActions.setQuantity(product.id, next, variant?.sku, design?.id)}
+                  onChange={(next) => cartActions.setQuantity(product.id, next, variant?.sku, design?.id, placement)}
                 />
-                <button type="button" className="link-button" onClick={() => cartActions.remove(product.id, variant?.sku, design?.id)}>
+                <button type="button" className="link-button" onClick={() => cartActions.remove(product.id, variant?.sku, design?.id, placement)}>
                   Quitar
                   <span className="visually-hidden">
                     {" "}
-                    {name} {optionsLabel}
+                    {name} {optionsLabel} {placement && placementSummary(placement, design?.aspect)}
                   </span>
                 </button>
               </div>

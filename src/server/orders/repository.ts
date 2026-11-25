@@ -1,6 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { newestFirst } from "../db/list-filter.ts";
 import type { QueryFn } from "../customers/repository.ts";
+import type { PlacedDesign } from "../cart/quote.ts";
+import { MOCKUP_KINDS } from "../../lib/designs/kinds.ts";
+import { parseGarmentPlacement } from "../../lib/designs/mockups.ts";
 
 /** Minutes a checkout holds stock while the payment is arranged. */
 export const RESERVATION_MINUTES = 15;
@@ -42,6 +45,8 @@ export type OrderItem = {
   /** Design printed on the base product (null for plain products) and its name as sold. */
   designId: string | null;
   designName: string | null;
+  /** Where the customer placed the design (side, width and position in cm, with the base kind); null = the design's standard spot. */
+  designPlacement: PlacedDesign | null;
 };
 export type OrderEvent = { fromStatus: string | null; toStatus: string; actor: string; note: string; createdAt: Date };
 
@@ -83,7 +88,7 @@ export type NewOrder = {
   /** Shipping quoted by the server (rules in 0009). */
   shipping: ShippingSnapshot;
   /** Lines already priced by the server quote (never by the browser). */
-  lines: { sku: string; productId: string; name: string; quantity: number; unitPriceMinor: number; designId?: string | null; designName?: string | null }[];
+  lines: { sku: string; productId: string; name: string; quantity: number; unitPriceMinor: number; designId?: string | null; designName?: string | null; designPlacement?: PlacedDesign | null }[];
   /** Discount the server computed (src/lib/promotions.ts); 0 without promotions. */
   discountMinor?: number;
   promotions?: OrderPromotion[];
@@ -158,6 +163,18 @@ const pgConstraint = (error: unknown) => (error as { constraint?: string } | nul
 export const orderTotalMinor = (order: Pick<Order, "subtotalMinor" | "discountMinor" | "shippingMinor">) =>
   order.subtotalMinor - order.discountMinor + (order.shippingMinor ?? 0);
 
+/** A stored placement read back defensively: anything malformed reads as no placement. */
+export function readDesignPlacement(value: unknown): PlacedDesign | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const { kind, ...rest } = value as Record<string, unknown>;
+  if (!(MOCKUP_KINDS as readonly unknown[]).includes(kind)) return null;
+  const placement = parseGarmentPlacement(rest);
+  return placement ? { kind: kind as PlacedDesign["kind"], ...placement } : null;
+}
+
+/** Image of the designs of an order's lines, to draw their mockups (missing when the design is gone). */
+export type OrderDesignArt = { id: string; slug: string; imageUrl: string; width: number; height: number };
+
 /** Display number: SUB-1001. */
 export const orderNumber = (order: Pick<Order, "number">) => `SUB-${order.number}`;
 
@@ -176,7 +193,7 @@ export function createOrderRepository(sql: QueryFn) {
     if (!row) throw new OrderError("not_found", "El pedido no existe.");
     const [items, events] = await Promise.all([
       sql.query(
-        `SELECT sku, product_legacy_id, name, options, quantity, unit_price_minor, line_total_minor, design_id, design_name
+        `SELECT sku, product_legacy_id, name, options, quantity, unit_price_minor, line_total_minor, design_id, design_name, design_placement
          FROM order_items WHERE order_id = $1 ORDER BY id`,
         [id],
       ) as Promise<
@@ -190,6 +207,7 @@ export function createOrderRepository(sql: QueryFn) {
           line_total_minor: string | number;
           design_id: string | null;
           design_name: string | null;
+          design_placement: unknown;
         }[]
       >,
       sql.query("SELECT from_status, to_status, actor, note, created_at FROM order_events WHERE order_id = $1 ORDER BY created_at, id", [id]) as Promise<
@@ -208,6 +226,7 @@ export function createOrderRepository(sql: QueryFn) {
         lineTotalMinor: Number(item.line_total_minor),
         designId: item.design_id ?? null,
         designName: item.design_name ?? null,
+        designPlacement: item.design_id ? readDesignPlacement(item.design_placement) : null,
       })),
       events: events.map((entry) => ({
         fromStatus: entry.from_status,
@@ -242,6 +261,17 @@ export function createOrderRepository(sql: QueryFn) {
       return order && token && order.accessToken === token ? order : null;
     },
 
+    /** The images of these designs (any status: an order keeps showing an archived design). */
+    async findDesignArt(designIds: readonly string[]): Promise<Map<string, OrderDesignArt>> {
+      const ids = [...new Set(designIds)].filter((id) => UUID.test(id));
+      if (!ids.length) return new Map();
+      const rows = (await sql.query(
+        "SELECT id, slug, image_url, image_width, image_height FROM designs WHERE id = ANY($1::uuid[]) AND image_url <> ''",
+        [ids],
+      )) as { id: string; slug: string; image_url: string; image_width: number | null; image_height: number | null }[];
+      return new Map(rows.map((row) => [row.id, { id: row.id, slug: row.slug, imageUrl: row.image_url, width: row.image_width ?? 0, height: row.image_height ?? 0 }]));
+    },
+
     async listOrders(filter: { status?: OrderStatus; customerId?: string; limit?: number } = {}): Promise<Order[]> {
       const { text, params } = newestFirst("orders", filter);
       const rows = (await sql.query(text, params)) as OrderRow[];
@@ -270,13 +300,14 @@ export function createOrderRepository(sql: QueryFn) {
         unit_price: line.unitPriceMinor,
         design_id: line.designId ?? null,
         design_name: line.designName ?? null,
+        design_placement: line.designId && line.designPlacement ? line.designPlacement : null,
       }));
       const subtotal = input.lines.reduce((total, line) => total + line.unitPriceMinor * line.quantity, 0);
       try {
         const [row] = (await sql.query(
           `WITH req AS (
              SELECT r.*, v.id AS variant_id, v.options, v.track_stock
-             FROM jsonb_to_recordset($1::jsonb) AS r(sku text, product_id text, name text, qty int, unit_price bigint, design_id uuid, design_name text)
+             FROM jsonb_to_recordset($1::jsonb) AS r(sku text, product_id text, name text, qty int, unit_price bigint, design_id uuid, design_name text, design_placement jsonb)
              JOIN product_variants v ON v.sku = r.sku
            ),
            -- The same SKU can come in several lines (with and without a design): stock is held per variant.
@@ -319,9 +350,9 @@ export function createOrderRepository(sql: QueryFn) {
            ),
            items AS (
              INSERT INTO order_items (order_id, variant_id, product_legacy_id, sku, name, options, quantity, unit_price_minor, line_total_minor,
-                                      design_id, design_name)
+                                      design_id, design_name, design_placement)
              SELECT created.id, req.variant_id, req.product_id, req.sku, req.name, req.options, req.qty, req.unit_price, req.unit_price * req.qty,
-                    req.design_id, req.design_name
+                    req.design_id, req.design_name, req.design_placement
              FROM created, req
            ),
            holds AS (

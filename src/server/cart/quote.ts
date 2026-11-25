@@ -1,5 +1,7 @@
 import type { CatalogRepository } from "../catalog/repository.ts";
 import { designLineName, offersSku, type DesignOfferRepository } from "../designs/offers.ts";
+import type { MockupKind } from "../../lib/designs/kinds.ts";
+import { MOCKUPS, placementKey, type GarmentPlacement } from "../../lib/designs/mockups.ts";
 import type { InventoryRepository } from "../inventory/repository.ts";
 import { DEFAULT_CURRENCY, multiplyMinor, type Currency } from "../money.ts";
 
@@ -8,9 +10,13 @@ export const MAX_LINE_QUANTITY = 99;
 
 /**
  * `sku` picks a variant (size, color…); without it the product's default variant is used.
- * `designId` prints a published design on that product (a base product of the design).
+ * `designId` prints a published design on that product (a base product of the design);
+ * `placement` is where the customer placed it (side, width and position in cm).
  */
-export type QuoteRequestLine = { productId: string; quantity: number; sku?: string; designId?: string };
+export type QuoteRequestLine = { productId: string; quantity: number; sku?: string; designId?: string; placement?: GarmentPlacement };
+
+/** A placement with the base product kind the server resolved (never sent by the browser): what an order line stores. */
+export type PlacedDesign = GarmentPlacement & { kind: MockupKind };
 
 export type QuoteIssueCode =
   | "unknown_product"
@@ -18,9 +24,10 @@ export type QuoteIssueCode =
   | "requires_quote"
   | "not_purchasable"
   | "insufficient_stock"
-  | "design_unavailable";
+  | "design_unavailable"
+  | "placement_unavailable";
 
-export type QuoteIssue = { productId: string; sku?: string; designId?: string; code: QuoteIssueCode; message: string };
+export type QuoteIssue = { productId: string; sku?: string; designId?: string; placement?: GarmentPlacement; code: QuoteIssueCode; message: string };
 
 export type QuotedLine = {
   productId: string;
@@ -36,6 +43,8 @@ export type QuotedLine = {
   /** Design printed on the base product, and its name as sold. */
   designId?: string;
   designName?: string;
+  /** Where the design goes on the garment, with the base kind. */
+  placement?: PlacedDesign;
 };
 
 export type CartQuote = {
@@ -58,19 +67,26 @@ export type QuoteDeps = {
 
 const DESIGN_UNAVAILABLE = "Este diseño ya no está disponible en ese producto.";
 const COLOR_UNAVAILABLE = "Ese color no está disponible para este diseño.";
+const PLACEMENT_UNAVAILABLE = "Esa ubicación no está disponible para este producto.";
 
 /**
  * Recomputes a cart on the server from catalog prices and availability.
  * Client-supplied prices are never read: the request only carries ids and
- * quantities. Duplicate lines for the same product, variant and design are merged.
+ * quantities. Duplicate lines for the same product, variant, design and placement are merged.
  */
 export async function quoteCart(lines: readonly QuoteRequestLine[], deps: QuoteDeps): Promise<CartQuote> {
-  // Same product, variant and design → one line.
-  const merged = new Map<string, { productId: string; sku?: string; designId?: string; quantity: number }>();
+  // Same product, variant, design and placement → one line.
+  const merged = new Map<string, { productId: string; sku?: string; designId?: string; placement?: GarmentPlacement; quantity: number }>();
   for (const line of lines) {
-    const key = `${line.productId}|${line.sku ?? ""}|${line.designId ?? ""}`;
+    const key = `${line.productId}|${line.sku ?? ""}|${line.designId ?? ""}|${placementKey(line.placement)}`;
     const current = merged.get(key);
-    merged.set(key, { productId: line.productId, sku: line.sku, designId: line.designId, quantity: (current?.quantity ?? 0) + line.quantity });
+    merged.set(key, {
+      productId: line.productId,
+      sku: line.sku,
+      designId: line.designId,
+      ...(line.placement ? { placement: line.placement } : {}),
+      quantity: (current?.quantity ?? 0) + line.quantity,
+    });
   }
   const requestedLines = [...merged.values()];
   const designIds = [...new Set(requestedLines.flatMap((line) => (line.designId ? [line.designId] : [])))];
@@ -103,10 +119,12 @@ export async function quoteCart(lines: readonly QuoteRequestLine[], deps: QuoteD
   const taken = new Map<string, number>();
 
   for (const { line, variant } of resolved) {
-    const { productId, sku, quantity: requested } = line;
+    const { productId, sku, placement, quantity: requested } = line;
+    // Issues of a placed line carry its placement, so the cart can tell two placements apart.
+    const placed = placement ? { placement } : {};
     const design = designFor(line);
     if (design === null) {
-      issues.push({ productId, ...(sku ? { sku } : {}), designId: line.designId, code: "design_unavailable", message: DESIGN_UNAVAILABLE });
+      issues.push({ productId, ...(sku ? { sku } : {}), designId: line.designId, ...placed, code: "design_unavailable", message: DESIGN_UNAVAILABLE });
       continue;
     }
     if (!variant || !variant.active) {
@@ -114,7 +132,12 @@ export async function quoteCart(lines: readonly QuoteRequestLine[], deps: QuoteD
       continue;
     }
     if (design && !offersSku(design.base, variant.sku)) {
-      issues.push({ productId, sku: variant.sku, designId: design.id, code: "design_unavailable", message: COLOR_UNAVAILABLE });
+      issues.push({ productId, sku: variant.sku, designId: design.id, ...placed, code: "design_unavailable", message: COLOR_UNAVAILABLE });
+      continue;
+    }
+    // Only garments take a free placement, and only on a side the kind has.
+    if (design && placement && !(MOCKUPS[design.base.kind].freePlacement && MOCKUPS[design.base.kind].sides.includes(placement.side))) {
+      issues.push({ productId, ...(sku ? { sku } : {}), designId: design.id, placement, code: "placement_unavailable", message: PLACEMENT_UNAVAILABLE });
       continue;
     }
     if (variant.hasOptions && !sku) {
@@ -137,6 +160,7 @@ export async function quoteCart(lines: readonly QuoteRequestLine[], deps: QuoteD
       issues.push({
         productId,
         ...(design ? { designId: design.id } : {}),
+        ...placed,
         code: "insufficient_stock",
         message: available > 0 ? `Solo hay ${available} unidades disponibles.` : "Sin stock disponible.",
       });
@@ -155,6 +179,7 @@ export async function quoteCart(lines: readonly QuoteRequestLine[], deps: QuoteD
       available,
       categoryId: variant.categoryId ?? "",
       ...(design ? { designId: design.id, designName: design.name } : {}),
+      ...(design && placement ? { placement: { kind: design.base.kind, ...placement } } : {}),
     });
   }
 

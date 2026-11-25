@@ -74,8 +74,8 @@ export function CheckoutDemo({ catalog, designs = [] }: { catalog: Product[]; de
       <aside className="summary" aria-labelledby="checkout-summary-title">
         <h2 id="checkout-summary-title">Tu selección</h2>
         <ul className="summary__items">
-          {items.map(({ product, design, variant, optionsLabel, quantity, lineTotal }) => (
-            <li key={lineKey(product.id, variant?.sku, design?.id)}>
+          {items.map(({ product, design, variant, placement, optionsLabel, quantity, lineTotal }) => (
+            <li key={lineKey(product.id, variant?.sku, design?.id, placement)}>
               <span>
                 {quantity} × {design?.name ?? product.name}
                 {optionsLabel && ` (${optionsLabel})`}

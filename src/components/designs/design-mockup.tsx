@@ -7,8 +7,22 @@ import { showToast } from "@/components/cart/toast-store";
 import type { ProductVariant } from "@/data/products";
 import { MAX_QUANTITY } from "@/lib/cart";
 import { MOCKUP_KIND_LABELS, type MockupKind } from "@/lib/designs/kinds";
-import { colorKey, MOCKUP_SIDE_LABELS, MOCKUPS, toneOfVariant, variantColor, type MockupSide, type TemplateOverrides } from "@/lib/designs/mockups";
+import {
+  clampGarmentPlacement,
+  colorKey,
+  MOCKUP_SIDE_LABELS,
+  MOCKUPS,
+  mockupTemplate,
+  placementAt,
+  startPlacement,
+  toneOfVariant,
+  variantColor,
+  type GarmentPlacement,
+  type MockupSide,
+  type TemplateOverrides,
+} from "@/lib/designs/mockups";
 import { formatPrice } from "@/lib/format";
+import { PlacementControls, PlacementStage } from "./design-placement-editor";
 import { MockupStage } from "./mockup-stage";
 import { SizeGuides, type KindSizeGuide } from "./size-guide";
 
@@ -48,6 +62,8 @@ export function DesignMockup({ design, bases, overrides, sizeGuides }: Props) {
   const [side, setSide] = useState<MockupSide>("front");
   const [selections, setSelections] = useState<Partial<Record<MockupKind, Record<string, string>>>>({});
   const [quantity, setQuantity] = useState(1);
+  /** Where the customer placed the design, in cm, per kind and side (`${kind}-${side}`); absent = the side's starting spot. */
+  const [placements, setPlacements] = useState<Record<string, GarmentPlacement>>({});
 
   const base = bases.find((candidate) => candidate.kind === kind) ?? bases[0];
   const selection = selections[base.kind] ?? firstSelection(base);
@@ -76,29 +92,56 @@ export function DesignMockup({ design, bases, overrides, sizeGuides }: Props) {
   const lineName = `${design.name} · ${kindLabel}`;
   const optionLabel = base.optionNames.map((name) => `${name} ${selection[name]}`).join(" · ");
 
+  // Free placement (garments): one placement per kind and side, kept in cm and
+  // clamped to the template shown, so a color change keeps it where it fits.
+  const freePlacement = MOCKUPS[base.kind].freePlacement;
+  const template = mockupTemplate(base.kind, tone, shownSide, overrides, color);
+  const aspect = design.width > 0 && design.height > 0 ? design.width / design.height : 1;
+  const placementSlot = `${base.kind}-${shownSide}`;
+  const startingPlacement = () => startPlacement(base.kind, template, shownSide, aspect);
+  const placement = freePlacement
+    ? clampGarmentPlacement(base.kind, template, placements[placementSlot] ?? startingPlacement(), aspect)
+    : undefined;
+  const updatePlacement = (next: (current: GarmentPlacement) => GarmentPlacement) =>
+    setPlacements((all) => {
+      const current = clampGarmentPlacement(base.kind, template, all[placementSlot] ?? startingPlacement(), aspect);
+      return { ...all, [placementSlot]: next(current) };
+    });
+
   const price = hasVariants ? (variant?.price ?? null) : base.price;
   const stock = hasVariants ? variant?.stock : base.stock;
   const exists = !hasVariants || Boolean(variant);
   const canBuy = base.purchasable && exists && price !== null && inStock(stock);
   const maxQuantity = typeof stock === "number" && stock > 0 ? Math.min(MAX_QUANTITY, stock) : MAX_QUANTITY;
 
+  const stageProps = {
+    kind: base.kind,
+    tone,
+    color,
+    side: shownSide,
+    imageUrl: design.imageUrl,
+    width: design.width,
+    height: design.height,
+    alt: `${design.name} en ${kindLabel.toLowerCase()}${sides.length > 1 ? `, ${MOCKUP_SIDE_LABELS[shownSide].toLowerCase()}` : ""}`,
+    sizes: "(max-width: 899px) 100vw, 560px",
+    preload: true,
+    overrides,
+  };
+
   return (
     <div className="design-detail">
       <div className="design-detail__preview">
-        <MockupStage
-          className="mockup-stage--large"
-          kind={base.kind}
-          tone={tone}
-          color={color}
-          side={shownSide}
-          imageUrl={design.imageUrl}
-          width={design.width}
-          height={design.height}
-          alt={`${design.name} en ${kindLabel.toLowerCase()}${sides.length > 1 ? `, ${MOCKUP_SIDE_LABELS[shownSide].toLowerCase()}` : ""}`}
-          sizes="(max-width: 899px) 100vw, 560px"
-          preload
-          overrides={overrides}
-        />
+        {placement ? (
+          <PlacementStage
+            {...stageProps}
+            template={template}
+            placement={placement}
+            aspect={aspect}
+            onMoveTo={(center) => updatePlacement((current) => placementAt(base.kind, template, current, aspect, center))}
+          />
+        ) : (
+          <MockupStage {...stageProps} className="mockup-stage--large" />
+        )}
         <p className="fine-print">Vista previa ilustrativa: el estampado final puede variar levemente en tamaño y color.</p>
       </div>
 
@@ -178,6 +221,17 @@ export function DesignMockup({ design, bases, overrides, sizeGuides }: Props) {
           </fieldset>
         ))}
 
+        {placement && (
+          <PlacementControls
+            kind={base.kind}
+            template={template}
+            placement={placement}
+            aspect={aspect}
+            onChange={(next) => updatePlacement(() => next)}
+            onReset={() => updatePlacement(() => startingPlacement())}
+          />
+        )}
+
         <p className="product-detail__price" aria-live="polite">
           {variant?.regularPrice && (
             <s className="price-was">
@@ -215,7 +269,7 @@ export function DesignMockup({ design, bases, overrides, sizeGuides }: Props) {
               className="btn btn--acid btn--lg"
               onClick={() => {
                 const amount = Math.min(quantity, maxQuantity);
-                cartActions.add(base.productId, amount, variant?.sku, design.id);
+                cartActions.add(base.productId, amount, variant?.sku, design.id, placement);
                 showToast(`${amount > 1 ? `${amount} × ` : ""}${lineName}${optionLabel ? ` (${optionLabel})` : ""} se sumó al carrito.`);
               }}
             >

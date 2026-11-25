@@ -1,6 +1,20 @@
 import { formatPrice } from "@/lib/format";
-import { orderNumber, orderTotalMinor, type OrderDetail, type OrderStatus } from "@/server/orders/repository";
+import type { TemplateOverrides } from "@/lib/designs/mockups";
+import { orderNumber, orderTotalMinor, type OrderDesignArt, type OrderDetail, type OrderRepository, type OrderStatus } from "@/server/orders/repository";
+import { getMockupTemplateOverrides } from "@/server/storefront";
 import { etaLabel } from "@/server/shipping/rules";
+import { DesignLineMockup } from "./design-line-mockup";
+
+/** What the mockups of placed design lines need: the designs' images (by id) and the uploaded templates. */
+export type OrderMockups = { art: Record<string, OrderDesignArt>; overrides: TemplateOverrides };
+
+/** Loads what the order's placed design lines need to draw their mockups; nothing for orders without placements. */
+export async function loadOrderMockups(order: OrderDetail, repo: Pick<OrderRepository, "findDesignArt">): Promise<OrderMockups | undefined> {
+  const ids = order.items.flatMap((item) => (item.designId && item.designPlacement ? [item.designId] : []));
+  if (!ids.length) return undefined;
+  const [art, overrides] = await Promise.all([repo.findDesignArt(ids), getMockupTemplateOverrides()]);
+  return { art: Object.fromEntries(art), overrides };
+}
 
 export const orderStatusLabel: Record<OrderStatus, string> = {
   pending_payment: "Pendiente de pago",
@@ -26,9 +40,11 @@ const optionsText = (options: Record<string, string>) =>
 
 /**
  * Order summary shared by the customer confirmation page and the admin.
- * `designFiles` (admin only) links each design line to its production file.
+ * `designFiles` (admin only) links each design line to its production file and
+ * lets the admin download a placed line's mockup as JPG. Lines with a placement
+ * show their mockup and measurements; the rest render as before.
  */
-export function OrderSummary({ order, designFiles = false }: { order: OrderDetail; designFiles?: boolean }) {
+export function OrderSummary({ order, designFiles = false, mockups }: { order: OrderDetail; designFiles?: boolean; mockups?: OrderMockups }) {
   const shipping = order.delivery.method === "shipping" ? order.delivery.address : null;
   return (
     <div className="order-summary">
@@ -111,6 +127,14 @@ export function OrderSummary({ order, designFiles = false }: { order: OrderDetai
                     {" · "}
                     <a href={`/admin/disenos/${item.designId}/archivo`}>Archivo para producción</a>
                   </>
+                )}
+                {item.designId && item.designPlacement && (
+                  <DesignLineMockup
+                    item={{ ...item, designPlacement: item.designPlacement }}
+                    art={mockups?.art[item.designId]}
+                    overrides={mockups?.overrides ?? {}}
+                    downloadName={designFiles ? `pedido-${order.number}-${mockups?.art[item.designId]?.slug ?? `linea-${index + 1}`}.jpg` : undefined}
+                  />
                 )}
               </th>
               <td>{item.quantity}</td>

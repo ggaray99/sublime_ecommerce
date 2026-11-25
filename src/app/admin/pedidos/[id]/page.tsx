@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { OrderActions } from "@/components/admin/order-actions";
 import { AdminUnavailable } from "@/components/admin/shared";
-import { argentinaTime, OrderSummary, orderStatusLabel } from "@/components/orders/order-view";
+import { argentinaTime, loadOrderMockups, OrderSummary, orderStatusLabel } from "@/components/orders/order-view";
 import { PageIntro } from "@/components/page-intro";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
 import { orderNumber, type OrderStatus } from "@/server/orders/repository";
@@ -29,6 +29,7 @@ async function OrderAdmin({ params }: { params: PageProps<"/admin/pedidos/[id]">
   await repo.releaseExpired();
   const order = await repo.getOrder(id).catch(() => null);
   if (!order) notFound();
+  const mockups = await loadOrderMockups(order, repo);
 
   return (
     <div className="account">
@@ -48,7 +49,7 @@ async function OrderAdmin({ params }: { params: PageProps<"/admin/pedidos/[id]">
         {order.status === "needs_review" && (
           <p className="form-alert">Pago recibido tarde y sin stock suficiente: definí con el cliente reposición, demora o devolución, y cancelá o reponé stock.</p>
         )}
-        <OrderSummary order={order} designFiles />
+        <OrderSummary order={order} mockups={mockups} designFiles />
       </section>
 
       <section className="account__section" aria-labelledby="acciones-title">

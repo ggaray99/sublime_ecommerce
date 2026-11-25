@@ -159,6 +159,7 @@ export async function checkout(
         unitPriceMinor: line.unitPriceMinor,
         designId: line.designId ?? null,
         designName: line.designName ?? null,
+        designPlacement: line.placement ?? null,
       })),
       discountMinor: discount.discountMinor,
       promotions: discount.applied,

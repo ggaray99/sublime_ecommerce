@@ -1,6 +1,6 @@
 import type { Product, ProductVariant } from "../data/products";
 import { designLineName, type MockupKind } from "./designs/kinds.ts";
-import { parseGarmentPlacement, placementKey, type GarmentPlacement } from "./designs/mockups.ts";
+import { MOCKUP_SIDE_LABELS, parseGarmentPlacement, placementHeightCm, placementKey, type GarmentPlacement } from "./designs/mockups.ts";
 
 /**
  * Only product ids, variant SKUs, design ids, placements and quantities are persisted: no personal data.
@@ -97,11 +97,47 @@ export function parseCart(raw: string | null): CartLine[] {
   }
 }
 
-/** What the cart needs to show a design line (a subset of the storefront design). */
-export type CartDesign = { id: string; slug: string; name: string; imageUrl: string; bases: { kind: MockupKind; productId: string }[] };
+/**
+ * What the cart needs to show a design line (a subset of the storefront design);
+ * `width`/`height` (the design file's pixels) give its printed height.
+ */
+export type CartDesign = { id: string; slug: string; name: string; imageUrl: string; width?: number; height?: number; bases: { kind: MockupKind; productId: string }[] };
 
 /** Keeps only what the browser needs from a storefront design. */
-export const toCartDesign = ({ id, slug, name, imageUrl, bases }: CartDesign): CartDesign => ({ id, slug, name, imageUrl, bases });
+export const toCartDesign = ({ id, slug, name, imageUrl, width, height, bases }: CartDesign): CartDesign => ({
+  id,
+  slug,
+  name,
+  imageUrl,
+  ...(width && height ? { width, height } : {}),
+  bases,
+});
+
+/** 25.3 → "25,3" (Argentine decimals). */
+const cm = (n: number) => String(n).replace(".", ",");
+
+/**
+ * Where a placed design goes, in words for production: side, printed size
+ * (width only when the design's aspect is unknown), horizontal offset from the
+ * centre line (as seen) and distance below the collar.
+ */
+export function placementMeasures(placement: GarmentPlacement, aspect?: number) {
+  const { widthCm, xCm, yCm } = placement;
+  const size =
+    aspect && aspect > 0 && Number.isFinite(aspect) ? `${cm(widthCm)} × ${cm(placementHeightCm(placement, aspect))} cm` : `${cm(widthCm)} cm de ancho`;
+  return {
+    side: MOCKUP_SIDE_LABELS[placement.side],
+    size,
+    horizontal: Math.abs(xCm) < 0.5 ? "centrado" : `${cm(Math.abs(xCm))} cm a la ${xCm < 0 ? "izquierda" : "derecha"} del centro`,
+    vertical: `${cm(yCm)} cm debajo del cuello`,
+  };
+}
+
+/** "Espalda · 20 × 25,3 cm"; without the design's aspect, "Espalda · 20 cm de ancho". */
+export function placementSummary(placement: GarmentPlacement, aspect?: number): string {
+  const { side, size } = placementMeasures(placement, aspect);
+  return `${side} · ${size}`;
+}
 
 /** Stable key of a cart line (React lists). */
 export const lineKey = (productId: string, sku?: string, designId?: string, placement?: GarmentPlacement) =>
@@ -111,7 +147,9 @@ export const lineKey = (productId: string, sku?: string, designId?: string, plac
 export type CartItem = {
   product: Product;
   /** Design printed on the base product; `name` is the line name ("Gato astronauta · Remera clásica"). */
-  design?: { id: string; slug: string; name: string; imageUrl: string; kind: MockupKind };
+  design?: { id: string; slug: string; name: string; imageUrl: string; kind: MockupKind; aspect?: number };
+  /** Where the customer placed the design (side, width and position in cm). */
+  placement?: GarmentPlacement;
   /** Chosen variant of a product with options. */
   variant?: ProductVariant;
   /** "Talle M · Color Negro" */
@@ -137,7 +175,8 @@ function designOf(line: CartLine, designs: readonly CartDesign[]): CartItem["des
   const design = designs.find((candidate) => candidate.id === line.designId);
   const base = design?.bases.find((candidate) => candidate.productId === line.productId);
   if (!design || !base) return null;
-  return { id: design.id, slug: design.slug, name: designLineName(design.name, base.kind), imageUrl: design.imageUrl, kind: base.kind };
+  const aspect = design.width && design.height ? design.width / design.height : undefined;
+  return { id: design.id, slug: design.slug, name: designLineName(design.name, base.kind), imageUrl: design.imageUrl, kind: base.kind, ...(aspect ? { aspect } : {}) };
 }
 
 /**
@@ -152,12 +191,14 @@ export function summarizeCart(lines: readonly CartLine[], catalog: readonly Prod
     if (!product || !product.availableForDirectPurchase) continue;
     const design = line.designId ? designOf(line, designs) : undefined;
     if (design === null) continue;
+    const placed = design && line.placement ? { placement: line.placement } : {};
     if (product.variants) {
       const variant = product.variants.find((candidate) => candidate.sku === line.sku);
       if (!variant || variant.price === null) continue;
       items.push({
         product,
         ...(design ? { design } : {}),
+        ...placed,
         variant,
         optionsLabel: variantLabel(product, variant),
         quantity: line.quantity,
@@ -168,7 +209,7 @@ export function summarizeCart(lines: readonly CartLine[], catalog: readonly Prod
       continue;
     }
     if (product.price === null || line.sku) continue;
-    items.push({ product, ...(design ? { design } : {}), quantity: line.quantity, unitPrice: product.price, stock: product.stock, lineTotal: product.price * line.quantity });
+    items.push({ product, ...(design ? { design } : {}), ...placed, quantity: line.quantity, unitPrice: product.price, stock: product.stock, lineTotal: product.price * line.quantity });
   }
   return {
     items,

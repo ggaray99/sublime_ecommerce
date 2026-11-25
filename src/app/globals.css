@@ -4186,3 +4186,118 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Design page: drag the design anywhere inside the garment zone of the photo. */
+.placement-stage {
+  position: relative;
+  width: 100%;
+  max-width: min(100%, calc(100svh - 160px));
+  border: var(--line);
+}
+
+.placement-stage__layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.placement-stage__garment {
+  position: absolute;
+  outline: 2px dashed rgb(53 189 242 / 0.9);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.placement-stage__layer.is-dragging .placement-stage__garment,
+.placement-stage:hover .placement-stage__garment {
+  opacity: 1;
+}
+
+.placement-stage__handle {
+  position: absolute;
+  cursor: grab;
+  touch-action: none;
+  pointer-events: auto;
+  outline: 1px dashed transparent;
+}
+
+.placement-stage__handle:hover {
+  outline-color: rgb(53 189 242 / 0.9);
+}
+
+.placement-stage__layer.is-dragging .placement-stage__handle {
+  cursor: grabbing;
+}
+
+.placement-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.placement-controls .muted {
+  margin: 0;
+}
+
+.placement-controls input[type="range"] {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  accent-color: var(--cyan);
+}
+
+.placement-controls__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .placement-stage__garment {
+    transition: none;
+  }
+}
+
+/* ── Order lines with a placed design (T3 · design placement): mockup, measurements, JPG ── */
+.order-placement {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+  font-weight: 400;
+}
+
+.order-placement__mockup {
+  flex: none;
+  width: 160px;
+  max-width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.order-placement__measures {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  min-width: 12rem;
+}
+
+.order-placement__measures div {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.order-placement__measures dt {
+  min-width: 5.5rem;
+  color: var(--muted-light);
+}
+
+.order-placement__measures dd {
+  margin: 0;
+}
+
+.order-placement__download {
+  flex-basis: 100%;
+  margin: 0;
+}

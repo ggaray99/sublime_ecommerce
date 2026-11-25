@@ -5,7 +5,8 @@ import { useActionState, useEffect, useId, useState, useTransition } from "react
 import { placeOrderAction, previewDiscountAction, type CheckoutState, type DiscountPreview } from "@/app/checkout/actions";
 import { Field } from "@/components/form-field";
 import type { Product } from "@/data/products";
-import { lineKey, type CartDesign } from "@/lib/cart";
+import { lineKey, placementSummary, type CartDesign } from "@/lib/cart";
+import { placementKey, type GarmentPlacement } from "@/lib/designs/mockups";
 import { formatPrice } from "@/lib/format";
 import { etaLabel, quoteShipping, type PickupSettings, type ShippingRule } from "@/server/shipping/rules";
 import { useCartLines, useCartSummary, useHydrated } from "./cart-store";
@@ -97,8 +98,10 @@ export function CheckoutForm({ catalog, designs = [], prefill, addresses, provin
       : null;
   const shippingMinor = method === "pickup" || freeShipping ? 0 : estimate?.covered ? estimate.costMinor : null;
   const couponState = coupon && preview?.coupon?.code === coupon.toUpperCase().replace(/\s+/g, "") ? preview.coupon : null;
-  const issueFor = (productId: string, sku?: string, designId?: string) => {
-    const sameDesign = (issue: { designId?: string }) => (issue.designId ?? "") === (designId ?? "");
+  const issueFor = (productId: string, sku?: string, designId?: string, placement?: GarmentPlacement) => {
+    // Issues of a placed line carry its placement; older issues match any placement of the design.
+    const sameDesign = (issue: { designId?: string; placement?: GarmentPlacement }) =>
+      (issue.designId ?? "") === (designId ?? "") && (!issue.placement || placementKey(issue.placement) === placementKey(placement));
     return (
       state.issues?.find((issue) => issue.productId === productId && (issue.sku ?? "") === (sku ?? "") && sameDesign(issue))?.message ??
       state.issues?.find((issue) => issue.productId === productId && !issue.sku && sameDesign(issue))?.message
@@ -267,13 +270,14 @@ export function CheckoutForm({ catalog, designs = [], prefill, addresses, provin
       <aside className="summary" aria-labelledby="checkout-summary-title">
         <h2 id="checkout-summary-title">Tu pedido</h2>
         <ul className="summary__items">
-          {items.map(({ product, design, variant, optionsLabel, quantity, lineTotal }) => {
-            const issue = issueFor(product.id, variant?.sku, design?.id);
+          {items.map(({ product, design, placement, variant, optionsLabel, quantity, lineTotal }) => {
+            const issue = issueFor(product.id, variant?.sku, design?.id, placement);
             return (
-              <li key={lineKey(product.id, variant?.sku, design?.id)}>
+              <li key={lineKey(product.id, variant?.sku, design?.id, placement)}>
                 <span>
                   {quantity} × {design?.name ?? product.name}
                   {optionsLabel && ` (${optionsLabel})`}
+                  {placement && ` · ${placementSummary(placement, design?.aspect)}`}
                   {issue && <strong className="field__error"> · {issue}</strong>}
                 </span>
                 <span>{formatPrice(lineTotal)}</span>

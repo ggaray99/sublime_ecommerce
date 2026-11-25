@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ClearCart } from "@/components/cart/clear-cart";
-import { argentinaTime, OrderSummary } from "@/components/orders/order-view";
+import { argentinaTime, loadOrderMockups, OrderSummary } from "@/components/orders/order-view";
 import { PageIntro } from "@/components/page-intro";
 import { getCurrentCustomer } from "@/server/customers/session";
 import { orderNumber, type OrderDetail } from "@/server/orders/repository";
@@ -58,6 +58,7 @@ async function OrderPage({ params, searchParams }: Pick<Props, "params" | "searc
     order = candidate && customer && candidate.customerId === customer.id ? candidate : null;
   }
   if (!order) notFound();
+  const mockups = await loadOrderMockups(order, repo);
 
   const payOnline = canPayOnline(order) && (await onlinePaymentsAvailable());
   // ?pago= from the pay action; ?status= when Mercado Pago sends the customer back.
@@ -100,7 +101,7 @@ async function OrderPage({ params, searchParams }: Pick<Props, "params" | "searc
             La reserva venció sin pago confirmado. Si ya pagaste, escribinos: revisamos el stock disponible.
           </p>
         )}
-        <OrderSummary order={order} />
+        <OrderSummary order={order} mockups={mockups} />
         <p className="muted">
           Guardá este enlace para volver a ver tu pedido. {order.customerId ? "También lo ves en Mi cuenta." : ""}
         </p>

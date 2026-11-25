@@ -1,3 +1,4 @@
+import { parseGarmentPlacement } from "../../lib/designs/mockups.ts";
 import { MAX_CART_LINES, MAX_LINE_QUANTITY, type QuoteRequestLine } from "./quote.ts";
 
 export type FieldError = { path: string; message: string };
@@ -7,10 +8,11 @@ export type ParseResult = { ok: true; lines: QuoteRequestLine[] } | { ok: false;
 const PRODUCT_ID = /^[a-z0-9-]{1,40}$/i;
 const SKU = /^[A-Z0-9][A-Z0-9-]{1,39}$/;
 const DESIGN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const LINE_KEYS = new Set(["productId", "quantity", "sku", "designId"]);
+const LINE_KEYS = new Set(["productId", "quantity", "sku", "designId", "placement"]);
 
 /**
- * Validates the POST /api/cart/quote body: `{ lines: [{ productId, quantity, sku?, designId? }] }`.
+ * Validates the POST /api/cart/quote body: `{ lines: [{ productId, quantity, sku?, designId?, placement? }] }`.
+ * `placement` (side, width and position in cm) only goes with a design.
  * Unknown keys are rejected so clients cannot believe extra fields (like prices) are honored.
  */
 export function parseQuoteRequest(body: unknown): ParseResult {
@@ -59,12 +61,19 @@ export function parseQuoteRequest(body: unknown): ParseResult {
     if (line.designId !== undefined && (typeof line.designId !== "string" || !DESIGN_ID.test(line.designId))) {
       errors.push({ path: `${path}.designId`, message: "Diseño inválido." });
     }
+    const placement = line.placement === undefined ? undefined : parseGarmentPlacement(line.placement);
+    if (placement === null) {
+      errors.push({ path: `${path}.placement`, message: "Ubicación inválida." });
+    } else if (placement && line.designId === undefined) {
+      errors.push({ path: `${path}.placement`, message: "La ubicación necesita un diseño." });
+    }
     if (typeof line.productId === "string" && typeof line.quantity === "number") {
       lines.push({
         productId: line.productId,
         quantity: line.quantity,
         ...(typeof line.sku === "string" ? { sku: line.sku } : {}),
         ...(typeof line.designId === "string" ? { designId: line.designId } : {}),
+        ...(placement ? { placement } : {}),
       });
     }
   });
