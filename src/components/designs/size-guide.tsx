@@ -37,8 +37,11 @@ function SizeGuideDetails({ label, guide }: { label: string; guide: SizeGuideTab
   );
 }
 
-/** The size guides of a design's base products, each under its kind label. Renders nothing without guides. */
-export function SizeGuides({ guides }: { guides: { label: string; guide: SizeGuideTable }[] }) {
+/** A kind's size guide with the label it is shown under. */
+export type KindSizeGuide = { label: string; guide: SizeGuideTable };
+
+/** Size guides, each under its kind label. Renders nothing without guides. */
+export function SizeGuides({ guides }: { guides: KindSizeGuide[] }) {
   if (!guides.length) return null;
   return (
     <section className={styles.section} aria-labelledby="guia-talles-title">

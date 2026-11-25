@@ -10,6 +10,7 @@ import { MOCKUP_KIND_LABELS, type MockupKind } from "@/lib/designs/kinds";
 import { colorKey, MOCKUP_SIDE_LABELS, MOCKUPS, toneOfVariant, variantColor, type MockupSide, type TemplateOverrides } from "@/lib/designs/mockups";
 import { formatPrice } from "@/lib/format";
 import { MockupStage } from "./mockup-stage";
+import { SizeGuides, type KindSizeGuide } from "./size-guide";
 
 /** A base product as the browser needs it: only what the pickers and the price use. */
 export type DesignBaseOption = {
@@ -28,6 +29,8 @@ type Props = {
   bases: DesignBaseOption[];
   /** Templates uploaded in Admin › Soportes. */
   overrides?: TemplateOverrides;
+  /** Size guides by kind (Admin › Soportes); only the selected kind's is shown. */
+  sizeGuides?: Partial<Record<MockupKind, KindSizeGuide>>;
 };
 
 const inStock = (stock: number | null | undefined) => stock === undefined || stock === null || stock > 0;
@@ -39,7 +42,7 @@ const firstSelection = (base: DesignBaseOption) => ({ ...((base.variants.find((v
  * Live preview of a design on each base product it is sold on, with the base
  * product's options (talle, color…), price and stock, and the add-to-cart button.
  */
-export function DesignMockup({ design, bases, overrides }: Props) {
+export function DesignMockup({ design, bases, overrides, sizeGuides }: Props) {
   const id = useId();
   const [kind, setKind] = useState<MockupKind>(bases[0].kind);
   const [side, setSide] = useState<MockupSide>("front");
@@ -227,6 +230,7 @@ export function DesignMockup({ design, bases, overrides }: Props) {
             </div>
           )
         )}
+        <SizeGuides guides={sizeGuides?.[kind] ? [sizeGuides[kind]] : []} />
       </div>
     </div>
   );
