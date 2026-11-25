@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { MockupStage } from "@/components/designs/mockup-stage";
+import { Suspense } from "react";
+import { DesignCatalog } from "@/components/designs/design-catalog";
+import { DesignGrid, type DesignCard } from "@/components/designs/design-grid";
 import { PageIntro } from "@/components/page-intro";
-import { MOCKUP_KIND_LABELS } from "@/lib/designs/kinds";
-import { colorKey, toneOfVariant, variantColor } from "@/lib/designs/mockups";
-import { formatPrice } from "@/lib/format";
+import { garmentColors } from "@/lib/designs/mockups";
 import { getMockupTemplateOverrides, getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
 import { designOffer } from "./offer";
 
@@ -16,7 +16,25 @@ export const metadata: Metadata = {
 
 export default async function DesignsPage() {
   const [designs, products, overrides] = await Promise.all([getStorefrontDesigns(), getStorefrontProducts(), getMockupTemplateOverrides()]);
-  const offers = designs.map((design) => ({ design, ...designOffer(design, products) })).filter((offer) => offer.bases.length);
+  const cards: DesignCard[] = designs.flatMap((design) => {
+    const { bases, from } = designOffer(design, products);
+    if (!bases.length) return [];
+    return [
+      {
+        id: design.id,
+        slug: design.slug,
+        name: design.name,
+        categoryLabel: design.categoryLabel,
+        imageUrl: design.imageUrl,
+        width: design.width,
+        height: design.height,
+        from,
+        // designOffer keeps only the variants in colors enabled for the design.
+        bases: bases.map(({ kind, product }) => ({ kind, colors: garmentColors(product.variants ?? []) })),
+        themes: design.themes,
+      },
+    ];
+  });
 
   return (
     <main id="contenido" className="page page--light">
@@ -24,7 +42,7 @@ export default async function DesignsPage() {
         <p>Cada diseño se puede llevar en distintos productos. Entrá a uno y mirá cómo queda en cada soporte.</p>
       </PageIntro>
 
-      {offers.length === 0 ? (
+      {cards.length === 0 ? (
         <div className="empty-state">
           <h2>Todavía no hay diseños publicados.</h2>
           <p>
@@ -33,43 +51,10 @@ export default async function DesignsPage() {
           </p>
         </div>
       ) : (
-        <ul className="product-grid design-grid">
-          {offers.map(({ design, bases, from }, index) => {
-            const first = bases[0];
-            // The first variant in a color enabled for the design (designOffer keeps only those).
-            const options = first.product.variants?.[0]?.options ?? {};
-            const href = `/disenos/${design.slug}`;
-            return (
-              <li key={design.id}>
-                <article className="product-card design-card">
-                  <Link href={href} className="product-card__media design-card__media" tabIndex={-1} aria-hidden="true">
-                    <MockupStage
-                      kind={first.kind}
-                      tone={toneOfVariant(options)}
-                      color={colorKey(variantColor(options) ?? "") || null}
-                      side="front"
-                      imageUrl={design.imageUrl}
-                      width={design.width}
-                      height={design.height}
-                      alt=""
-                      sizes="(max-width: 359px) 100vw, (max-width: 639px) 50vw, (max-width: 1199px) 33vw, 25vw"
-                      preload={index < 4}
-                      overrides={overrides}
-                    />
-                  </Link>
-                  <div className="product-card__body">
-                    {design.categoryLabel && <p className="product-card__category">{design.categoryLabel}</p>}
-                    <h2 className="product-card__title">
-                      <Link href={href}>{design.name}</Link>
-                    </h2>
-                    <p className="design-card__kinds">Disponible en: {bases.map(({ kind }) => MOCKUP_KIND_LABELS[kind]).join(", ")}</p>
-                    <p className="product-card__price">{from === null ? "A presupuestar" : `Desde ${formatPrice(from)}`}</p>
-                  </div>
-                </article>
-              </li>
-            );
-          })}
-        </ul>
+        // The filters read the URL; until then the full list shows, unfiltered.
+        <Suspense fallback={<DesignGrid cards={cards} overrides={overrides} />}>
+          <DesignCatalog cards={cards} overrides={overrides} />
+        </Suspense>
       )}
     </main>
   );
