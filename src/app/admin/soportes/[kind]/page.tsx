@@ -19,7 +19,10 @@ import {
   type TemplateSlot,
 } from "@/lib/designs/mockups";
 import { adminAvailable, getAdminRepository, getCurrentAdmin, getDesignRepository, getMockupTemplateRepository } from "@/server/admin/session";
+import { getSql } from "@/server/db/client";
+import { createSizeGuideRepository, EXAMPLE_SIZE_GUIDE_HEADERS, SIZE_GUIDE_LIMITS, sizeGuideAuditId } from "@/server/designs/size-guides";
 import { hasMediaStorage } from "@/server/media/public-files";
+import { SizeGuideEditor } from "../size-guide-editor";
 import { TemplateWorkspace, type SlotView, type ToneOption } from "../template-editor";
 
 export const metadata: Metadata = {
@@ -82,9 +85,9 @@ async function KindTemplates({ params }: Pick<Props, "params">) {
       return { slot, src: shown.src, area: shown.area, ...(shown.warp ? { warp: shown.warp } : {}), custom: false, curve: null, fallback };
     }),
   );
-  const audit = (
-    await Promise.all(slots.map(({ slot }) => getAdminRepository().listAudit({ entity: "design", entityId: slotKey(slot), limit: 15 })))
-  )
+  const sizeGuide = await createSizeGuideRepository(getSql()).getSizeGuide(kind);
+  const auditIds = [...slots.map(({ slot }) => slotKey(slot)), sizeGuideAuditId(kind)];
+  const audit = (await Promise.all(auditIds.map((entityId) => getAdminRepository().listAudit({ entity: "design", entityId, limit: 15 }))))
     .flat()
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 15);
@@ -115,6 +118,20 @@ async function KindTemplates({ params }: Pick<Props, "params">) {
           </p>
         )}
         <TemplateWorkspace kind={kind} tones={tones} slots={slots} storage={hasMediaStorage()} />
+      </section>
+      <section className="account__section" aria-labelledby="talles-title">
+        <h2 id="talles-title">Guía de talles</h2>
+        <p className="muted">
+          La tabla que ve el cliente en cada diseño sobre {label.toLowerCase()}. Escribí los títulos de las columnas y una fila por talle;
+          las filas vacías no se guardan.
+        </p>
+        <SizeGuideEditor
+          kind={kind}
+          label={label}
+          guide={sizeGuide && { headers: sizeGuide.headers, rows: sizeGuide.rows, note: sizeGuide.note }}
+          exampleHeaders={EXAMPLE_SIZE_GUIDE_HEADERS}
+          limits={SIZE_GUIDE_LIMITS}
+        />
       </section>
       <section className="account__section" aria-labelledby="historial-title">
         <h2 id="historial-title">Historial de cambios</h2>

@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DesignMockup, type DesignBaseOption } from "@/components/designs/design-mockup";
+import { SizeGuides } from "@/components/designs/size-guide";
 import { JsonLd } from "@/components/json-ld";
 import { site } from "@/data/site";
 import { MOCKUP_KIND_LABELS } from "@/lib/designs/kinds";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
-import { getMockupTemplateOverrides, getStorefrontDesign, getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
+import { getMockupTemplateOverrides, getSizeGuides, getStorefrontDesign, getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
 import { designOffer } from "../offer";
 
 export async function generateStaticParams() {
@@ -39,7 +40,7 @@ export default async function DesignPage({ params }: PageProps<"/disenos/[slug]"
   const { slug } = await params;
   const design = await getStorefrontDesign(slug);
   if (!design) notFound();
-  const [products, overrides] = await Promise.all([getStorefrontProducts(), getMockupTemplateOverrides()]);
+  const [products, overrides, sizeGuides] = await Promise.all([getStorefrontProducts(), getMockupTemplateOverrides(), getSizeGuides()]);
   const { bases } = designOffer(design, products);
   if (!bases.length) notFound();
 
@@ -52,6 +53,11 @@ export default async function DesignPage({ params }: PageProps<"/disenos/[slug]"
     stock: product.stock,
     purchasable: product.availableForDirectPurchase && !product.requiresQuote,
   }));
+  // Every offered kind with a guide, under its label: the picker lives in the client mockup, so all are listed.
+  const guides = [...new Set(bases.map(({ kind }) => kind))].flatMap((kind) => {
+    const guide = sizeGuides[kind];
+    return guide ? [{ label: MOCKUP_KIND_LABELS[kind], guide }] : [];
+  });
 
   return (
     <main id="contenido" className="page page--light">
@@ -76,6 +82,8 @@ export default async function DesignPage({ params }: PageProps<"/disenos/[slug]"
         bases={options}
         overrides={overrides}
       />
+
+      <SizeGuides guides={guides} />
 
       <JsonLd
         data={breadcrumbJsonLd(

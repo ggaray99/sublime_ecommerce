@@ -6,6 +6,8 @@ import { getSql, hasDatabase } from "./db/client.ts";
 import { listStorefrontDesigns, type StorefrontDesign } from "./designs/repository.ts";
 import type { TemplateOverrides } from "../lib/designs/mockups.ts";
 import { listTemplateOverrides } from "./mockups/templates-repository.ts";
+import { createSizeGuideRepository, storeSizeGuides, type SizeGuideTable } from "./designs/size-guides.ts";
+import type { MockupKind } from "../lib/designs/kinds.ts";
 
 /** Invalidated with updateTag() by every admin change to the catalog. */
 export const CATALOG_TAG = "catalog";
@@ -68,6 +70,18 @@ export async function getMockupTemplateOverrides(): Promise<TemplateOverrides> {
   }
   cacheLife("minutes");
   return listTemplateOverrides(getSql());
+}
+
+/** Size-guide tables loaded in Admin › Soportes, by base product kind. */
+export async function getSizeGuides(): Promise<Partial<Record<MockupKind, SizeGuideTable>>> {
+  "use cache";
+  cacheTag(CATALOG_TAG);
+  if (!hasDatabase()) {
+    cacheLife("max");
+    return {};
+  }
+  cacheLife("minutes");
+  return storeSizeGuides(await createSizeGuideRepository(getSql()).listSizeGuides());
 }
 
 export async function getStorefrontDesign(slug: string): Promise<StorefrontDesign | undefined> {
