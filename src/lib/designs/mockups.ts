@@ -454,3 +454,19 @@ export function parseGarmentPlacement(value: unknown): GarmentPlacement | null {
 
 /** Stable text of a placement, so the same design placed differently makes separate cart lines. */
 export const placementKey = (p?: GarmentPlacement | null) => (p ? `${p.side}:${p.widthCm}:${p.xCm}:${p.yCm}` : "");
+
+/**
+ * A garment zone the admin marked on an uploaded photo, made valid: whole pixels,
+ * at least MIN_AREA_PX on each side, inside the template and grown to hold the
+ * print area. The mug and the sticker keep the design in the print area.
+ */
+export function fitGarmentZone(kind: MockupKind, box: Box, area: Box): Box {
+  if (!MOCKUPS[kind].freePlacement) return { ...area };
+  const num = (n: number, fallback: number) => (Number.isFinite(n) ? n : fallback);
+  const side = (n: number) => Math.round(Math.min(TEMPLATE_PX, Math.max(MIN_AREA_PX, num(n, TEMPLATE_PX))));
+  const width = side(box.width);
+  const height = side(box.height);
+  const left = Math.round(Math.min(TEMPLATE_PX - width, Math.max(0, num(box.left, 0))));
+  const top = Math.round(Math.min(TEMPLATE_PX - height, Math.max(0, num(box.top, 0))));
+  return coverBox({ left, top, width, height }, area);
+}

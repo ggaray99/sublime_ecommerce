@@ -1,19 +1,21 @@
 import {
   DEFAULT_MUG_CURVE,
   FABRIC_WARP_PX,
+  fitGarmentZone,
   fitTemplateArea,
+  MOCKUPS,
   slotKey,
   startingArea,
   type Box,
   type TemplateSlot,
 } from "../../lib/designs/mockups.ts";
 import { AdminDataError, type Admin } from "../admin/repository.ts";
-import { assertTemplateSlot, templateFiles, type MockupTemplateRepository, type StoredTemplate } from "./templates-repository.ts";
+import { assertTemplateSlot, GARMENT_NEEDS_PHOTO, templateFiles, type MockupTemplateRepository, type StoredTemplate, type TemplateInput } from "./templates-repository.ts";
 import { cylinderWarp, fabricWarp, prepareTemplatePhoto } from "./warp.ts";
 
 /** What the Soportes actions pass in: the repository and the public media disk. */
 export type TemplateFlowDeps = {
-  repo: Pick<MockupTemplateRepository, "getTemplate" | "saveTemplate" | "deleteTemplate">;
+  repo: Pick<MockupTemplateRepository, "getTemplate" | "saveTemplate" | "deleteTemplate" | "saveTemplateGarment">;
   /** Stores a PNG under /media/soportes and returns its URL. */
   save: (name: string, png: Buffer) => Promise<string>;
   /** Bytes of a stored file, or null when it is gone. */
@@ -39,7 +41,7 @@ async function buildWarp(deps: TemplateFlowDeps, slot: TemplateSlot, image: Buff
 }
 
 /** Saves the slot's template; on failure the files just written are deleted, on success the ones it replaced. */
-async function saveWithFiles(deps: TemplateFlowDeps, actor: Admin, slot: TemplateSlot, template: Omit<StoredTemplate, keyof TemplateSlot | "updatedAt">, written: string[]) {
+async function saveWithFiles(deps: TemplateFlowDeps, actor: Admin, slot: TemplateSlot, template: TemplateInput, written: string[]) {
   let previous: StoredTemplate | null;
   try {
     previous = await deps.repo.saveTemplate(actor, slot, template);
@@ -90,6 +92,19 @@ export async function updateTemplateArea(
   const mugCurve = slot.kind === "mug" ? Math.min(1, Math.max(0, Number.isFinite(curve) ? Number(curve) : DEFAULT_MUG_CURVE)) : null;
   const warp = await buildWarp(deps, slot, image, area, mugCurve);
   await saveWithFiles(deps, actor, slot, { imageUrl: current.imageUrl, area, warp, curve: mugCurve }, templateFiles({ imageUrl: "", warp }));
+}
+
+/**
+ * Where the customer can move a design on an uploaded garment photo (T-shirt,
+ * oversize, tank); null goes back to the kind's built-in zone. The box is fitted
+ * (inside the photo, holding the print area); the photo, print area and warp stay.
+ */
+export async function updateTemplateGarment(deps: TemplateFlowDeps, actor: Admin, slot: TemplateSlot, box: Box | null): Promise<void> {
+  assertTemplateSlot(slot);
+  if (!MOCKUPS[slot.kind].freePlacement) throw new AdminDataError("not_found", "Este soporte no tiene zona de la prenda: el diseño queda dentro de la zona de estampa.");
+  const current = await deps.repo.getTemplate(slot);
+  if (!current) throw new AdminDataError("not_found", GARMENT_NEEDS_PHOTO);
+  await deps.repo.saveTemplateGarment(actor, slot, box ? fitGarmentZone(slot.kind, box, current.area) : null);
 }
 
 /** Removes the uploaded photo (a color falls back to its light/dark template); the files are deleted. */

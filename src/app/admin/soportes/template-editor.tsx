@@ -9,9 +9,12 @@ import type { MockupKind } from "@/lib/designs/kinds";
 import {
   areaStyle,
   DEFAULT_MUG_CURVE,
+  fitGarmentZone,
   fitTemplateArea,
   MIN_AREA_PX,
   MOCKUP_SIDE_LABELS,
+  MOCKUPS,
+  mockupTemplate,
   slotKey,
   slotTone,
   TEMPLATE_PX,
@@ -22,6 +25,7 @@ import {
   type TemplateSlot,
   type Warp,
 } from "@/lib/designs/mockups";
+import { GarmentZoneBox, GarmentZoneForm } from "./garment-zone-editor";
 import { resetTemplateAction, saveTemplateAreaAction, uploadTemplatePhotoAction } from "./actions";
 
 /** What the page knows about one template slot. */
@@ -29,6 +33,8 @@ export type SlotView = {
   slot: TemplateSlot;
   src: string;
   area: Box;
+  /** The garment zone the admin set on an uploaded photo; absent = the kind's automatic zone. */
+  garment?: Box;
   warp?: Warp;
   /** True when the slot uses an uploaded photo (only those have an editable print area). */
   custom: boolean;
@@ -95,7 +101,7 @@ export function TemplateWorkspace({ kind, tones, slots, storage }: { kind: Mocku
       )}
       <TemplateEditor
         // A new photo, a saved area or another slot starts the editor over from the stored values.
-        key={`${slotKey(view.slot)}-${view.src}-${view.area.left}-${view.area.top}-${view.area.width}-${view.curve ?? ""}`}
+        key={`${slotKey(view.slot)}-${view.src}-${view.area.left}-${view.area.top}-${view.area.width}-${view.curve ?? ""}-${view.garment ? Object.values(view.garment).join("x") : "auto"}`}
         kind={kind}
         view={view}
         toneLabel={toneLabels[view.slot.tone] ?? view.slot.tone}
@@ -124,6 +130,11 @@ function TemplateEditor({ kind, view, toneLabel, color, storage }: { kind: Mocku
   const tone: MockupTone = slotTone(slot.tone);
   // The preview follows the box as it moves; the folds or the curve update once saved.
   const preview: TemplateOverrides = { [slotKey({ kind, tone, side: slot.side })]: { src, area: box, ...(view.warp ? { warp: view.warp } : {}) } };
+  // Garments (not the mug or the sticker) let the customer move the design over a garment zone, set here for uploaded photos.
+  const hasGarmentZone = custom && MOCKUPS[kind].freePlacement;
+  const savedZone = mockupTemplate(kind, tone, slot.side, { [slotKey({ kind, tone, side: slot.side })]: { src, area, ...(view.garment ? { garment: view.garment } : {}) } }).garment;
+  const [rawZone, setZone] = useState(savedZone);
+  const zone = fitGarmentZone(kind, rawZone, box);
   const badge = custom ? "Foto propia" : color ? "Sin foto propia" : "Imagen original";
   const resetLabel = color ? "Quitar la foto propia" : "Volver a la imagen original";
   const resetMessage = color
@@ -168,6 +179,7 @@ function TemplateEditor({ kind, view, toneLabel, color, storage }: { kind: Mocku
         <figure className="template-editor__view">
           <div ref={stage} className="template-editor__stage">
             <Image src={src} alt="" width={TEMPLATE_PX} height={TEMPLATE_PX} sizes="(max-width: 559px) 100vw, 480px" className="template-editor__photo" />
+            {hasGarmentZone && <GarmentZoneBox zone={zone} stage={stage} onChange={setZone} />}
             {custom ? (
               <button
                 type="button"
@@ -190,7 +202,9 @@ function TemplateEditor({ kind, view, toneLabel, color, storage }: { kind: Mocku
           </div>
           <figcaption className="fine-print">
             {custom
-              ? "Arrastrá la zona de estampa (o movela con las flechas del teclado)."
+              ? hasGarmentZone
+                ? "Arrastrá la zona de estampa (celeste) y la zona de la prenda (negra); con el teclado, las flechas las mueven."
+                : "Arrastrá la zona de estampa (o movela con las flechas del teclado)."
               : `${fallback ? "Imagen de la base" : "Imagen original"}: subí una foto propia para mover la zona de estampa.`}
           </figcaption>
         </figure>
@@ -252,6 +266,8 @@ function TemplateEditor({ kind, view, toneLabel, color, storage }: { kind: Mocku
             </button>
           </form>
         )}
+
+        {hasGarmentZone && <GarmentZoneForm slot={slot} zone={zone} saved={fitGarmentZone(kind, savedZone, area)} own={Boolean(view.garment)} />}
 
         {storage ? (
           <form action={upload} className="quote-form template-editor__form">

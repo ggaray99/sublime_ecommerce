@@ -430,3 +430,115 @@ describe("Soportes flow: upload, print area and reset", async () => {
     assert.equal(files.size, 0);
   });
 });
+
+describe("garment zone of uploaded photos (Admin › Soportes)", async () => {
+  const sharp = (await import("sharp")).default;
+  const { fitGarmentZone } = await import("../src/lib/designs/mockups.ts");
+  const { updateTemplateArea, updateTemplateGarment, uploadTemplatePhoto } = await import("../src/server/mockups/template-flow.ts");
+  const photo = () => sharp({ create: { width: 1080, height: 1080, channels: 3, background: "#222222" } }).jpeg().toBuffer();
+  const area = { left: 400, top: 300, width: 280, height: 350 };
+  let db;
+  let repo;
+  let sql;
+  let deps;
+
+  before(async () => {
+    db = new PGlite();
+    for (const text of [...sqlFiles("migrations"), ...sqlFiles("seed")]) await db.exec(text);
+    sql = { query: async (text, params) => (await db.query(text, params)).rows };
+    repo = createMockupTemplateRepository(sql);
+    const files = new Map();
+    let n = 0;
+    deps = {
+      repo,
+      save: async (name, png) => {
+        const url = `/media/soportes/${name}-${String(++n).padStart(24, "0")}.png`;
+        files.set(url, png);
+        return url;
+      },
+      read: async (url) => files.get(url) ?? null,
+      remove: async (urls) => urls.forEach((url) => files.delete(url)),
+    };
+  });
+
+  after(async () => {
+    await db.close();
+  });
+
+  it("fits a zone inside the photo, at least MIN_AREA_PX on each side and holding the print area", () => {
+    assert.deepEqual(fitGarmentZone("tshirt", { left: 250.4, top: 150.6, width: 600.2, height: 800.5 }, area), { left: 250, top: 151, width: 600, height: 801 });
+    // Outside the photo: pulled back in.
+    assert.deepEqual(fitGarmentZone("tshirt", { left: 900, top: -40, width: 400, height: 2000 }, area), { left: 400, top: 0, width: 680, height: TEMPLATE_PX });
+    // Too small and away from the print area: grown to hold it.
+    const small = fitGarmentZone("tank", { left: 0, top: 0, width: 10, height: 10 }, area);
+    assert.deepEqual(small, { left: 0, top: 0, width: area.left + area.width, height: area.top + area.height });
+    const tiny = fitGarmentZone("oversize", { left: 450, top: 350, width: 1, height: 1 }, { left: 450, top: 350, width: 50, height: 60 });
+    assert.ok(tiny.width >= MIN_AREA_PX && tiny.height >= MIN_AREA_PX);
+    assert.deepEqual(fitGarmentZone("tshirt", { left: Number.NaN, top: 0, width: Number.NaN, height: 900 }, area).left, 0);
+    // The mug and the sticker keep the design in the print area.
+    assert.deepEqual(fitGarmentZone("mug", { left: 0, top: 0, width: 1000, height: 1000 }, area), area);
+  });
+
+  it("refuses a partial zone or one that leaves the photo", async () => {
+    await repo.saveTemplate(admin, shirtSlot, shirtInput());
+    const set = (columns) => sql.query(`UPDATE mockup_templates SET ${columns} WHERE kind = 'tshirt' AND tone = 'dark' AND side = 'back'`);
+    await assert.rejects(() => set("garment_left = 10"), /check/i);
+    await assert.rejects(() => set("garment_left = 900, garment_top = 0, garment_width = 300, garment_height = 300"), /check/i);
+    await assert.rejects(() => set("garment_left = 0, garment_top = 900, garment_width = 300, garment_height = 300"), /check/i);
+    await assert.rejects(() => set("garment_left = 0, garment_top = 0, garment_width = 0, garment_height = 300"), /check/i);
+    await assert.rejects(() => set("garment_left = -1, garment_top = 0, garment_width = 100, garment_height = 300"), /check/i);
+    await set("garment_left = 0, garment_top = 0, garment_width = 1080, garment_height = 1080");
+    await repo.deleteTemplate(admin, shirtSlot);
+  });
+
+  it("reads rows without a zone back without garment, for the admin and the store", async () => {
+    await repo.saveTemplate(admin, shirtSlot, shirtInput());
+    assert.equal("garment" in (await repo.getTemplate(shirtSlot)), false);
+    assert.equal("garment" in (await listTemplateOverrides(sql))["tshirt-dark-back"], false);
+    await repo.deleteTemplate(admin, shirtSlot);
+  });
+
+  it("uploads a photo with an automatic zone, stores a fitted zone, logs it and serves it to the store", async () => {
+    await uploadTemplatePhoto(deps, admin, shirtSlot, await photo());
+    const uploaded = await repo.getTemplate(shirtSlot);
+    assert.equal(uploaded.garment, undefined);
+    await updateTemplateGarment(deps, admin, shirtSlot, { left: -50, top: 120, width: 700, height: 2000 });
+    const zone = fitGarmentZone("tshirt", { left: -50, top: 120, width: 700, height: 2000 }, uploaded.area);
+    assert.deepEqual((await repo.getTemplate(shirtSlot)).garment, zone);
+    const overrides = await listTemplateOverrides(sql);
+    assert.deepEqual(overrides["tshirt-dark-back"].garment, zone);
+    assert.deepEqual(mockupTemplate("tshirt", "dark", "back", overrides).garment, zone);
+    const [log] = await sql.query(`SELECT entity_id, changes FROM audit_logs WHERE action = 'design.template_garment' ORDER BY id DESC LIMIT 1`);
+    assert.equal(log.entity_id, "tshirt-dark-back");
+    assert.deepEqual(log.changes, { garment: zone });
+  });
+
+  it("keeps the stored zone when the print area or the photo changes", async () => {
+    const zone = (await repo.getTemplate(shirtSlot)).garment;
+    await updateTemplateArea(deps, admin, shirtSlot, { left: 380, top: 280, width: 300 }, null);
+    const moved = await repo.getTemplate(shirtSlot);
+    assert.deepEqual(moved.area, fitTemplateArea("tshirt", { left: 380, top: 280, width: 300 }));
+    assert.deepEqual(moved.garment, zone);
+    await uploadTemplatePhoto(deps, admin, shirtSlot, await photo());
+    const replaced = await repo.getTemplate(shirtSlot);
+    assert.notEqual(replaced.imageUrl, moved.imageUrl);
+    assert.deepEqual(replaced.area, moved.area);
+    assert.deepEqual(replaced.garment, zone);
+  });
+
+  it("goes back to the automatic zone with null", async () => {
+    await updateTemplateGarment(deps, admin, shirtSlot, null);
+    assert.equal((await repo.getTemplate(shirtSlot)).garment, undefined);
+    const overrides = await listTemplateOverrides(sql);
+    assert.equal("garment" in overrides["tshirt-dark-back"], false);
+    const [log] = await sql.query(`SELECT changes FROM audit_logs WHERE action = 'design.template_garment' ORDER BY id DESC LIMIT 1`);
+    assert.deepEqual(log.changes, { garment: null });
+  });
+
+  it("refuses a zone before any photo, on kinds without free placement and on unknown slots", async () => {
+    const tank = { kind: "tank", tone: "light", side: "front" };
+    await assert.rejects(() => updateTemplateGarment(deps, admin, tank, null), /Subí una foto/);
+    await assert.rejects(() => updateTemplateGarment(deps, admin, mugSlot, { left: 0, top: 0, width: 500, height: 500 }), AdminDataError);
+    await assert.rejects(() => updateTemplateGarment(deps, admin, { kind: "tshirt", tone: "Crema", side: "front" }, null), /no existe/);
+  });
+});

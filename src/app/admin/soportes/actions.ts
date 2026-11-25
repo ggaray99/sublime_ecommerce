@@ -8,7 +8,7 @@ import { getDesignRepository, getMockupTemplateRepository } from "@/server/admin
 import { deleteMediaFile, readMediaFile, saveMediaFile } from "@/server/media/disk";
 import { hasMediaStorage } from "@/server/media/public-files";
 import { UNKNOWN_SLOT } from "@/server/mockups/templates-repository";
-import { resetTemplate, updateTemplateArea, uploadTemplatePhoto, type TemplateFlowDeps } from "@/server/mockups/template-flow";
+import { resetTemplate, updateTemplateArea, updateTemplateGarment, uploadTemplatePhoto, type TemplateFlowDeps } from "@/server/mockups/template-flow";
 import { TemplatePhotoError } from "@/server/mockups/warp";
 
 /** Links a product to a base kind (Remera, Taza…), or unlinks it with an empty value. */
@@ -88,6 +88,26 @@ export async function saveTemplateAreaAction(_state: AdminFormState, form: FormD
   }
   templateChanged();
   return { ok: "Zona de estampa guardada." };
+}
+
+/**
+ * Where the customer can move a design on an uploaded garment photo; the
+ * "automatic" button (intent=auto) goes back to the kind's built-in zone.
+ */
+export async function saveTemplateGarmentAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
+  const admin = await requireAdmin();
+  const slot = readSlot(form);
+  if (!slot) return { error: UNKNOWN_SLOT };
+  const automatic = form.get("intent") === "auto";
+  const number = (key: string) => Number(form.get(key));
+  const box = automatic ? null : { left: number("left"), top: number("top"), width: number("width"), height: number("height") };
+  try {
+    await updateTemplateGarment(templateDeps(), admin, slot, box);
+  } catch (error) {
+    return dataError(error);
+  }
+  templateChanged();
+  return { ok: automatic ? "La prenda vuelve a usar la zona automática." : "Zona de la prenda guardada." };
 }
 
 /** Back to the built-in image of a template. */

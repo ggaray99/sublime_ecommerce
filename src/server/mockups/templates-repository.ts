@@ -9,10 +9,13 @@ export type StoredTemplate = TemplateSlot & {
   warp: { map: string; shade: string; scale: number } | null;
   /** Mug only. */
   curve: number | null;
+  /** Where the customer can move a design (free-placement kinds); absent = the kind's built-in zone. */
+  garment?: Box;
   updatedAt: Date;
 };
 
-export type TemplateInput = Omit<StoredTemplate, keyof TemplateSlot | "updatedAt">;
+/** What a photo upload or a print-area save writes; the garment zone has its own save and is left as it is. */
+export type TemplateInput = Omit<StoredTemplate, keyof TemplateSlot | "updatedAt" | "garment">;
 
 type Row = {
   kind: TemplateSlot["kind"];
@@ -27,10 +30,15 @@ type Row = {
   shade_url: string | null;
   warp_scale: number | null;
   curve: number | null;
+  garment_left: number | null;
+  garment_top: number | null;
+  garment_width: number | null;
+  garment_height: number | null;
   updated_at: Date;
 };
 
-const COLUMNS = `kind, tone, side, image_url, area_left, area_top, area_width, area_height, map_url, shade_url, warp_scale, curve, updated_at`;
+const COLUMNS = `kind, tone, side, image_url, area_left, area_top, area_width, area_height, map_url, shade_url, warp_scale, curve,
+  garment_left, garment_top, garment_width, garment_height, updated_at`;
 
 function fromRow(row: Row): StoredTemplate {
   return {
@@ -41,6 +49,9 @@ function fromRow(row: Row): StoredTemplate {
     area: { left: row.area_left, top: row.area_top, width: row.area_width, height: row.area_height },
     warp: row.map_url && row.shade_url && row.warp_scale ? { map: row.map_url, shade: row.shade_url, scale: Number(row.warp_scale) } : null,
     curve: row.curve === null ? null : Number(row.curve),
+    ...(row.garment_left !== null && row.garment_top !== null && row.garment_width !== null && row.garment_height !== null
+      ? { garment: { left: row.garment_left, top: row.garment_top, width: row.garment_width, height: row.garment_height } }
+      : {}),
     updatedAt: row.updated_at,
   };
 }
@@ -52,6 +63,8 @@ export const templateFiles = (template: Pick<StoredTemplate, "imageUrl" | "warp"
 const logTemplate = (action: string, first: number) =>
   `INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
    SELECT $${first}, $${first + 1}, '${action}', 'design', kind || '-' || tone || '-' || side, $${first + 2}::jsonb`;
+
+export const GARMENT_NEEDS_PHOTO = "Subí una foto antes de marcar la zona de la prenda.";
 
 export const UNKNOWN_SLOT = "Ese soporte no existe: elegí un color de la lista (o la base clara u oscura) y un lado del soporte.";
 
@@ -119,6 +132,35 @@ export function createMockupTemplateRepository(sql: QueryFn) {
       return previous;
     },
 
+    /**
+     * Sets the garment zone of an uploaded photo (null = back to the kind's built-in
+     * zone). The caller fits the box first (fitGarmentZone); the photo, print area and warp stay.
+     */
+    async saveTemplateGarment(actor: Admin, slot: TemplateSlot, garment: Box | null): Promise<void> {
+      assertTemplateSlot(slot);
+      const rows = await sql.query(
+        `WITH saved AS (
+           UPDATE mockup_templates SET garment_left = $4, garment_top = $5, garment_width = $6, garment_height = $7, updated_at = now()
+           WHERE kind = $1 AND tone = $2 AND side = $3
+           RETURNING kind, tone, side
+         )
+         ${logTemplate("design.template_garment", 8)} FROM saved RETURNING entity_id`,
+        [
+          slot.kind,
+          slot.tone,
+          slot.side,
+          garment?.left ?? null,
+          garment?.top ?? null,
+          garment?.width ?? null,
+          garment?.height ?? null,
+          actor.authUserId,
+          actor.email,
+          JSON.stringify({ garment }),
+        ],
+      );
+      if (!rows.length) throw new AdminDataError("not_found", GARMENT_NEEDS_PHOTO);
+    },
+
     /** Back to the fallback (a color: its light/dark template; light/dark: the built-in one); returns the removed one, whose files the caller deletes. */
     async deleteTemplate(actor: Admin, slot: TemplateSlot): Promise<StoredTemplate> {
       assertTemplateSlot(slot);
@@ -140,6 +182,11 @@ export type MockupTemplateRepository = ReturnType<typeof createMockupTemplateRep
 export async function listTemplateOverrides(sql: QueryFn): Promise<TemplateOverrides> {
   const templates = await createMockupTemplateRepository(sql).listTemplates();
   return Object.fromEntries(
-    templates.map((template) => [slotKey(template), { src: template.imageUrl, area: template.area, ...(template.warp ? { warp: template.warp } : {}) }]),
+    templates.map((template) => [slotKey(template), {
+      src: template.imageUrl,
+      area: template.area,
+      ...(template.garment ? { garment: template.garment } : {}),
+      ...(template.warp ? { warp: template.warp } : {}),
+    }]),
   );
 }

@@ -78,7 +78,18 @@ async function KindTemplates({ params }: Pick<Props, "params">) {
     sides.map((side): SlotView => {
       const slot: TemplateSlot = { kind, tone, side };
       const current = stored.get(slotKey(slot));
-      if (current) return { slot, src: current.imageUrl, area: current.area, ...(current.warp ? { warp: current.warp } : {}), custom: true, curve: current.curve, fallback: null };
+      if (current) {
+        return {
+          slot,
+          src: current.imageUrl,
+          area: current.area,
+          ...(current.garment ? { garment: current.garment } : {}),
+          ...(current.warp ? { warp: current.warp } : {}),
+          custom: true,
+          curve: current.curve,
+          fallback: null,
+        };
+      }
       // What the store shows: a color without its own photo uses its light/dark base (uploaded or built-in).
       const shown = color ? mockupTemplate(kind, slotTone(tone), side, overrides, tone) : mockupTemplate(kind, slotTone(tone), side);
       const fallback = color ? `Sin foto propia: se muestra la ${slotTone(tone) === "dark" ? "base oscura" : "base clara"}.` : null;
