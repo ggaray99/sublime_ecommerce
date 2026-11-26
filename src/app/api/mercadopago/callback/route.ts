@@ -1,7 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { connection, NextResponse, type NextRequest } from "next/server";
 import { getCurrentAdmin } from "@/server/admin/session";
+import { COMMERCIAL_TAG } from "@/server/commercial";
 import { getMercadoPago, mercadoPagoRedirectUri, OAUTH_COOKIE } from "@/server/payments/session";
 
 const sameText = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -42,6 +43,8 @@ export async function GET(request: NextRequest) {
     console.error("[mercadopago] connect failed", error instanceof Error ? error.message : "unknown error");
     return done("error");
   }
+  // Product pages list Mercado Pago among the payment methods once an account is connected.
+  revalidateTag(COMMERCIAL_TAG, { expire: 0 });
   revalidatePath("/admin/integraciones");
   return done("connected");
 }

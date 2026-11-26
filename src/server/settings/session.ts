@@ -1,6 +1,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { getSql, hasDatabase } from "../db/client.ts";
 import { createContactRepository, DEFAULT_CONTACT, type ContactSettings } from "./contact.ts";
+import { createInstallmentsRepository, DEFAULT_INSTALLMENTS, type InstallmentsSettings } from "./installments.ts";
 import { createLabPricingRepository } from "./lab-pricing.ts";
 import { createPagesRepository, mergeInfoPage, type InfoPageSlug } from "./pages.ts";
 import { infoPages, type InfoPageContent } from "../../data/site.ts";
@@ -53,3 +54,17 @@ export async function getLabPricing(): Promise<LabPricing> {
 }
 
 export const getStoreStatusRepository = () => createStoreStatusRepository(getSql());
+
+export const getInstallmentsRepository = () => createInstallmentsRepository(getSql());
+
+/** Interest-free installments the store advertises; off where there is no database. */
+export async function getInstallmentsSettings(): Promise<InstallmentsSettings> {
+  "use cache";
+  cacheTag(SETTINGS_TAG);
+  if (!hasDatabase()) {
+    cacheLife("max");
+    return DEFAULT_INSTALLMENTS;
+  }
+  cacheLife("hours");
+  return getInstallmentsRepository().get();
+}

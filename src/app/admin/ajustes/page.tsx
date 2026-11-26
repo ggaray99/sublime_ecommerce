@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { ConfirmButton } from "@/components/admin/confirm-button";
-import { ContactForm, LabPricingForm } from "@/components/admin/settings-forms";
+import { ContactForm, InstallmentsForm, LabPricingForm } from "@/components/admin/settings-forms";
 import { argentinaTime } from "@/components/orders/order-view";
 import { AdminUnavailable, priceInput } from "@/components/admin/shared";
 import { formatPrice } from "@/lib/format";
@@ -13,7 +13,7 @@ import { estimateSheets } from "@/lib/lab/pricing";
 import { PageIntro } from "@/components/page-intro";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
 import { whatsappLink } from "@/server/settings/contact";
-import { getContactRepository, getLabPricingRepository, getPagesRepository, getStoreStatusRepository } from "@/server/settings/session";
+import { getContactRepository, getInstallmentsRepository, getLabPricingRepository, getPagesRepository, getStoreStatusRepository } from "@/server/settings/session";
 import { INFO_PAGE_SLUGS } from "@/server/settings/pages";
 import { infoPages } from "@/data/site";
 import { setStoreStatusAction, startPreviewAction } from "./actions";
@@ -28,9 +28,10 @@ async function Settings() {
   if (!adminAvailable()) return <AdminUnavailable />;
   if (!(await getCurrentAdmin())) notFound();
   const pagesRepo = getPagesRepository();
-  const [contact, pricing, status, pageTexts] = await Promise.all([
+  const [contact, pricing, installments, status, pageTexts] = await Promise.all([
     getContactRepository().get(),
     getLabPricingRepository().get(),
+    getInstallmentsRepository().get(),
     getStoreStatusRepository().get(),
     Promise.all(INFO_PAGE_SLUGS.map((slug) => pagesRepo.get(slug))),
   ]);
@@ -108,6 +109,21 @@ async function Settings() {
         </ul>
       </section>
 
+      <section className="account__section" aria-labelledby="cuotas-title" id="cuotas">
+        <div className="account__head">
+          <h2 id="cuotas-title">Cuotas</h2>
+          <span className={`badge ${installments.enabled ? "badge--ok" : "badge--pending"}`}>{installments.enabled ? "Se muestran" : "No se muestran"}</span>
+        </div>
+        <p className="muted">
+          Con las cuotas activadas, cada producto muestra “{installments.count} cuotas sin interés de …” debajo del precio y en
+          Medios de pago. Activalas solo si realmente las ofrecés en Mercado Pago: la tienda no calcula intereses ni cobra en
+          cuotas por su cuenta.
+        </p>
+        <InstallmentsForm
+          initial={{ enabled: installments.enabled, count: String(installments.count), minAmount: installments.minAmount ? String(installments.minAmount) : "" }}
+        />
+      </section>
+
       <section className="account__section" aria-labelledby="stickers-title">
         <h2 id="stickers-title">Precio de stickers a medida</h2>
         <p className="muted">
@@ -137,7 +153,7 @@ export default function AdminSettingsPage() {
   return (
     <main id="contenido" className="page page--light">
       <PageIntro kicker="Administración" title="AJUSTES." tone="light">
-        <p>Datos de contacto y precios del Custom Lab.</p>
+        <p>Datos de contacto, cuotas y precios del Custom Lab.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
         <Settings />

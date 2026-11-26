@@ -1,21 +1,23 @@
 "use client";
 
 import { useId, useState } from "react";
+import { ProductCommercialInfo } from "@/components/product-commercial-info";
 import type { ProductVariant } from "@/data/products";
+import type { CommercialInfo } from "@/lib/commercial";
 import { MAX_QUANTITY } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
 import { cartActions } from "./cart-store";
 import { QuantityStepper } from "./quantity-stepper";
 import { showToast } from "./toast-store";
 
-type Props = { productId: string; productName: string; optionNames: string[]; variants: ProductVariant[] };
+type Props = { productId: string; productName: string; optionNames: string[]; variants: ProductVariant[]; commercial: CommercialInfo };
 
 const inStock = (variant: ProductVariant) => variant.stock === null || variant.stock > 0;
 const matches = (variant: ProductVariant, selection: Record<string, string>) =>
   Object.entries(selection).every(([name, value]) => variant.options[name] === value);
 
 /** Option pickers (talle, color…) for products with variants; each combination has its own price and stock. */
-export function VariantPurchase({ productId, productName, optionNames, variants }: Props) {
+export function VariantPurchase({ productId, productName, optionNames, variants, commercial }: Props) {
   const id = useId();
   // Start on the first combination that can be bought.
   const initial = variants.find(inStock) ?? variants[0];
@@ -85,6 +87,7 @@ export function VariantPurchase({ productId, productName, optionNames, variants 
         {variant?.price != null ? formatPrice(variant.price) : "—"}
         {variant?.regularPrice && <span className="badge badge--sale">Oferta</span>}
       </p>
+      <ProductCommercialInfo price={variant?.price ?? null} info={commercial} />
       <p className={`stock-note ${variant && inStock(variant) ? "stock-note--in" : "stock-note--out"}`} aria-live="polite">
         {!variant
           ? "Esa combinación no está disponible."

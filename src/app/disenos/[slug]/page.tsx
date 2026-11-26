@@ -6,6 +6,7 @@ import { JsonLd } from "@/components/json-ld";
 import { site } from "@/data/site";
 import { MOCKUP_KIND_LABELS } from "@/lib/designs/kinds";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
+import { getCommercialInfo } from "@/server/commercial";
 import { getMockupTemplateOverrides, getSizeGuides, getStorefrontDesign, getStorefrontDesigns, getStorefrontProducts } from "@/server/storefront";
 import { designOffer } from "../offer";
 
@@ -39,7 +40,12 @@ export default async function DesignPage({ params }: PageProps<"/disenos/[slug]"
   const { slug } = await params;
   const design = await getStorefrontDesign(slug);
   if (!design) notFound();
-  const [products, overrides, sizeGuides] = await Promise.all([getStorefrontProducts(), getMockupTemplateOverrides(), getSizeGuides()]);
+  const [products, overrides, sizeGuides, commercial] = await Promise.all([
+    getStorefrontProducts(),
+    getMockupTemplateOverrides(),
+    getSizeGuides(),
+    getCommercialInfo(),
+  ]);
   const { bases } = designOffer(design, products);
   if (!bases.length) notFound();
 
@@ -51,6 +57,8 @@ export default async function DesignPage({ params }: PageProps<"/disenos/[slug]"
     price: product.price,
     stock: product.stock,
     purchasable: product.availableForDirectPurchase && !product.requiresQuote,
+    description: product.description,
+    details: product.details,
   }));
   // The guide of each offered kind; the mockup shows the one of the selected kind.
   const guides = Object.fromEntries(
@@ -83,6 +91,7 @@ export default async function DesignPage({ params }: PageProps<"/disenos/[slug]"
         bases={options}
         overrides={overrides}
         sizeGuides={guides}
+        commercial={commercial}
       />
 
       <JsonLd

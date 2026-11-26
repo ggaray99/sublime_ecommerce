@@ -269,8 +269,17 @@ export function applyPromotions(input: {
 
 /** The transfer discount on offer (for the checkout choice), or null. */
 export function transferPercent(promotions: Promotion[], now = new Date()): number | null {
-  const best = promotions
+  return bestTransferPromotion(promotions, now)?.params.percent ?? null;
+}
+
+/** The same transfer discount with its minimum purchase, for the product pages. */
+export function transferOffer(promotions: Promotion[], now = new Date()): { percent: number; minSubtotalMinor: number } | null {
+  const best = bestTransferPromotion(promotions, now);
+  return best?.params.percent ? { percent: best.params.percent, minSubtotalMinor: best.minSubtotalMinor } : null;
+}
+
+function bestTransferPromotion(promotions: Promotion[], now: Date): Promotion | undefined {
+  return promotions
     .filter((p) => !p.couponCode && p.kind === "payment_method" && p.params.method === "transfer" && promotionLive(p, now))
     .sort((a, b) => (b.params.percent ?? 0) - (a.params.percent ?? 0))[0];
-  return best?.params.percent ?? null;
 }

@@ -5,7 +5,9 @@ import { cartActions } from "@/components/cart/cart-store";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
 import { showToast } from "@/components/cart/toast-store";
 import type { ProductVariant } from "@/data/products";
+import { ProductCommercialInfo } from "@/components/product-commercial-info";
 import { MAX_QUANTITY } from "@/lib/cart";
+import type { CommercialInfo } from "@/lib/commercial";
 import { MOCKUP_KIND_LABELS, type MockupKind } from "@/lib/designs/kinds";
 import {
   clampGarmentPlacement,
@@ -36,6 +38,9 @@ export type DesignBaseOption = {
   price: number | null;
   stock: number | null | undefined;
   purchasable: boolean;
+  /** The base product's own text and material list, shown as the garment's characteristics. */
+  description: string;
+  details: string[];
 };
 
 type Props = {
@@ -45,6 +50,8 @@ type Props = {
   overrides?: TemplateOverrides;
   /** Size guides by kind (Admin › Soportes); only the selected kind's is shown. */
   sizeGuides?: Partial<Record<MockupKind, KindSizeGuide>>;
+  /** Transfer price, installments, free shipping and payment methods. */
+  commercial: CommercialInfo;
 };
 
 const inStock = (stock: number | null | undefined) => stock === undefined || stock === null || stock > 0;
@@ -56,7 +63,7 @@ const firstSelection = (base: DesignBaseOption) => ({ ...((base.variants.find((v
  * Live preview of a design on each base product it is sold on, with the base
  * product's options (talle, color…), price and stock, and the add-to-cart button.
  */
-export function DesignMockup({ design, bases, overrides, sizeGuides }: Props) {
+export function DesignMockup({ design, bases, overrides, sizeGuides, commercial }: Props) {
   const id = useId();
   const [kind, setKind] = useState<MockupKind>(bases[0].kind);
   const [side, setSide] = useState<MockupSide>("front");
@@ -242,6 +249,7 @@ export function DesignMockup({ design, bases, overrides, sizeGuides }: Props) {
           {price !== null ? formatPrice(price) : "—"}
           {variant?.regularPrice && <span className="badge badge--sale">Oferta</span>}
         </p>
+        <ProductCommercialInfo price={price} info={commercial} />
         <p className={`stock-note ${exists && inStock(stock) ? "stock-note--in" : "stock-note--out"}`} aria-live="polite">
           {!exists
             ? "Esa combinación no está disponible."
@@ -285,6 +293,19 @@ export function DesignMockup({ design, bases, overrides, sizeGuides }: Props) {
           )
         )}
         <SizeGuides guides={sizeGuides?.[kind] ? [sizeGuides[kind]] : []} />
+        {(base.description || base.details.length > 0) && (
+          <section className="details-box" aria-labelledby={`${id}-garment`}>
+            <h2 id={`${id}-garment`}>Características de la prenda</h2>
+            {base.description && <p>{base.description}</p>}
+            {base.details.length > 0 && (
+              <ul>
+                {base.details.map((detail) => (
+                  <li key={detail}>{detail}</li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );

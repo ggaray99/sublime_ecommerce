@@ -1,11 +1,16 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { formValues, requireAdmin, type AdminFormState } from "@/server/admin/guard";
+import { COMMERCIAL_TAG } from "@/server/commercial";
 import { getPromotionRepository } from "@/server/orders/session";
 import { parsePromotion, PromotionError } from "@/server/promotions/repository";
 
-const refresh = () => revalidatePath("/admin/promociones");
+// The transfer discount is also shown under the store prices.
+const refresh = () => {
+  updateTag(COMMERCIAL_TAG);
+  revalidatePath("/admin/promociones");
+};
 
 export async function savePromotionAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
   const admin = await requireAdmin();

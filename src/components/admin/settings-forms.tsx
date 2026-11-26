@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveContactAction, saveLabPricingAction, savePageAction } from "@/app/admin/ajustes/actions";
+import { saveContactAction, saveInstallmentsAction, saveLabPricingAction, savePageAction } from "@/app/admin/ajustes/actions";
 import type { ContactSettings } from "@/server/settings/contact";
 import { MAX_SECTIONS, type PageText } from "@/server/settings/pages";
 import type { AdminFormState } from "@/server/admin/guard";
-import { Field, Status } from "./forms";
+import { Checkbox, Field, Status } from "./forms";
 
 export function ContactForm({ contact }: { contact: ContactSettings }) {
   const [state, action, pending] = useActionState<AdminFormState, FormData>(saveContactAction, {});
@@ -104,6 +104,33 @@ export function LabPricingForm({ initial }: { initial: LabPricingValues }) {
       </div>
       <button type="submit" className="btn btn--coal" disabled={pending}>
         {pending ? "Guardando…" : "Guardar precios"}
+      </button>
+    </form>
+  );
+}
+
+export type InstallmentsValues = { enabled: boolean; count: string; minAmount: string };
+
+export function InstallmentsForm({ initial }: { initial: InstallmentsValues }) {
+  const [state, action, pending] = useActionState<AdminFormState, FormData>(saveInstallmentsAction, {});
+  const value = (key: "count" | "minAmount") => state.values?.[key] ?? initial[key];
+  const enabled = state.values ? state.values.enabled === "on" : initial.enabled;
+  return (
+    <form action={action} className="quote-form" noValidate>
+      <Status state={state} />
+      <Checkbox
+        key={String(enabled)}
+        name="enabled"
+        label="Mostrar cuotas sin interés en la tienda"
+        defaultChecked={enabled}
+        hint="Activalo solo si tu cuenta de Mercado Pago ofrece estas cuotas sin interés."
+      />
+      <div className="form-grid">
+        <Field name="count" label="Cantidad de cuotas" state={state} defaultValue={value("count")} inputMode="numeric" hint="De 2 a 24. Ej.: 3" />
+        <Field name="minAmount" label="Desde (ARS)" state={state} defaultValue={value("minAmount")} inputMode="numeric" hint="Precio mínimo del producto. Vacío = todos" />
+      </div>
+      <button type="submit" className="btn btn--coal" disabled={pending}>
+        {pending ? "Guardando…" : "Guardar cuotas"}
       </button>
     </form>
   );

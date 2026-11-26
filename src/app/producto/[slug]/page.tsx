@@ -5,12 +5,14 @@ import { AddToCartPanel } from "@/components/cart/add-to-cart";
 import { VariantPurchase } from "@/components/cart/variant-purchase";
 import { JsonLd } from "@/components/json-ld";
 import { ProductCard } from "@/components/product-card";
+import { ProductCommercialInfo } from "@/components/product-commercial-info";
 import { ProductGallery } from "@/components/product-gallery";
 import { themes, type Product } from "@/data/products";
 import { categoryLabelOf, hasPriceRange, isOutOfStock, relatedProducts } from "@/lib/catalog";
 import { priceLabel } from "@/lib/format";
 import { breadcrumbJsonLd, productJsonLd } from "@/lib/structured-data";
 import { site } from "@/data/site";
+import { getCommercialInfo } from "@/server/commercial";
 import { getStorefrontProduct, getStorefrontProducts } from "@/server/storefront";
 
 export async function generateStaticParams() {
@@ -59,7 +61,8 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
   const categoryLabel = categoryLabelOf(product);
   // Products with options (talle, color…) pick a variant; made-to-order ones keep the quote flow.
   const withVariants = Boolean(product.variants?.length) && product.availableForDirectPurchase;
-  const related = relatedProducts(await getStorefrontProducts(), product);
+  const [products, commercial] = await Promise.all([getStorefrontProducts(), getCommercialInfo()]);
+  const related = relatedProducts(products, product);
 
   return (
     <main id="contenido" className="page page--light">
@@ -98,6 +101,7 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
                 {product.regularPrice && <span className="badge badge--sale">Oferta</span>}
                 {product.price === null && <span className="badge badge--violet">Se cotiza a pedido</span>}
               </p>
+              <ProductCommercialInfo price={product.price} info={commercial} />
               <StockNote product={product} />
             </>
           )}
@@ -109,7 +113,13 @@ export default async function ProductPage({ params }: PageProps<"/producto/[slug
           )}
 
           {withVariants && product.variants && product.optionNames ? (
-            <VariantPurchase productId={product.id} productName={product.name} optionNames={product.optionNames} variants={product.variants} />
+            <VariantPurchase
+              productId={product.id}
+              productName={product.name}
+              optionNames={product.optionNames}
+              variants={product.variants}
+              commercial={commercial}
+            />
           ) : isOutOfStock(product) ? (
             <div className="purchase purchase--quote">
               <p>Este producto está sin stock. Volvé a consultar más adelante.</p>

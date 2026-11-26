@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { formValues, requireAdmin, type AdminFormState } from "@/server/admin/guard";
+import { COMMERCIAL_TAG } from "@/server/commercial";
 import { getShippingRepository } from "@/server/orders/session";
 import { parsePickup, parseShippingRule, ShippingError } from "@/server/shipping/repository";
 
@@ -25,6 +26,8 @@ export async function saveShippingRuleAction(_state: AdminFormState, form: FormD
     if (error instanceof ShippingError) return { error: error.message, values };
     throw error;
   }
+  // Free shipping from an amount is also shown under the store prices.
+  updateTag(COMMERCIAL_TAG);
   revalidatePath("/admin/envios");
   revalidatePath("/checkout");
   return values.ruleId ? { ok: "Regla actualizada.", values } : { ok: "Regla creada." };
@@ -33,6 +36,8 @@ export async function saveShippingRuleAction(_state: AdminFormState, form: FormD
 export async function deleteShippingRuleAction(form: FormData): Promise<void> {
   const admin = await requireAdmin();
   await getShippingRepository().deleteRule(admin, String(form.get("ruleId") ?? ""));
+  // Free shipping from an amount is also shown under the store prices.
+  updateTag(COMMERCIAL_TAG);
   revalidatePath("/admin/envios");
   revalidatePath("/checkout");
 }

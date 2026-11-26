@@ -1,9 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { formValues, requireOwner, type AdminFormState } from "@/server/admin/guard";
 import { getApiKeyRepository } from "@/server/admin/session";
 import { API_SCOPES, ApiKeyError, type ApiScope } from "@/server/api/keys";
+import { COMMERCIAL_TAG } from "@/server/commercial";
 import { getMercadoPago } from "@/server/payments/session";
 
 /** The full key travels back once, in this response; it is never stored nor shown again. */
@@ -35,6 +36,8 @@ export async function createApiKeyAction(_state: CreateKeyState, form: FormData)
 export async function disconnectMercadoPagoAction(): Promise<void> {
   const admin = await requireOwner();
   await getMercadoPago()?.accounts.disconnect(admin);
+  // Product pages stop listing Mercado Pago among the payment methods.
+  updateTag(COMMERCIAL_TAG);
   revalidatePath("/admin/integraciones");
 }
 

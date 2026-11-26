@@ -7,7 +7,9 @@ import { formValues, requireAdmin, type AdminFormState } from "@/server/admin/gu
 import { createPreviewToken, PREVIEW_COOKIE, PREVIEW_DAYS, PREVIEW_FLAG_COOKIE } from "@/server/preview";
 import { parseContact } from "@/server/settings/contact";
 import { isInfoPageSlug, parsePageContent } from "@/server/settings/pages";
-import { getContactRepository, getLabPricingRepository, getPagesRepository, getStoreStatusRepository, SETTINGS_TAG } from "@/server/settings/session";
+import { COMMERCIAL_TAG } from "@/server/commercial";
+import { getContactRepository, getInstallmentsRepository, getLabPricingRepository, getPagesRepository, getStoreStatusRepository, SETTINGS_TAG } from "@/server/settings/session";
+import { parseInstallments } from "@/server/settings/installments";
 import { parseLabPricing } from "@/server/settings/lab-pricing";
 import { forgetStoreStatus } from "@/server/store-status";
 
@@ -76,4 +78,16 @@ export async function saveLabPricingAction(_state: AdminFormState, form: FormDat
   updateTag(SETTINGS_TAG);
   revalidatePath("/admin/ajustes");
   return { ok: parsed.value.sheetPriceMinor ? "Precios de stickers guardados." : "Sin precio: el editor no muestra estimación.", values };
+}
+
+export async function saveInstallmentsAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
+  const admin = await requireAdmin();
+  const values = { ...formValues(form), enabled: form.get("enabled") ? "on" : "off" };
+  const parsed = parseInstallments(values);
+  if (!parsed.ok) return { fields: parsed.errors, values };
+  await getInstallmentsRepository().save(admin, parsed.value);
+  updateTag(SETTINGS_TAG);
+  updateTag(COMMERCIAL_TAG);
+  revalidatePath("/admin/ajustes");
+  return { ok: parsed.value.enabled ? "Cuotas guardadas. Ya se muestran debajo de los precios." : "Cuotas desactivadas: la tienda no las muestra.", values };
 }
