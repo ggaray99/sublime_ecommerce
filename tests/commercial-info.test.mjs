@@ -112,8 +112,15 @@ describe("commercialLines", () => {
       "$ 28.800 con transferencia o efectivo",
       "20 % de descuento pagando con transferencia o efectivo",
     ]);
+    assert.deepEqual(commercialLines(60_000, info({ transfer: { percent: 15, minSubtotal: 50_000 } })), [
+      "$ 51.000 con transferencia o efectivo",
+      "15 % de descuento pagando con transferencia o efectivo en compras desde $ 50.000",
+    ]);
+  });
+
+  it("no discounted price when the product alone is under the promotion's minimum purchase", () => {
+    // The checkout would not apply it to this product alone, so only the condition is shown.
     assert.deepEqual(commercialLines(9_999, info({ transfer: { percent: 15, minSubtotal: 50_000 } })), [
-      "$ 8.499 con transferencia o efectivo",
       "15 % de descuento pagando con transferencia o efectivo en compras desde $ 50.000",
     ]);
   });

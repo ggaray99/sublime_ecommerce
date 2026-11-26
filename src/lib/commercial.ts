@@ -34,7 +34,10 @@ export function commercialLines(price: number | null, info: CommercialInfo): str
   const lines: string[] = [];
   if (info.transfer) {
     const { percent, minSubtotal } = info.transfer;
-    lines.push(`${formatPrice(Math.round((price * (100 - percent)) / 100))} con transferencia o efectivo`);
+    // Under the minimum purchase the checkout would not discount this product alone: show only the condition.
+    if (!minSubtotal || price >= minSubtotal) {
+      lines.push(`${formatPrice(Math.round((price * (100 - percent)) / 100))} con transferencia o efectivo`);
+    }
     lines.push(`${percent} % de descuento pagando con transferencia o efectivo${fromSuffix(minSubtotal)}`);
   }
   if (info.installments && price >= info.installments.minAmount) {
