@@ -4,6 +4,7 @@ import { useId, useRef, useState, type ComponentProps, type PointerEvent as Reac
 import type { MockupKind } from "@/lib/designs/kinds";
 import {
   clampGarmentPlacement,
+  cmPerPx,
   placedBox,
   placementHeightCm,
   TEMPLATE_PX,
@@ -27,8 +28,8 @@ type StageProps = Omit<ComponentProps<typeof MockupStage>, "placement" | "classN
 
 /**
  * The mockup with a drag handle over the design: the customer can drag it
- * anywhere inside the template's garment zone. Keyboard users move it with the
- * sliders of PlacementControls; the handle itself is not focusable.
+ * anywhere inside the template's garment zone. Keyboard users focus the handle
+ * and move it with the arrow keys (0.5 cm per press, 2 cm with Shift).
  */
 export function PlacementStage({ template, placement, aspect, onMoveTo, ...stage }: StageProps) {
   const layerRef = useRef<HTMLDivElement>(null);
@@ -57,6 +58,7 @@ export function PlacementStage({ template, placement, aspect, onMoveTo, ...stage
     drag.current = null;
     setDragging(false);
   };
+  const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 
   return (
     <div className="placement-stage">
@@ -69,8 +71,18 @@ export function PlacementStage({ template, placement, aspect, onMoveTo, ...stage
         />
         <div
           className="placement-stage__handle"
-          aria-hidden="true"
+          role="button"
+          tabIndex={0}
+          aria-label="Diseño: movelo con las flechas del teclado"
+          aria-roledescription="diseño movible"
           style={{ left: pct(box.left), top: pct(box.top), width: pct(box.width), height: pct(box.height) }}
+          onKeyDown={(event) => {
+            const arrow = ARROWS[event.key];
+            if (!arrow) return;
+            event.preventDefault();
+            const step = (event.shiftKey ? 2 : 0.5) / cmPerPx(stage.kind, template);
+            onMoveTo({ x: box.left + box.width / 2 + arrow[0] * step, y: box.top + box.height / 2 + arrow[1] * step });
+          }}
           onPointerDown={(event) => {
             event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
@@ -104,7 +116,7 @@ type ControlsProps = {
   onReset: () => void;
 };
 
-/** Size and position sliders in cm, "Centrar" and "Volver al lugar original". */
+/** Size slider in cm, "Centrar" and "Volver al lugar original"; the position is set on the mockup itself. */
 export function PlacementControls({ kind, template, placement, aspect, onChange, onReset }: ControlsProps) {
   const id = useId();
   const clamp = (patch: Partial<GarmentPlacement>) => clampGarmentPlacement(kind, template, { ...placement, ...patch }, aspect);
@@ -112,14 +124,12 @@ export function PlacementControls({ kind, template, placement, aspect, onChange,
   // Slider limits are what the clamp allows on this template.
   const widthMin = clamp({ widthCm: 0 }).widthCm;
   const widthMax = clamp({ widthCm: Number.MAX_SAFE_INTEGER }).widthCm;
-  const xMax = clamp({ xCm: Number.MAX_SAFE_INTEGER }).xCm;
-  const yMax = clamp({ yCm: Number.MAX_SAFE_INTEGER }).yCm;
   const heightCm = placementHeightCm(placement, aspect);
 
   return (
     <fieldset className="variant-options placement-controls">
       <legend>Ubicación del diseño</legend>
-      <p className="muted">Arrastrá el diseño para ubicarlo donde quieras en la prenda.</p>
+      <p className="muted">Arrastrá el diseño para ubicarlo donde quieras en la prenda. Con el teclado, seleccionalo y movelo con las flechas.</p>
       <div className="field">
         <label htmlFor={`${id}-size`}>
           Tamaño: {cm(placement.widthCm)} cm de ancho × {cm(heightCm)} cm de alto
@@ -133,34 +143,6 @@ export function PlacementControls({ kind, template, placement, aspect, onChange,
           value={placement.widthCm}
           aria-valuetext={`${cm(placement.widthCm)} cm de ancho`}
           onChange={(e) => set({ widthCm: Number(e.currentTarget.value) })}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor={`${id}-x`}>Posición horizontal</label>
-        <input
-          id={`${id}-x`}
-          type="range"
-          min={-xMax}
-          max={xMax}
-          step={0.1}
-          value={placement.xCm}
-          disabled={xMax === 0}
-          aria-valuetext={placement.xCm === 0 ? "Centrado" : `${cm(Math.abs(placement.xCm))} cm hacia la ${placement.xCm < 0 ? "izquierda" : "derecha"}`}
-          onChange={(e) => set({ xCm: Number(e.currentTarget.value) })}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor={`${id}-y`}>Posición vertical</label>
-        <input
-          id={`${id}-y`}
-          type="range"
-          min={0}
-          max={yMax}
-          step={0.1}
-          value={placement.yCm}
-          disabled={yMax === 0}
-          aria-valuetext={`${cm(placement.yCm)} cm desde el cuello`}
-          onChange={(e) => set({ yCm: Number(e.currentTarget.value) })}
         />
       </div>
       <div className="placement-controls__actions">

@@ -4225,6 +4225,11 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
   outline-color: rgb(53 189 242 / 0.9);
 }
 
+.placement-stage__handle:focus-visible {
+  outline: 2px solid rgb(53 189 242);
+  outline-offset: 2px;
+}
+
 .placement-stage__layer.is-dragging .placement-stage__handle {
   cursor: grabbing;
 }
