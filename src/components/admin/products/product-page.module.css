@@ -320,6 +320,9 @@
 
 /* Variants table: scrolls inside its own region on phones, never the page. */
 .tableRegion {
+  /* Contains absolutely positioned descendants (visually-hidden labels), so
+     they scroll with the table instead of widening the page. */
+  position: relative;
   overflow-x: auto;
   border: var(--sa-border-width) solid var(--sa-color-border);
   border-radius: var(--sa-radius-md);
@@ -366,8 +369,16 @@
 }
 
 .priceCell {
-  width: 150px;
-  min-width: 130px;
+  width: 140px;
+}
+
+/* A text input's default width (about 20 characters) would widen the table. */
+.priceCell :is(div, input) {
+  min-width: 0;
+}
+
+.priceCell input {
+  width: 7em;
 }
 
 /* Import */
@@ -387,6 +398,12 @@
 .grid2Stack {
   display: grid;
   gap: var(--sa-space-2);
+}
+
+.grid2Stack > *,
+.grid2Stack :is(div, input) {
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* One-time notices before JavaScript turns them into toasts. */
