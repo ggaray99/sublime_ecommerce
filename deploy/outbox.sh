@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Calls the app's internal route from inside each running container (staging and
-# the store): delivers pending notifications (outbox), queues low-stock alerts and
+# the store): releases expired stock reservations, delivers pending notifications
+# (outbox), queues low-stock alerts and
 # asks Mercado Pago about payments whose notice was lost. Run every minute by cron
 # (/etc/cron.d/sublime-outbox). The route answers only with OUTBOX_TOKEN (from
 # staging.env / production.env) and sends to NOTIFY_WEBHOOK_URL when it is set;

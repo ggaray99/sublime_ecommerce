@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { getSql, hasDatabase } from "@/server/db/client";
 import { createOutboxRepository, processOutbox, webhookDeliver } from "@/server/notifications/outbox";
+import { runScheduledExpiry } from "@/server/inventory/scheduled-expiry";
 import { enqueueLowStock } from "@/server/notifications/stock-alerts";
 import { getOrderRepository, ordersAvailable } from "@/server/orders/session";
 import { sellerAccessToken } from "@/server/payments/accounts";
@@ -20,16 +21,21 @@ function authorized(request: Request): boolean {
   return given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
 }
 
-/** Delivers pending notifications (called every minute by the VPS cron). */
+/** Releases expired reservations and delivers pending notifications (called every minute by the VPS cron). */
 export async function POST(request: Request) {
   if (!hasDatabase() || !authorized(request)) return notFound();
+  // Expired reservations first, so the stock below and in the store is current
+  // (docs/inventory-stabilization.md, 7). The result goes to the cron log.
+  const expiry = ordersAvailable() ? await runScheduledExpiry(getOrderRepository()) : null;
+  if (expiry && "error" in expiry) console.error("[inventory] scheduled expiry failed", expiry.error);
+  if (expiry && "orders" in expiry && expiry.reservations > 0) revalidateTag(CATALOG_TAG, { expire: 0 });
   // Low stock is checked here too, so one cron covers it.
   const lowStock = await enqueueLowStock(getSql());
   const repo = createOutboxRepository(getSql());
   const url = process.env.NOTIFY_WEBHOOK_URL;
   const result = await processOutbox(repo, url ? webhookDeliver(url) : null);
   const payments = await checkPendingPayments();
-  return Response.json({ ...result, lowStock, payments, counts: await repo.counts() }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ ...result, expiry, lowStock, payments, counts: await repo.counts() }, { headers: { "Cache-Control": "no-store" } });
 }
 
 /** Mercado Pago checkouts whose notice was lost: same cron. Never breaks the outbox run. */
