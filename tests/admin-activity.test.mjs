@@ -133,6 +133,10 @@ describe("Admin activity: audit log + order history (PGlite)", () => {
 
   it("ignores malformed cursors instead of failing", async () => {
     assert.equal((await repo.listActivity({ limit: 50, before: "nope'; DROP TABLE x" })).length, 6);
+    // Out of the bigint range: back to the first page, never an error.
+    for (const before of ["99999999999999999999.a.1", "9223372036854775808.o.1", "1.a.99999999999999999999", "-5", "1.x.2"]) {
+      assert.equal((await repo.listActivity({ limit: 50, before })).length, 6, before);
+    }
   });
 
   it("leaves listAudit (per-record history) unchanged", async () => {

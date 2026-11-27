@@ -714,7 +714,8 @@ export function createAdminRepository(sql: QueryFn) {
 function parseActivityCursor(value: string | undefined): { micros?: string; source?: string; id?: string; legacyId?: string } | null {
   if (!value) return null;
   if (/^\d{1,18}$/.test(value)) return { legacyId: value };
-  const match = /^(\d{1,20})\.([ao])\.(\d{1,18})$/.exec(value);
+  // 18 digits always fit a bigint (epoch microseconds have 16 today); longer values are ignored.
+  const match = /^(\d{1,18})\.([ao])\.(\d{1,18})$/.exec(value);
   return match ? { micros: match[1], source: match[2], id: match[3] } : null;
 }
 
