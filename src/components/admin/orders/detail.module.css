@@ -1,0 +1,287 @@
+/* Order detail page: layout and the pieces specific to orders. The
+   design-system components carry their own styles. */
+.page {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: var(--sa-space-6) clamp(16px, 3vw, 40px) var(--sa-space-10);
+  line-height: var(--sa-line-height-md);
+}
+
+/* Two columns like Shopify from 1024px: the order on the left, actions, payment and customer on the right. */
+.layout {
+  display: grid;
+  gap: var(--sa-space-4);
+  align-items: start;
+}
+
+.main,
+.side {
+  display: grid;
+  gap: var(--sa-space-4);
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  }
+}
+
+/* Two classes beat the current admin theme's paragraph and heading styles. */
+.page .text,
+.page .muted,
+.page .meta {
+  margin: 0;
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+  overflow-wrap: anywhere;
+}
+
+.page .muted,
+.page .meta,
+.previous {
+  color: var(--sa-color-text-subdued);
+}
+
+.page .meta {
+  font-size: var(--sa-font-size-sm);
+}
+
+.previous {
+  font-weight: var(--sa-font-weight-regular);
+}
+
+.page .subtitle {
+  margin: 0;
+  color: var(--sa-color-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-md);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-md);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* Text links only: Button links keep their own colours. */
+.page :is(.text, .facts) a {
+  color: var(--sa-color-text-link);
+}
+
+.headerDate {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+  white-space: nowrap;
+}
+
+.block {
+  display: grid;
+  gap: var(--sa-space-2);
+  padding-top: var(--sa-space-3);
+  border-top: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+.stack {
+  display: grid;
+  gap: var(--sa-space-1);
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sa-font-weight-semibold);
+  white-space: nowrap;
+}
+
+/* Products */
+.lines {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sa-space-2) var(--sa-space-4);
+  padding-block: var(--sa-space-3);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+.line:first-child {
+  padding-top: 0;
+}
+
+.lineInfo {
+  display: grid;
+  flex: 1 1 240px;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The shared mockup never widens the card. */
+.lineInfo > * {
+  max-width: 100%;
+}
+
+.page .lineName {
+  margin: 0;
+  font-size: var(--sa-font-size-md);
+  font-weight: var(--sa-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.linePrice {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 2px;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals,
+.facts {
+  display: grid;
+  gap: var(--sa-space-2);
+  margin: 0;
+}
+
+.totals div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sa-space-3);
+  font-size: var(--sa-font-size-md);
+}
+
+.totals dt {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.totals dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.totals .total {
+  padding-top: var(--sa-space-2);
+  border-top: var(--sa-border-width) solid var(--sa-color-border);
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+/* Label/value facts (delivery, payment). */
+.facts div {
+  display: grid;
+  gap: 2px;
+}
+
+.facts dt {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+}
+
+.facts dd {
+  margin: 0;
+  font-size: var(--sa-font-size-md);
+  overflow-wrap: anywhere;
+}
+
+.address {
+  font-style: normal;
+}
+
+/* Payments */
+.callout {
+  display: grid;
+  gap: var(--sa-space-1);
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border: var(--sa-border-width) solid var(--sa-color-critical-border);
+  border-left-width: 4px;
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-color-critical-bg);
+}
+
+.page .calloutTitle {
+  margin: 0;
+  color: var(--sa-color-critical-text);
+  font-size: var(--sa-font-size-md);
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.payments {
+  display: grid;
+  gap: var(--sa-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.payments li {
+  display: grid;
+  gap: 2px;
+  padding-bottom: var(--sa-space-2);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+.payments li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.paymentRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sa-space-2);
+}
+
+.code {
+  font-family: var(--sa-font-family-mono);
+  font-size: var(--sa-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Actions */
+.actionsBody {
+  display: grid;
+  gap: var(--sa-space-3);
+}
+
+.actionButtons {
+  display: grid;
+  gap: var(--sa-space-2);
+}
+
+.dialogForm {
+  display: grid;
+  gap: var(--sa-space-3);
+}
+
+.dialogGrid {
+  display: grid;
+  gap: var(--sa-space-3);
+}
+
+.dialogGrid > * {
+  min-width: 0;
+}
+
+@media (min-width: 560px) {
+  .dialogGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.dialogError {
+  margin: 0;
+  padding: var(--sa-space-2) var(--sa-space-3);
+  border: var(--sa-border-width) solid var(--sa-color-critical-border);
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-color-critical-bg);
+  color: var(--sa-color-critical-text);
+  font-size: var(--sa-font-size-md);
+}

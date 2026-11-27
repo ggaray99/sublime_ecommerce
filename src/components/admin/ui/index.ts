@@ -28,5 +28,6 @@ export { Select, type SelectOption, type SelectProps } from "./select";
 export { Skeleton, SkeletonBlock, SkeletonTableRows, SkeletonText } from "./skeleton";
 export { Inline, Stack, type SpaceStep } from "./stack";
 export { Textarea, type TextareaProps } from "./textarea";
+export { Timeline, type TimelineItem, type TimelineProps } from "./timeline";
 export { ToastProvider, useToast, type ShowToastOptions, type ToastTone } from "./toast";
 export { VisuallyHidden } from "./visually-hidden";

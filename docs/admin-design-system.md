@@ -422,6 +422,33 @@ At the ends the link becomes a non-focusable `aria-disabled` label. `pageHref()`
 - `Stack` (vertical) and `Inline` (wrapping row) take `gap` as a spacing step (`--sa-space-N`) and alignment.
 - `VisuallyHidden`: text for screen readers only.
 
+### Timeline
+
+`timeline.tsx`. Activity list (Shopify "Timeline"), server-renderable: a semantic `<ol>` with one decorative dot per item joined by a line, the title, an optional description, and `meta · <time dateTime>`. The title carries the meaning; the dot's `tone` (Badge tones) only repeats it, so nothing depends on colour.
+
+| Prop | Type | Notes |
+|---|---|---|
+| `items` | `{ id, title, description?, meta?, time, tone? }[]` | `title`/`description`/`meta` are `ReactNode`; `time` is a `Date` or an ISO string. Rendered in the given order: the caller decides (newest first for activity). |
+| `label` | `string` | Accessible name of the list. |
+| `formatTime` | `(date) => string` | Default: day and time in Argentina (`es-AR`). |
+| `empty` | `ReactNode` | Default "Sin actividad registrada." |
+
+```tsx
+<Timeline
+  label="Historial del pedido"
+  items={events.map((event) => ({
+    id: event.id,
+    title: "Pago confirmado",
+    description: event.note,
+    meta: "Mercado Pago",
+    time: event.createdAt,
+    tone: "success",
+  }))}
+/>
+```
+
+Used by the order detail's "Historial" (`src/components/admin/orders/detail-cards.tsx`).
+
 ### Helpers
 
 | File | Export | Purpose |

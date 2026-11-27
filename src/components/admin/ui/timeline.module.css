@@ -1,0 +1,104 @@
+/* Timeline: one dot per item joined by a line; content beside it. */
+.timeline {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--sa-font-family);
+}
+
+.item {
+  --timeline-dot: var(--sa-color-neutral-icon);
+  position: relative;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: var(--sa-space-3);
+  padding-bottom: var(--sa-space-4);
+}
+
+/* The line runs from this dot to the next one. */
+.item::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+  background: var(--sa-color-border);
+}
+
+.item:last-child {
+  padding-bottom: 0;
+}
+
+.item:last-child::before {
+  display: none;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border: 2px solid var(--sa-color-surface);
+  border-radius: 50%;
+  background: var(--timeline-dot);
+  box-shadow: 0 0 0 1px var(--timeline-dot);
+}
+
+.info {
+  --timeline-dot: var(--sa-color-info-icon);
+}
+
+.success {
+  --timeline-dot: var(--sa-color-success-icon);
+}
+
+.warning {
+  --timeline-dot: var(--sa-color-warning-icon);
+}
+
+.critical {
+  --timeline-dot: var(--sa-color-critical-icon);
+}
+
+.attention {
+  --timeline-dot: var(--sa-color-attention-icon);
+}
+
+.content {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Two classes so the current admin theme's paragraph styles do not win. */
+.content .title,
+.content .meta {
+  margin: 0;
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+}
+
+.content .title {
+  color: var(--sa-color-text);
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.description {
+  color: var(--sa-color-text);
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+}
+
+.content .meta {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+}
+
+.empty {
+  margin: 0;
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-md);
+}
