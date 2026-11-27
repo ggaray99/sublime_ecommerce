@@ -12,6 +12,7 @@ export { Breadcrumbs, type BreadcrumbItem } from "./breadcrumbs";
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from "./button";
 export { Card, type CardProps, type HeadingLevel } from "./card";
 export { cx } from "./class-names.ts";
+export { ConfirmSubmitButton, type ConfirmSubmitButtonProps } from "./confirm-submit-button";
 export { DataTable, type DataTableColumn, type DataTableProps } from "./data-table";
 export { Dialog, useDialog, type DialogProps, type DialogSize } from "./dialog";
 export { EmptyState, UNAVAILABLE_LABEL, type EmptyStateProps } from "./empty-state";

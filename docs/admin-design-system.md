@@ -288,7 +288,16 @@ const dialog = useDialog();
   actions={<><Button onClick={dialog.close}>Cancelar</Button><Button variant="critical" onClick={remove}>Eliminar</Button></>} />
 ```
 
-Not yet wired to replace `window.confirm()` in `ConfirmButton`; that is a later stage.
+For a form submit that must be confirmed, use `ConfirmSubmitButton` (`confirm-submit-button.tsx`) instead of `window.confirm()`: it opens this Dialog and, on confirm, submits its form with a hidden submitter that keeps `name`, `value` and `formAction`. The old `ConfirmButton` (`src/components/admin/confirm-button.tsx`) remains in modules not yet redesigned.
+
+```tsx
+<form action={removeImageAction}>
+  <input type="hidden" name="imageId" value={image.id} />
+  <ConfirmSubmitButton title="¿Quitar la imagen?" description="Se quita del producto. Podés volver a subirla." confirmLabel="Quitar">
+    Quitar
+  </ConfirmSubmitButton>
+</form>
+```
 
 ### Toast (client)
 
