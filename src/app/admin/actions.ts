@@ -12,6 +12,9 @@ import type { ImageMove } from "@/server/admin/images-repository";
 import { changeProducts } from "@/server/admin/product-changes";
 import { PRODUCT_STATUSES, type ProductStatus } from "@/server/admin/validation";
 import { statusChangeMessage } from "@/components/admin/products/product-page-helpers";
+import { countResultMessage } from "@/components/admin/inventory/detail-helpers";
+import { getSql } from "@/server/db/client";
+import { inventoryDetail } from "@/server/inventory/admin-detail";
 
 /**
  * Creates the product and, optionally, its first photo. The photo is validated
@@ -121,14 +124,28 @@ export async function countStockAction(_state: AdminFormState, form: FormData): 
   const productId = values.productId ?? "";
   const parsed = parseStockCount(values);
   if (!parsed.ok) return { fields: parsed.errors, values };
+  // Units before the count, only to word the result (a count equal to them writes nothing).
+  const before = await countedVariantOnHand(productId, values.sku || undefined);
   try {
     // `sku` picks the variant of products with options; the default variant otherwise.
     await getAdminRepository().countStock(admin, productId, parsed.value, values.sku || undefined);
   } catch (error) {
     return dataError(error, values);
   }
-  catalogChanged(`/admin/productos/${productId}`);
-  return { ok: "Stock actualizado." };
+  catalogChanged(`/admin/productos/${productId}`, "/admin/inventario", `/admin/inventario/${productId}`);
+  return { ok: countResultMessage(before, parsed.value.onHand) };
+}
+
+/** On-hand units of the variant a count targets (its SKU, or the default variant); null when unknown. */
+async function countedVariantOnHand(productId: string, sku: string | undefined): Promise<number | null> {
+  try {
+    const detail = await inventoryDetail(getSql(), productId);
+    const variant = detail?.variants.find((item) => (sku ? item.sku === sku : item.isDefault));
+    return variant ? variant.onHand : null;
+  } catch {
+    // Wording only: countStock reports any real failure.
+    return null;
+  }
 }
 
 /**

@@ -1,0 +1,337 @@
+/* Inventory detail page (/admin/inventario/[productId]) and the shared movement
+   rows (also on the product page). The design-system components carry their
+   own styles. */
+.page {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: var(--sa-space-6) clamp(16px, 3vw, 40px) var(--sa-space-10);
+  line-height: var(--sa-line-height-md);
+}
+
+/* Two columns from 1024px: variants and movements on the left, reservations and availability on the right. */
+.layout {
+  display: grid;
+  gap: var(--sa-space-4);
+  align-items: start;
+}
+
+.main,
+.side {
+  display: grid;
+  gap: var(--sa-space-4);
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  }
+}
+
+/* Two classes beat the current admin theme's paragraph styles. */
+.body .text,
+.body .muted,
+.body .meta {
+  margin: 0;
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+  overflow-wrap: anywhere;
+}
+
+.body .muted,
+.body .meta {
+  color: var(--sa-color-text-subdued);
+}
+
+.body .meta {
+  font-size: var(--sa-font-size-sm);
+}
+
+.body {
+  display: grid;
+  gap: var(--sa-space-3);
+  min-width: 0;
+}
+
+.body a:not([class]) {
+  color: var(--sa-color-text-link);
+}
+
+.feedback {
+  min-height: var(--sa-line-height-sm);
+}
+
+/* Variants table: scrolls inside its own region on narrow screens. */
+.tableWrap {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  border: var(--sa-border-width) solid var(--sa-color-border);
+  border-radius: var(--sa-radius-md);
+}
+
+.tableWrap:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 2px;
+}
+
+.table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  color: var(--sa-color-text);
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: var(--sa-space-2) var(--sa-space-3);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.table thead th {
+  background: var(--sa-color-surface-subdued);
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-xs);
+  font-weight: var(--sa-font-weight-semibold);
+  white-space: nowrap;
+}
+
+.table tbody th {
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.table tfoot th,
+.table tfoot td {
+  border-bottom: 0;
+  background: var(--sa-color-surface-subdued);
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.table .number {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.inactiveRow {
+  color: var(--sa-color-text-subdued);
+}
+
+.variantName {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-2);
+}
+
+.sku {
+  font-family: var(--sa-font-family-mono);
+  font-size: var(--sa-font-size-sm);
+  white-space: nowrap;
+}
+
+/* Availability summary */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sa-space-2);
+  margin: 0;
+}
+
+.facts div {
+  display: grid;
+  gap: 2px;
+  padding: var(--sa-space-2) var(--sa-space-3);
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-color-surface-subdued);
+}
+
+.facts dt {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-xs);
+}
+
+.facts dd {
+  margin: 0;
+  font-size: var(--sa-font-size-lg);
+  font-weight: var(--sa-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reservations and movements: one row per entry, wrapping on narrow screens. */
+.rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rows > li {
+  display: grid;
+  gap: var(--sa-space-1);
+  min-width: 0;
+  padding-block: var(--sa-space-3);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+.rows > li:first-child {
+  padding-top: 0;
+}
+
+.rows > li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sa-space-1) var(--sa-space-3);
+}
+
+.rowTitle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-2);
+  min-width: 0;
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.deltas {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sa-space-3);
+  margin: 0;
+  font-size: var(--sa-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.deltas div {
+  display: inline-flex;
+  gap: var(--sa-space-1);
+}
+
+.deltas dt {
+  color: var(--sa-color-text-subdued);
+}
+
+.deltas dd {
+  margin: 0;
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sa-space-2);
+}
+
+/* Adjustment dialog */
+.dialogBody {
+  display: grid;
+  gap: var(--sa-space-3);
+}
+
+.modes {
+  display: grid;
+  gap: var(--sa-space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.modes legend {
+  margin-bottom: var(--sa-space-1);
+  padding: 0;
+  color: var(--sa-color-text);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: var(--sa-space-2);
+  min-height: 24px;
+  font-size: var(--sa-font-size-md);
+}
+
+.radio input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--sa-color-primary);
+}
+
+.radio input:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 2px;
+}
+
+.dialogGrid {
+  display: grid;
+  gap: var(--sa-space-3);
+}
+
+.dialogGrid > * {
+  min-width: 0;
+}
+
+@media (min-width: 560px) {
+  .dialogGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.preview {
+  margin: 0;
+  padding: var(--sa-space-2) var(--sa-space-3);
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-color-surface-subdued);
+  font-size: var(--sa-font-size-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.previewBlocked {
+  border: var(--sa-border-width) solid var(--sa-color-critical-border);
+  background: var(--sa-color-critical-bg);
+  color: var(--sa-color-critical-text);
+}
+
+.dialogError {
+  margin: 0;
+  padding: var(--sa-space-2) var(--sa-space-3);
+  border: var(--sa-border-width) solid var(--sa-color-critical-border);
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-color-critical-bg);
+  color: var(--sa-color-critical-text);
+  font-size: var(--sa-font-size-md);
+}
+
+.confirmQuestion {
+  margin: 0;
+  font-size: var(--sa-font-size-lg);
+  font-weight: var(--sa-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Names the table for assistive technology; the card title is the visible name. */
+.srOnlyCaption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

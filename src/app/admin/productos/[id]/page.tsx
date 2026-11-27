@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { ImageManager } from "@/components/admin/image-manager";
+import { MovementRows } from "@/components/admin/inventory/detail-movements";
 import { ProductExtrasForm, ProductPricingCard, ProductShippingCard } from "@/components/admin/product-extras-form";
 import { ProductDataCard, ProductDataForm, ProductOrganizationCard } from "@/components/admin/products/product-form";
 import { ProductDuplicateButton } from "@/components/admin/products/product-duplicate-button";
@@ -18,18 +19,13 @@ import { toArgentinaInput } from "@/server/admin/product-extras";
 import { AdminDataError } from "@/server/admin/repository";
 import { adminAvailable, getAdminRepository, getCurrentAdmin, getImageRepository, getProductExtrasRepository, getVariantRepository } from "@/server/admin/session";
 import { optionsLabel } from "@/server/admin/variants";
+import { getSql } from "@/server/db/client";
+import { listInventoryMovements } from "@/server/inventory/movements";
 import { hasMediaStorage } from "@/server/media/public-files";
 
 export const metadata: Metadata = {
   title: "Producto · Administración",
   robots: { index: false, follow: false },
-};
-
-const REASON_LABEL: Record<string, string> = {
-  initial_count: "Conteo inicial",
-  restock: "Ingreso",
-  adjustment: "Ajuste",
-  sale: "Venta",
 };
 
 type Props = PageProps<"/admin/productos/[id]">;
@@ -48,7 +44,7 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
     throw error;
   });
   const [movements, audit, query, categoryOptions, images, variants, extras] = await Promise.all([
-    repo.listMovements(id),
+    listInventoryMovements(getSql(), { productId: id, pageSize: 10 }),
     repo.listAudit({ entityId: id, limit: 20 }),
     searchParams,
     loadCategoryOptions(),
@@ -167,28 +163,12 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
                     <StockForm productId={product.id} onHand={product.onHand} variants={stockVariants} />
                     <div className={styles.block}>
                       <h3 className={styles.subtitle}>Movimientos</h3>
-                      {movements.length ? (
-                        <ol className={styles.movements}>
-                          {movements.map((movement) => (
-                            <li key={movement.id}>
-                              <span>
-                                <span className={styles.delta}>
-                                  {movement.deltaOnHand > 0 ? "+" : ""}
-                                  {movement.deltaOnHand}
-                                </span>{" "}
-                                · {REASON_LABEL[movement.reason] ?? movement.reason}
-                                {hasOptions && ` · ${movement.sku}`}
-                                {movement.note && ` · ${movement.note}`}
-                              </span>
-                              <span className={styles.imageMeta}>
-                                {movement.actor} · <time dateTime={movement.createdAt.toISOString()}>{movement.createdAt.toISOString().slice(0, 10)}</time>
-                              </span>
-                            </li>
-                          ))}
-                        </ol>
-                      ) : (
-                        <p className={styles.muted}>Sin movimientos registrados.</p>
-                      )}
+                      <MovementRows movements={movements.items} optionNames={product.optionNames} />
+                      <div>
+                        <Button href={`/admin/inventario/${product.id}`} size="sm">
+                          Ver inventario y movimientos
+                        </Button>
+                      </div>
                     </div>
                   </>
                 ) : (

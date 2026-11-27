@@ -232,31 +232,6 @@
   font-weight: var(--sa-font-weight-semibold);
 }
 
-.movements {
-  display: grid;
-  gap: var(--sa-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.movements li {
-  display: grid;
-  gap: 2px;
-  padding-bottom: var(--sa-space-2);
-  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
-  font-size: var(--sa-font-size-md);
-}
-
-.movements li:last-child {
-  border-bottom: 0;
-}
-
-.delta {
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--sa-font-weight-semibold);
-}
-
 /* Images */
 .images {
   display: grid;
