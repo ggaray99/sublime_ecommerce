@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AdminUnavailable } from "@/components/admin/shared";
+import { RowCheckbox, SelectableTable, SelectAllCheckbox } from "@/components/admin/selectable-table";
+import { ExportSelectedButton, SelectionBar } from "@/components/admin/selection-bar";
 import { argentinaTime, orderStatusLabel } from "@/components/orders/order-view";
 import { PageIntro } from "@/components/page-intro";
 import { formatPrice } from "@/lib/format";
@@ -48,10 +50,18 @@ async function Orders({ searchParams }: { searchParams: PageProps<"/admin/pedido
           ))}
         </nav>
         {orders.length ? (
+          // Another status tab starts with nothing selected (key).
+          <SelectableTable key={status ?? "todos"} ids={orders.map((order) => order.id)}>
+          <SelectionBar>
+            <ExportSelectedButton endpoint="/admin/pedidos/exportar" />
+          </SelectionBar>
           <div className="admin-table-wrap">
-            <table className="admin-table">
+            <table className="admin-table admin-table--selectable">
               <thead>
                 <tr>
+                  <th scope="col" className="admin-table__select">
+                    <SelectAllCheckbox />
+                  </th>
                   <th scope="col">Pedido</th>
                   <th scope="col">Fecha</th>
                   <th scope="col">Cliente</th>
@@ -63,6 +73,9 @@ async function Orders({ searchParams }: { searchParams: PageProps<"/admin/pedido
               <tbody>
                 {orders.map((order) => (
                   <tr key={order.id} className={order.status === "needs_review" ? "is-low" : undefined}>
+                    <td className="admin-table__select">
+                      <RowCheckbox id={order.id} label={orderNumber(order)} />
+                    </td>
                     <th scope="row">
                       <Link href={`/admin/pedidos/${order.id}`}>{orderNumber(order)}</Link>
                     </th>
@@ -83,6 +96,7 @@ async function Orders({ searchParams }: { searchParams: PageProps<"/admin/pedido
               </tbody>
             </table>
           </div>
+          </SelectableTable>
         ) : (
           <p className="muted">No hay pedidos {status ? "en este estado" : "todavía"}.</p>
         )}

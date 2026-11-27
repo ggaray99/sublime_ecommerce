@@ -4902,3 +4902,87 @@ body:has(.admin-shell) {
     box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
   }
 }
+
+/* ==========================================================================
+   Admin lists: row selection (checkbox column) and the selection bar.
+   Scoped to .admin-shell; the bar is built to take more bulk actions later.
+   ========================================================================== */
+
+.admin-shell .admin-table .admin-table__select {
+  width: 1%;
+  padding-right: 0;
+  vertical-align: middle;
+}
+
+/* Hit area of at least 24px around each checkbox. */
+.admin-shell .admin-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  cursor: pointer;
+}
+
+.admin-shell .admin-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--admin-text);
+  cursor: pointer;
+}
+
+.admin-shell .admin-check input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The checkbox column shifts the others: the column kept on one line (".admin-table td:nth-child(4)") is now the 5th. */
+.admin-shell .admin-table--selectable td:nth-child(4) {
+  white-space: normal;
+}
+
+.admin-shell .admin-table--selectable td:nth-child(5) {
+  white-space: nowrap;
+}
+
+.admin-shell .admin-selection-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius);
+  background: var(--admin-hover);
+  color: var(--admin-text);
+}
+
+.admin-shell .admin-selection-bar__count {
+  font-weight: 600;
+}
+
+.admin-shell .admin-selection-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.admin-shell .admin-selection-bar__actions .btn,
+.admin-shell .admin-selection-bar__actions .link-button {
+  min-height: 32px;
+}
+
+.admin-shell .admin-selection-bar__hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.admin-shell .admin-selection-bar__error {
+  color: #b91c1c;
+  font-size: 13px;
+}

@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AdminUnavailable } from "@/components/admin/shared";
+import { RowCheckbox, SelectableTable, SelectAllCheckbox } from "@/components/admin/selectable-table";
+import { ExportSelectedButton, SelectionBar } from "@/components/admin/selection-bar";
 import { argentinaTime } from "@/components/orders/order-view";
 import { PageIntro } from "@/components/page-intro";
 import { requestStatusLabel } from "@/components/requests/request-view";
@@ -41,10 +43,18 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/enca
           ))}
         </nav>
         {requests.length ? (
+          // Another status tab starts with nothing selected (key).
+          <SelectableTable key={status ?? "todos"} ids={requests.map((request) => request.id)}>
+          <SelectionBar>
+            <ExportSelectedButton endpoint="/admin/encargos/exportar" />
+          </SelectionBar>
           <div className="admin-table-wrap">
-            <table className="admin-table">
+            <table className="admin-table admin-table--selectable">
               <thead>
                 <tr>
+                  <th scope="col" className="admin-table__select">
+                    <SelectAllCheckbox />
+                  </th>
                   <th scope="col">Encargo</th>
                   <th scope="col">Fecha</th>
                   <th scope="col">Cliente</th>
@@ -56,6 +66,9 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/enca
               <tbody>
                 {requests.map((request) => (
                   <tr key={request.id} className={request.status === "received" ? "is-low" : undefined}>
+                    <td className="admin-table__select">
+                      <RowCheckbox id={request.id} label={requestNumber(request)} />
+                    </td>
                     <th scope="row">
                       <Link href={`/admin/encargos/${request.id}`}>{requestNumber(request)}</Link>
                     </th>
@@ -75,6 +88,7 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/enca
               </tbody>
             </table>
           </div>
+          </SelectableTable>
         ) : (
           <p className="muted">No hay encargos {status ? "en este estado" : "todavía"}.</p>
         )}

@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { exportCatalog, toCsv } from "@/server/admin/csv";
+import { exportSelection, PRODUCT_ID } from "@/server/admin/selection-export";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
 import { getSql } from "@/server/db/client";
 
@@ -16,5 +17,18 @@ export async function GET() {
       "Content-Disposition": `attachment; filename="sublime-productos-${date}.csv"`,
       "Cache-Control": "no-store",
     },
+  });
+}
+
+/** POST /admin/productos/exportar — only the products checked in the list ({ ids: legacy ids }), same columns. */
+export async function POST(request: Request) {
+  await connection();
+  const admin = adminAvailable() ? await getCurrentAdmin() : null;
+  return exportSelection({
+    admin,
+    request,
+    idPattern: PRODUCT_ID,
+    filePrefix: "productos-seleccionados",
+    build: async (ids) => toCsv(await exportCatalog(getSql(), { productIds: ids })),
   });
 }

@@ -2,6 +2,7 @@ import type { QueryFn } from "../db/client.ts";
 import { runBulkAsAdmin } from "../api/handler.ts";
 import type { Admin } from "./repository.ts";
 import { parsePesos } from "./validation.ts";
+import { formatCsv, pesosCell } from "../../lib/csv.ts";
 
 /**
  * Catalog spreadsheet: one row per SKU (each variant has its own). Export and
@@ -34,16 +35,16 @@ const STATUS_IN: Record<string, string> = { borrador: "draft", activo: "active",
 
 export const MAX_IMPORT_ROWS = 500;
 
-const money = (minor: number | null) => (minor === null ? "" : minor % 100 ? `${Math.floor(minor / 100)},${String(minor % 100).padStart(2, "0")}` : String(minor / 100));
 const cm = (mm: number | null) => (mm === null ? "" : String(mm / 10).replace(".", ","));
 
 // ------------------------------------------------------------------ format
 
-/** Excel in Argentina opens ";" files in columns; a BOM keeps the accents. */
+/** Excel in Argentina opens ";" files in columns; a BOM keeps the accents (src/lib/csv.ts). */
 export function toCsv(rows: CsvRow[]): string {
-  const cell = (value = "") => (/[";\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
-  const lines = [CSV_COLUMNS.join(";"), ...rows.map((row) => CSV_COLUMNS.map((column) => cell(row[column])).join(";"))];
-  return `﻿${lines.join("\r\n")}\r\n`;
+  return formatCsv(
+    CSV_COLUMNS,
+    rows.map((row) => CSV_COLUMNS.map((column) => row[column] ?? "")),
+  );
 }
 
 /** Parses ";" or "," separated text (whichever the header uses), with quoted cells. */
@@ -102,7 +103,9 @@ type ExportRow = {
   height_mm: number | null;
 };
 
-export async function exportCatalog(sql: QueryFn): Promise<CsvRow[]> {
+/** The whole catalog, or only the given products (legacy ids; unknown ones are skipped). */
+export async function exportCatalog(sql: QueryFn, filter: { productIds?: string[] } = {}): Promise<CsvRow[]> {
+  const selected = filter.productIds !== undefined;
   const rows = (await sql.query(
     `SELECT v.sku, p.legacy_id, p.name, v.options, p.option_names, p.category_id, p.theme, p.status, v.price_minor, v.cost_minor,
             v.track_stock, i.on_hand, p.weight_g, p.length_mm, p.width_mm, p.height_mm
@@ -110,8 +113,9 @@ export async function exportCatalog(sql: QueryFn): Promise<CsvRow[]> {
      JOIN product_variants v ON v.product_id = p.id AND (v.is_default OR p.option_names <> '{}') AND v.active
      LEFT JOIN inventory i ON i.variant_id = v.id
      -- Products with options list their variants, not the hidden default row.
-     WHERE NOT (p.option_names <> '{}' AND v.is_default AND v.options = '{}'::jsonb)
+     WHERE NOT (p.option_names <> '{}' AND v.is_default AND v.options = '{}'::jsonb)${selected ? " AND p.legacy_id = ANY ($1::text[])" : ""}
      ORDER BY p.sort_order, p.name, v.sort_order, v.sku`,
+    selected ? [filter.productIds] : undefined,
   )) as ExportRow[];
   const num = (value: string | number | null) => (value === null ? null : Number(value));
   return rows.map((row) => ({
@@ -122,8 +126,8 @@ export async function exportCatalog(sql: QueryFn): Promise<CsvRow[]> {
     categoria: row.category_id,
     tema: row.theme,
     estado: STATUS_OUT[row.status] ?? row.status,
-    precio: money(num(row.price_minor)),
-    costo: money(num(row.cost_minor)),
+    precio: pesosCell(num(row.price_minor)),
+    costo: pesosCell(num(row.cost_minor)),
     stock: row.track_stock ? String(row.on_hand ?? 0) : "a pedido",
     peso_g: row.weight_g === null ? "" : String(row.weight_g),
     largo_cm: cm(row.length_mm),

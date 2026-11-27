@@ -6,6 +6,8 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { AdminUnavailable, productStatusLabel, stockLabel } from "@/components/admin/shared";
+import { RowCheckbox, SelectableTable, SelectAllCheckbox } from "@/components/admin/selectable-table";
+import { ExportSelectedButton, SelectionBar } from "@/components/admin/selection-bar";
 import { PageIntro } from "@/components/page-intro";
 import { themes } from "@/data/products";
 import { formatPrice } from "@/lib/format";
@@ -235,11 +237,19 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
           </p>
 
           {result.items.length > 0 && (
+            // A new page, filter or order starts with nothing selected (key).
+            <SelectableTable key={productSearchToQuery(search)} ids={result.items.map((product) => product.id)}>
+            <SelectionBar hint={result.pages > 1 ? "La selección vale para los productos de esta página." : undefined}>
+              <ExportSelectedButton endpoint="/admin/productos/exportar" />
+            </SelectionBar>
             <div className="admin-table-wrap">
-              <table className="admin-table">
+              <table className="admin-table admin-table--selectable">
                 <thead>
                   <tr>
-                    <th scope="col">
+                    <th scope="col" className="admin-table__select">
+                    <SelectAllCheckbox />
+                  </th>
+                  <th scope="col">
                       <span className="visually-hidden">Imagen</span>
                     </th>
                     <th scope="col">Producto</th>
@@ -255,6 +265,9 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
                     const available = product.onHand - product.reserved;
                     return (
                       <tr key={product.id} className={product.trackStock && available <= LOW_STOCK ? "is-low" : undefined}>
+                        <td className="admin-table__select">
+                          <RowCheckbox id={product.id} label={product.name} />
+                        </td>
                         <td className="admin-table__thumb">
                           <Image src={product.coverUrl} alt="" width={56} height={56} />
                         </td>
@@ -287,6 +300,7 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
                 </tbody>
               </table>
             </div>
+            </SelectableTable>
           )}
           <Pagination search={search} page={result.page} pages={result.pages} />
         </section>
