@@ -150,19 +150,29 @@ function AdjustDialog({ productId, maxStock, variant, open, onClose, result, pen
       actions={
         confirming ? (
           <>
-            <Button variant="secondary" onClick={() => setStep("edit")} disabled={pending}>
+            {/* Distinct keys: React must not reuse the "Revisar ajuste" button as this submit
+                button, or the same click that opens the confirmation would also submit it. */}
+            <Button key="back" variant="secondary" onClick={() => setStep("edit")} disabled={pending}>
               Volver
             </Button>
-            <Button type="submit" form={formId} variant="primary" loading={pending}>
+            <Button key="confirm" type="submit" form={formId} variant="primary" loading={pending}>
               Confirmar ajuste
             </Button>
           </>
         ) : (
           <>
-            <Button variant="secondary" onClick={onClose}>
+            <Button key="cancel" variant="secondary" onClick={onClose}>
               Cancelar
             </Button>
-            <Button variant="primary" onClick={review}>
+            <Button
+              key="review"
+              variant="primary"
+              onClick={(event) => {
+                // Never let this click submit the form, even if the DOM changes under it.
+                event.preventDefault();
+                review();
+              }}
+            >
               Revisar ajuste
             </Button>
           </>
