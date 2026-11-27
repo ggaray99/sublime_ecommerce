@@ -1,0 +1,358 @@
+/*
+ * Admin shell: top bar across, sidebar on the left, the page on the right.
+ * Tokens only (--sa-*, from the theme class on the same root). Media queries
+ * repeat the literal breakpoints: 640px (sm) and 900px (md).
+ */
+
+.shell {
+  --shell-topbar-height: 56px;
+  display: grid;
+  grid-template-areas:
+    "top top"
+    "side main";
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--sa-color-canvas);
+}
+
+/* Current pages were built on the store's body text (line height 1.5): keep it
+   for them; design-system pages set their own. The side padding of their
+   <main class="page"> is in globals.css (.admin-shell .admin-content > .page):
+   the CSS pipeline here does not accept :global(). */
+.content {
+  grid-area: main;
+  min-width: 0;
+  line-height: 1.5;
+}
+
+/* ---------- Top bar ---------- */
+
+.topbar {
+  /* Focus ring that reads on the dark surface. */
+  --sa-color-focus: var(--sa-color-inverse-focus);
+  grid-area: top;
+  position: sticky;
+  top: 0;
+  z-index: var(--sa-z-topbar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sa-space-3);
+  min-height: var(--shell-topbar-height);
+  padding: var(--sa-space-2) var(--sa-space-4);
+  background: var(--sa-color-inverse-surface);
+  color: var(--sa-color-inverse-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+}
+
+.topbarStart,
+.topbarEnd {
+  display: flex;
+  align-items: center;
+  gap: var(--sa-space-3);
+  min-width: 0;
+}
+
+.topbarEnd {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.topbarEnd form {
+  display: contents;
+}
+
+.topbar .logo img {
+  height: 24px;
+}
+
+.topbar .title {
+  margin: 0;
+  padding-left: var(--sa-space-3);
+  border-left: var(--sa-border-width) solid var(--sa-color-inverse-surface-hover);
+  color: var(--sa-color-inverse-text);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-semibold);
+  white-space: nowrap;
+}
+
+.status {
+  display: inline-flex;
+  border-radius: var(--sa-radius-full);
+  text-decoration: none;
+}
+
+.status:focus-visible,
+.signOut:focus-visible,
+.menuButton:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 2px;
+}
+
+.user {
+  overflow: hidden;
+  max-width: 24ch;
+  color: var(--sa-color-inverse-text);
+  opacity: 0.8;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signOut,
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 var(--sa-space-2);
+  border: 0;
+  border-radius: var(--sa-radius-sm);
+  background: transparent;
+  color: var(--sa-color-inverse-text);
+  font: inherit;
+  font-weight: var(--sa-font-weight-semibold);
+  cursor: pointer;
+}
+
+.signOut:hover,
+.menuButton:hover {
+  background: var(--sa-color-inverse-surface-hover);
+}
+
+.menuButton {
+  display: none;
+  padding: 0;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  grid-area: side;
+  position: sticky;
+  top: var(--shell-topbar-height);
+  z-index: var(--sa-z-sidebar);
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  height: calc(100vh - var(--shell-topbar-height));
+  height: calc(100dvh - var(--shell-topbar-height));
+  border-right: var(--sa-border-width) solid var(--sa-color-border);
+  background: var(--sa-color-surface);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+}
+
+/* Sized so the whole menu fits a 1366x768 screen; on shorter screens the
+   menu scrolls with a thin bar. */
+.menu {
+  display: grid;
+  flex: 1 1 auto;
+  align-content: start;
+  gap: var(--sa-space-3);
+  min-height: 0;
+  padding: var(--sa-space-2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sa-color-border-strong) transparent;
+}
+
+.group {
+  display: grid;
+  gap: 2px;
+}
+
+.sidebar .groupLabel {
+  margin: 0;
+  padding: 0 11px;
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-xs);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-xs);
+}
+
+.list {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--sa-radius-sm);
+  background: transparent;
+  color: var(--sa-color-text);
+  font: inherit;
+  font-weight: var(--sa-font-weight-regular);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.link svg {
+  flex: none;
+  color: var(--sa-color-text-subdued);
+}
+
+.link:hover {
+  background: var(--sa-color-surface-hover);
+}
+
+.link[aria-current="page"] {
+  background: var(--sa-color-surface-selected);
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.link[aria-current="page"] svg {
+  color: var(--sa-color-text);
+}
+
+/* The menu scrolls, so outlines are drawn inside to stay visible. */
+.link:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: -2px;
+}
+
+.label {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebarFooter {
+  display: grid;
+  gap: 1px;
+  padding: var(--sa-space-2);
+  border-top: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+.linkSubdued {
+  color: var(--sa-color-text-subdued);
+}
+
+.foldToggle {
+  color: var(--sa-color-text-subdued);
+}
+
+.backdrop {
+  display: none;
+}
+
+/* Wide screens, folded: a 56px rail of icons; names become tooltips. */
+@media (min-width: 900px) {
+  .sidebar[data-expanded="false"] {
+    width: 56px;
+  }
+
+  .sidebar[data-expanded="false"] .groupLabel {
+    display: none;
+  }
+
+  .sidebar[data-expanded="false"] .group {
+    padding-top: var(--sa-space-2);
+    border-top: var(--sa-border-width) solid var(--sa-color-border);
+  }
+
+  .sidebar[data-expanded="false"] .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Tooltip: position fixed with no offsets stays where the label sits (it
+     follows the icon while the menu scrolls) and is not cut by the menu's
+     scroll box; it then moves just past the rail (content starts 19px in:
+     8px menu padding + 11px link padding; the rail is 56px wide). No
+     ancestor of the sidebar may get a transform or filter, or this breaks. */
+  .sidebar[data-expanded="false"] .link:is(:hover, :focus-visible) .label {
+    position: fixed;
+    z-index: var(--sa-z-popover);
+    width: auto;
+    height: auto;
+    padding: var(--sa-space-1) var(--sa-space-2);
+    overflow: visible;
+    clip-path: none;
+    border-radius: var(--sa-radius-sm);
+    background: var(--sa-color-inverse-surface);
+    box-shadow: var(--sa-shadow-popover);
+    color: var(--sa-color-inverse-text);
+    font-size: var(--sa-font-size-xs);
+    font-weight: var(--sa-font-weight-semibold);
+    line-height: var(--sa-line-height-xs);
+    pointer-events: none;
+    transform: translateX(45px);
+  }
+}
+
+/* Small screens: no rail; the menu button opens the sidebar over the page. */
+@media (max-width: 899px) {
+  .menuButton {
+    display: inline-flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: var(--shell-topbar-height);
+    bottom: 0;
+    left: 0;
+    width: min(280px, 85vw);
+    height: auto;
+    visibility: hidden;
+    box-shadow: var(--sa-shadow-dialog);
+    transform: translateX(-100%);
+    transition:
+      transform var(--sa-duration-base) var(--sa-easing-standard),
+      visibility 0s linear var(--sa-duration-base);
+  }
+
+  .sidebar[data-overlay="open"] {
+    visibility: visible;
+    transform: none;
+    transition: transform var(--sa-duration-base) var(--sa-easing-standard);
+  }
+
+  .foldToggle {
+    display: none;
+  }
+
+  .backdrop {
+    position: fixed;
+    inset: var(--shell-topbar-height) 0 0 0;
+    z-index: calc(var(--sa-z-sidebar) - 1);
+    display: block;
+    background: rgb(0 0 0 / 0.4);
+  }
+
+  .link {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    padding-inline: var(--sa-space-3);
+  }
+
+  .topbar .title,
+  .user {
+    display: none;
+  }
+}

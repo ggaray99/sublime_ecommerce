@@ -1,0 +1,89 @@
+/* Dashboard (/admin/inicio) layout; the components carry their own styles. */
+.page {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: var(--sa-space-6) clamp(16px, 3vw, 40px) var(--sa-space-10);
+  line-height: var(--sa-line-height-md);
+}
+
+.section {
+  display: grid;
+  gap: var(--sa-space-3);
+}
+
+/* Two classes: beats the current admin theme's `.admin-shell h2`. */
+.section .sectionTitle {
+  margin: 0;
+  color: var(--sa-color-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-lg);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-lg);
+  letter-spacing: normal;
+}
+
+.attention {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--sa-space-4);
+  align-items: start;
+}
+
+.columns {
+  display: grid;
+  gap: var(--sa-space-4);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.items {
+  display: grid;
+  gap: var(--sa-space-1);
+  margin: calc(-1 * var(--sa-space-2));
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sa-space-3);
+  min-height: 44px;
+  padding: var(--sa-space-2);
+  border-radius: var(--sa-radius-md);
+  color: var(--sa-color-text);
+  text-decoration: none;
+}
+
+.item:hover {
+  background: var(--sa-color-surface-hover);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 0;
+}
+
+.itemText {
+  display: grid;
+  min-width: 0;
+}
+
+.itemLabel {
+  font-size: var(--sa-font-size-md);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-md);
+}
+
+.itemDescription {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+}

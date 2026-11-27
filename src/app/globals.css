@@ -3044,51 +3044,7 @@ body:has(.maintenance:not([style*="none"])) .skip-link {
   opacity: 0.85;
 }
 
-.admin-bar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 20px;
-  min-height: 56px;
-  padding: 8px var(--gutter);
-  border-bottom: 3px solid var(--cyan);
-  background: var(--black);
-  color: var(--white);
-  --focus: var(--cyan);
-}
-
-.brand-logo--admin img {
-  height: 30px;
-}
-
-.admin-bar__title {
-  font-family: var(--font-display);
-  font-size: 22px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.admin-bar__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  margin-left: auto;
-}
-
-.admin-bar__user {
-  color: var(--muted-dark);
-  font-size: 14px;
-}
-
-.admin-bar .btn {
-  min-height: 40px;
-  padding-block: 8px;
-}
-
+/* The admin top bar, sidebar and layout live in src/components/admin/shell/ (CSS Modules). */
 .admin-shell .page {
   min-height: auto;
   padding-top: 20px;
@@ -3122,12 +3078,6 @@ body:has(.maintenance:not([style*="none"])) .skip-link {
   padding: 6px 12px;
   border-width: 2px;
   font-size: 14px;
-}
-
-@media (max-width: 559px) {
-  .admin-bar__user {
-    display: none;
-  }
 }
 
 /* Portada: the three collage products the home shows right now. */
@@ -4355,7 +4305,8 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
    ========================================================================== */
 
 .admin-shell {
-  --admin-bg: #f6f6f7;
+  /* Same grey as the design system canvas, so pages and shell read as one surface. */
+  --admin-bg: var(--sa-color-canvas, #f1f1f3);
   --admin-surface: #ffffff;
   --admin-border: #e4e4e7;
   --admin-border-strong: #d4d4d8;
@@ -4433,35 +4384,6 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
 .admin-shell .field__hint {
   color: var(--admin-muted);
   font-size: 13px;
-}
-
-/* Top bar */
-.admin-shell .admin-bar {
-  min-height: 48px;
-  padding-block: 6px;
-  border-bottom: 1px solid #27272a;
-}
-
-.admin-shell .brand-logo--admin img {
-  height: 24px;
-}
-
-.admin-shell .admin-bar__title {
-  color: #d4d4d8;
-  font-family: var(--font-text);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.admin-shell .admin-bar__user {
-  font-size: 13px;
-}
-
-.admin-shell .admin-bar .btn {
-  min-height: 32px;
-  padding: 6px 12px;
 }
 
 /* Section navigation */
@@ -4566,18 +4488,6 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
 .admin-shell .btn--acid:hover {
   border-color: #3f3f46;
   background: #3f3f46;
-}
-
-/* The bar is black: its call to action keeps the brand cyan. */
-.admin-shell .admin-bar .btn--acid {
-  border-color: var(--cyan);
-  background: var(--cyan);
-  color: var(--black);
-}
-
-.admin-shell .admin-bar .btn--acid:hover {
-  border-color: #7fd6f7;
-  background: #7fd6f7;
 }
 
 .admin-shell .btn--lg {
@@ -4777,201 +4687,10 @@ body:has(.admin-shell) {
   accent-color: var(--admin-text);
 }
 
-/* Admin layout: bar on top, side menu on the left, the page on the right. */
-.admin-shell .admin-bar--loading {
-  min-height: 48px;
-}
-
-.admin-shell .admin-body {
-  display: flex;
-  align-items: flex-start;
-  min-height: calc(100vh - 48px);
-}
-
-.admin-shell .admin-main {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.admin-shell .admin-main > .page {
+/* Side padding of the current pages inside the admin shell
+   (src/components/admin/shell/: top bar, sidebar and layout). */
+.admin-shell .admin-content > .page {
   padding-inline: clamp(16px, 3vw, 40px);
-}
-
-/* Side menu: open, icon + name; folded, a 56px rail of icons whose names show
-   as tooltips on hover and keyboard focus. Sized so the whole menu fits about
-   600px of height; below that it scrolls with a thin bar shown on hover. */
-.admin-sidenav {
-  position: sticky;
-  top: 48px;
-  flex: none;
-  align-self: flex-start;
-  width: 56px;
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-  border-right: 1px solid var(--admin-border);
-  background: var(--admin-surface);
-}
-
-.admin-sidenav:hover,
-.admin-sidenav:focus-within {
-  scrollbar-color: var(--admin-border-strong) transparent;
-}
-
-.admin-sidenav.is-open {
-  width: 216px;
-  min-height: calc(100vh - 48px);
-}
-
-.admin-sidenav__toggle,
-.admin-sidenav a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  line-height: 18px;
-  text-decoration: none;
-}
-
-.admin-sidenav__toggle svg,
-.admin-sidenav a svg {
-  flex: none;
-}
-
-.admin-sidenav__toggle {
-  width: 100%;
-  min-height: 44px;
-  padding: 0 19px;
-  border: 0;
-  border-bottom: 1px solid var(--admin-border);
-  background: none;
-  color: var(--admin-muted);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-}
-
-.admin-sidenav__toggle:hover {
-  background: var(--admin-hover);
-  color: var(--admin-text);
-}
-
-.admin-sidenav__menu {
-  display: grid;
-  gap: 10px;
-  padding: 8px 8px 12px;
-}
-
-.admin-sidenav__group-label {
-  padding: 2px 11px 2px;
-  color: var(--admin-muted);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 15px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.admin-sidenav ul {
-  display: grid;
-  gap: 1px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.admin-sidenav a {
-  padding: 6px 11px;
-  border-radius: var(--admin-radius-sm);
-  color: var(--admin-muted);
-  font-weight: 500;
-}
-
-.admin-sidenav a:hover {
-  background: var(--admin-hover);
-  color: var(--admin-text);
-}
-
-.admin-sidenav a[aria-current="page"] {
-  background: var(--admin-text);
-  color: var(--white);
-  font-weight: 600;
-}
-
-/* The menu scrolls, so outlines are drawn inside to stay visible. */
-.admin-sidenav__toggle:focus-visible,
-.admin-sidenav a:focus-visible {
-  outline-width: 2px;
-  outline-offset: -2px;
-}
-
-.admin-sidenav__label {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-/* Folded: icons only, a hairline between groups instead of their names. */
-.admin-sidenav:not(.is-open) .admin-sidenav__menu {
-  gap: 6px;
-}
-
-.admin-sidenav:not(.is-open) .admin-sidenav__group-label {
-  display: none;
-}
-
-.admin-sidenav:not(.is-open) .admin-sidenav__group + .admin-sidenav__group {
-  padding-top: 6px;
-  border-top: 1px solid var(--admin-border);
-}
-
-.admin-sidenav:not(.is-open) .admin-sidenav__label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* Tooltip: fixed with no offsets, it stays where the label would sit (so it
-   follows the icon) but is not cut by the scrolling rail; then it moves just
-   past the rail's right edge (icon starts 19px in, rail is 56px wide). */
-.admin-sidenav:not(.is-open) :is(a, .admin-sidenav__toggle):is(:hover, :focus-visible) .admin-sidenav__label {
-  position: fixed;
-  z-index: 60;
-  width: auto;
-  height: auto;
-  padding: 4px 8px;
-  overflow: visible;
-  clip-path: none;
-  border-radius: var(--admin-radius-sm);
-  background: var(--admin-text);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
-  color: var(--white);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-  pointer-events: none;
-  transform: translateX(45px);
-}
-
-/* Small screens: the rail stays thin and the open menu floats over the page. */
-@media (max-width: 899px) {
-  .admin-sidenav.is-open {
-    position: fixed;
-    top: 48px;
-    bottom: 0;
-    left: 0;
-    z-index: 35;
-    min-height: 0;
-    max-height: none;
-    box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
-  }
 }
 
 /* ==========================================================================

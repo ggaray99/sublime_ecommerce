@@ -1,7 +1,7 @@
 import type { ReactNode, SVGProps } from "react";
 
 /**
- * Outline icons for the admin side menu: 18px, drawn on a 24px grid with a
+ * Outline icons for the admin side menu and top bar: 18px, drawn on a 24px grid with a
  * 2-unit stroke (1.5px on screen), in the text colour. Decorative only: the
  * link or button around each icon carries the name.
  */
@@ -105,6 +105,36 @@ export function HomeIcon() {
     <Icon>
       <path d="M3 11l9-7 9 7" />
       <path d="M5 9.5V20h14V9.5M10 20v-5h4v5" />
+    </Icon>
+  );
+}
+
+/** Portada (the store's home page layout); Inicio keeps the house. */
+export function LayoutIcon() {
+  return (
+    <Icon>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 9h18M10 9v11" />
+    </Icon>
+  );
+}
+
+export function PaletteIcon() {
+  return (
+    <Icon>
+      <path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.9 1.4-1.9l-.3-.8c-.4-1.1.4-2.3 1.6-2.3H17a4 4 0 0 0 4-4c0-5-4-9-9-9z" />
+      <circle cx="7.5" cy="11" r="1" />
+      <circle cx="10.5" cy="7" r="1" />
+      <circle cx="15" cy="7.5" r="1" />
+    </Icon>
+  );
+}
+
+/** Three lines: opens the side menu on small screens. */
+export function MenuIcon() {
+  return (
+    <Icon>
+      <path d="M4 6h16M4 12h16M4 18h16" />
     </Icon>
   );
 }

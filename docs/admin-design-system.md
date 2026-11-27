@@ -11,7 +11,7 @@ The admin panel's own visual language: Modern SaaS, with Shopify Admin as the UX
 | Decision | Why |
 |---|---|
 | CSS Modules per component | Class names are scoped by construction, so no admin style can leak into the store. No Tailwind utilities, no UI library. |
-| Tokens as CSS custom properties on one class (`tokens.module.css` → `.theme`, exported as `adminThemeClassName`) | Components read only `var(--sa-…)`. Whatever wrapper carries the class (the admin shell, or the showcase today) gets the theme. Every token is prefixed `--sa-` (Sublime Admin). |
+| Tokens as CSS custom properties on one class (`tokens.module.css` → `.theme`, exported as `adminThemeClassName`) | Components read only `var(--sa-…)`. The admin shell root carries the class, so every admin page gets the theme. Every token is prefixed `--sa-` (Sublime Admin). |
 | Server components by default | Only `Dialog`, `Toast` (and `useDialog`/`useToast`) are client components. `DataTable`, `FilterBar`, `Pagination` and the rest render on the server and ship no JavaScript. |
 | Native elements first | `<dialog>` with `showModal()`, native `<select>`, `<form method="get">` filters, link tabs. They work with the keyboard and without JavaScript where possible. |
 
@@ -30,7 +30,30 @@ export default function Page() {
 }
 ```
 
-Components only look right inside an element with `adminThemeClassName` (it defines the tokens). `Dialog` and `ToastProvider` must also be rendered inside it: the top layer keeps inheriting custom properties from the DOM ancestors.
+Components only look right inside an element with `adminThemeClassName` (it defines the tokens); inside /admin the shell already provides it. `Dialog` and `ToastProvider` must also be rendered inside it: the top layer keeps inheriting custom properties from the DOM ancestors.
+
+## Admin shell (layout)
+
+`src/components/admin/shell/`, used by `src/app/admin/layout.tsx`. The root carries `admin-shell` (current page styles and the store-chrome rule depend on it) plus `adminThemeClassName`, so every admin page is inside the theme; it also holds the panel's single `ToastProvider`. Pages do not add the theme class or a provider themselves.
+
+| Part | File | Notes |
+|---|---|---|
+| `AdminShell` | `admin-shell.tsx` | CSS grid: top bar across, sidebar left, page right, on `--sa-color-canvas`. Current pages keep the store's 1.5 line height inside it; `.admin-shell .admin-content > .page` (globals.css) gives their `<main class="page">` the side padding. |
+| `AdminTopbar` | `admin-shell.tsx` | Inverse (dark) surface, 56px, sticky. Logo, "Administración", store status badge → `/admin/ajustes#estado`, "Ir a la tienda →" or, with the store closed, "Ver la tienda (vista previa) →" (`startPreviewAction`), email, "Salir" (`signOutAction`). Root class `admin-bar`: while it is on the page the store header, cart and footer are hidden. Only for admins. |
+| `AdminTopbarPlaceholder` | `admin-shell.tsx` | Suspense fallback: an empty bar with `admin-bar`, so the store chrome does not flash while the session is checked. Shows nothing about the panel. |
+| `Sidebar` / `AdminSidebar` | `sidebar.tsx`, `admin-shell.tsx` | 240px, white, "Inicio" first, then Ventas / Catálogo / Tienda / Sistema. Current item: selected background + semibold. Footer: "Sistema de diseño" link (the showcase stays out of the groups) and "Contraer menú". Folded (≥ 900px): 56px rail; names show as tooltips on hover and keyboard focus (`position: fixed`, so the menu's scroll box does not cut them; no ancestor may get a transform or filter). The choice is stored in `localStorage["sublime-admin-nav"]`. Below 900px: hidden; the top bar's menu button opens it over the page with a backdrop; a section link, Escape or a click outside closes it (Escape returns focus to the button). |
+| Menu data | `nav-items.ts` | Plain data, tested: `navGroups(role)` hides "Integraciones (API)" from editors (the page answers 404 to them); `isCurrentLink()` matches the section and its sub-pages (Productos: `/admin` and `/admin/productos/…`). |
+| Shared state | `shell-state.tsx` | `ShellProviders` (sidebar state + `ToastProvider`), `useShellNav()`, `SidebarMenuButton`. |
+
+Breadcrumbs are used where they are cheap (the showcase page). Current pages keep their own headers until they are redesigned.
+
+### Dashboard (`/admin/inicio`)
+
+`src/app/admin/inicio/page.tsx` with `src/server/admin/dashboard.ts` (`loadDashboard(sql)`, `attentionGroups()`; tested in `tests/admin-dashboard.test.mjs`). Same guard as the other pages; a `Skeleton` while it loads. `/admin` is still the products list.
+
+- **Para atender**: Pedidos (pendientes de pago, en revisión, pago confirmado sin enviar), Encargos (recibidos sin presupuesto), Stock (sin stock, stock bajo). Counts come from the same queries as the lists (`countByStatus`, `productFacets`) and each row links to the filtered list (`/admin/pedidos?estado=…`, `/admin/encargos?estado=received`, `/admin?stock=sin|bajo`). Like the orders list, it first releases expired reservations. A card with nothing to do shows an `EmptyState`.
+- **Ventas**: `EmptyState variant="unavailable"`: there is no sales reporting yet, so no numbers are shown.
+- **Actividad reciente**: the last 5 audit entries (`AuditList`) and a link to `/admin/actividad`.
 
 ### Coexisting with the current admin theme
 
@@ -155,8 +178,8 @@ Body text is `md` (14px); labels, buttons and hints `sm` (13px); table headers a
 |---|---|---|
 | `--sa-breakpoint-sm` | 640px | `max-width: 640px`: phones (larger targets, 16px inputs, stacked filters) |
 | `--sa-breakpoint-md` | 900px | `min-width: 900px`: FormSection two columns, showcase grids |
-| `--sa-breakpoint-lg` | 1200px | Reserved for the shell (T2) |
-| `--sa-breakpoint-xl` | 1440px | Reserved for the shell (T2) |
+| `--sa-breakpoint-lg` | 1200px | Reserved (wide layouts) |
+| `--sa-breakpoint-xl` | 1440px | Reserved (wide layouts) |
 
 ### Layers and motion
 

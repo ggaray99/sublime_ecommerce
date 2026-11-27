@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Dialog, Inline, Input, ToastProvider, useDialog, useToast, type ToastTone } from "@/components/admin/ui";
+import { Button, Dialog, Inline, Input, useDialog, useToast, type ToastTone } from "@/components/admin/ui";
 
 /** Dialog examples: a confirmation and a small form. Nothing is saved. */
 export function DialogDemo() {
@@ -51,7 +51,8 @@ const SAMPLES: { tone: ToastTone; label: string; message: string }[] = [
   { tone: "critical", label: "Error", message: "Ejemplo: no se pudo guardar. Se queda hasta cerrarla." },
 ];
 
-function ToastButtons() {
+/** Toast examples, shown through the admin shell's ToastProvider. */
+export function ToastDemo() {
   const toast = useToast();
   return (
     <Inline gap={2}>
@@ -61,15 +62,6 @@ function ToastButtons() {
         </Button>
       ))}
     </Inline>
-  );
-}
-
-/** Toast examples with their own provider (the shell will hold the real one). */
-export function ToastDemo() {
-  return (
-    <ToastProvider>
-      <ToastButtons />
-    </ToastProvider>
   );
 }
 

@@ -6,7 +6,6 @@ import { AdminUnavailable } from "@/components/admin/shared";
 import { SelectableTable, SelectAllCheckbox, RowCheckbox } from "@/components/admin/selectable-table";
 import { SelectionBar } from "@/components/admin/selection-bar";
 import {
-  adminThemeClassName,
   Badge,
   Breadcrumbs,
   Button,
@@ -105,10 +104,11 @@ async function Showcase() {
   if (!(await getCurrentAdmin())) notFound();
 
   return (
-    <div className={cx(adminThemeClassName, styles.canvas)}>
+    // The admin shell provides the theme (tokens, canvas) and the toast region.
+    <div className={styles.canvas}>
       <PageHeader
-        breadcrumbs={<Breadcrumbs items={[{ label: "Administración", href: "/admin" }, { label: "Sistema de diseño" }]} />}
-        back={{ href: "/admin", label: "Volver a Productos" }}
+        breadcrumbs={<Breadcrumbs items={[{ label: "Inicio", href: "/admin/inicio" }, { label: "Sistema de diseño" }]} />}
+        back={{ href: "/admin/inicio", label: "Volver a Inicio" }}
         title="Sistema de diseño"
         meta={<Badge tone="info">Solo administradores</Badge>}
         subtitle="Tokens y componentes de Sublime Admin. Todos los datos de esta página son de ejemplo."

@@ -1,16 +1,9 @@
-/* Showcase layout only; the components carry their own styles. */
+/* Showcase layout only; the components carry their own styles. The admin
+   shell provides the theme and the canvas; the line height goes back to the
+   design system's (the shell keeps 1.5 for the current pages). */
 .canvas {
-  margin-inline: calc(-1 * var(--sa-space-2));
-  padding: var(--sa-space-6) var(--sa-space-2) var(--sa-space-10);
-  border-radius: var(--sa-radius-lg);
-  background: var(--sa-color-canvas);
-}
-
-@media (min-width: 900px) {
-  .canvas {
-    padding-inline: var(--sa-space-6);
-    margin-inline: 0;
-  }
+  padding-top: var(--sa-space-2);
+  line-height: var(--sa-line-height-md);
 }
 
 .muted {
