@@ -1,4 +1,5 @@
 import type { QueryFn } from "../db/client.ts";
+import { argentinaDayEnd, argentinaDayStart, CUSTOMER_PAGE_SIZE, type CustomerSearch, type CustomerSort, type CustomerType } from "./customer-search.ts";
 
 /**
  * Admin → Clientes. Starts from auth_users, so everyone who signed up appears, also before
@@ -80,6 +81,33 @@ const SELECT = `
 /** ILIKE pattern that takes % and _ (and the escape itself) literally. */
 const containsPattern = (text: string) => `%${text.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
 
+export type CustomerSearchResult = {
+  items: CustomerSummary[];
+  /** Accounts that match every filter (not the whole table). */
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+};
+
+/** Over the columns of SELECT (wrapped as `x`); ties end newest first, then by id. */
+const SORT_SQL: Record<CustomerSort, string> = {
+  recientes: "x.created_at DESC, x.auth_user_id",
+  antiguos: "x.created_at ASC, x.auth_user_id",
+  // The name the list shows: the name, or the email when there is none.
+  nombre: "lower(COALESCE(NULLIF(x.name, ''), x.email)), x.auth_user_id",
+  "total-desc": "x.spent_minor DESC, x.created_at DESC, x.auth_user_id",
+  "ultimo-pedido": "x.last_order_at DESC NULLS LAST, x.created_at DESC, x.auth_user_id",
+};
+
+/** Over the tables of SELECT (u, c). "Pagados" uses the same statuses as the total. */
+const TYPE_SQL: Record<CustomerType, string> = {
+  "con-pedidos-pagados": `EXISTS (SELECT 1 FROM orders po WHERE po.customer_id = c.id AND po.status IN ${PAID})`,
+  "sin-pedidos": "NOT EXISTS (SELECT 1 FROM orders po WHERE po.customer_id = c.id)",
+  "con-encargos": "EXISTS (SELECT 1 FROM custom_requests r WHERE r.customer_id = c.id)",
+  admins: "EXISTS (SELECT 1 FROM admin_users a WHERE a.auth_user_id = u.id)",
+};
+
 export function createCustomerAdminRepository(sql: QueryFn) {
   return {
     async list(filter: { search?: string; limit?: number } = {}): Promise<CustomerSummary[]> {
@@ -92,6 +120,38 @@ export function createCustomerAdminRepository(sql: QueryFn) {
         [search, containsPattern(search), Math.min(Math.max(filter.limit ?? 200, 1), 500)],
       )) as Row[];
       return rows.map(toSummary);
+    },
+
+    /**
+     * The admin list: every filter combined (AND), one page of CUSTOMER_PAGE_SIZE
+     * and the number of matches. Read-only; list, count and get stay as they are.
+     */
+    async search(search: CustomerSearch): Promise<CustomerSearchResult> {
+      const where: string[] = [];
+      const params: unknown[] = [];
+      const param = (value: unknown) => {
+        params.push(value);
+        return `$${params.length}`;
+      };
+      if (search.query) {
+        const pattern = param(containsPattern(search.query));
+        where.push(`(${["u.email", "u.name", "c.full_name", "c.phone"].map((column) => `${column} ILIKE ${pattern} ESCAPE '\\'`).join(" OR ")})`);
+      }
+      if (search.type) where.push(TYPE_SQL[search.type]);
+      // Sign-up dates are Argentina days; "hasta" includes its whole day.
+      if (search.from) where.push(`u.created_at >= ${param(argentinaDayStart(search.from))}::timestamptz`);
+      if (search.to) where.push(`u.created_at < ${param(argentinaDayEnd(search.to))}::timestamptz`);
+
+      const matches = `${SELECT}${where.length ? ` WHERE ${where.join(" AND ")}` : ""}`;
+      const [{ n: total }] = (await sql.query(`SELECT count(*)::int AS n FROM (${matches}) x`, params)) as { n: number | string }[];
+      const pageSize = CUSTOMER_PAGE_SIZE;
+      const pages = Math.max(1, Math.ceil(Number(total) / pageSize));
+      const page = Math.min(Math.max(search.page, 1), pages);
+      const rows = (await sql.query(
+        `SELECT * FROM (${matches}) x ORDER BY ${SORT_SQL[search.sort]} LIMIT $${params.length + 1}::int OFFSET $${params.length + 2}::int`,
+        [...params, pageSize, (page - 1) * pageSize],
+      )) as Row[];
+      return { items: rows.map(toSummary), total: Number(total), page, pageSize, pages };
     },
 
     async count(): Promise<number> {

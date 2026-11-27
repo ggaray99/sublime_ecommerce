@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { CustomerFilters } from "@/components/admin/customers/list-filters";
+import { CustomerListSkeleton } from "@/components/admin/customers/list-skeleton";
+import { CustomerListTable, TOTAL_NOTE_ID } from "@/components/admin/customers/list-table";
+import customerStyles from "@/components/admin/customers/list.module.css";
+import styles from "@/components/admin/products/list.module.css";
 import { AdminUnavailable } from "@/components/admin/shared";
-import { argentinaTime } from "@/components/orders/order-view";
-import { PageIntro } from "@/components/page-intro";
-import { formatPrice } from "@/lib/format";
+import { Button, Card, EmptyState, PageHeader, Pagination, Stack } from "@/components/admin/ui";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
+import { customerSearchToQuery, hasActiveCustomerFilters, parseCustomerSearch } from "@/server/customers/customer-search";
 import { getCustomerAdminRepository } from "@/server/customers/session";
 
 export const metadata: Metadata = {
@@ -15,81 +18,83 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const LIMIT = 200;
+const LIST = "/admin/clientes";
 
-async function Customers({ searchParams }: { searchParams: PageProps<"/admin/clientes">["searchParams"] }) {
+async function CustomerList({ searchParams }: { searchParams: PageProps<"/admin/clientes">["searchParams"] }) {
+  // Always request-time: also keeps the route dynamic where the panel is disabled.
   await connection();
   if (!adminAvailable()) return <AdminUnavailable />;
   if (!(await getCurrentAdmin())) notFound();
-  const query = await searchParams;
-  const search = typeof query.q === "string" ? query.q : "";
-  const repo = getCustomerAdminRepository();
-  const [customers, total] = await Promise.all([repo.list({ search, limit: LIMIT }), repo.count()]);
+
+  const search = parseCustomerSearch(await searchParams);
+  const result = await getCustomerAdminRepository().search(search);
+  const filtered = hasActiveCustomerFilters(search);
+  // The current query, normalized: pagination links keep every filter.
+  const query = customerSearchToQuery(search);
 
   return (
-    <div className="account account--wide">
-      <section className="account__section" aria-labelledby="clientes-title">
-        <h2 id="clientes-title">Clientes ({total})</h2>
-        <form className="admin-search" role="search" action="/admin/clientes">
-          <div className="field">
-            <label htmlFor="clientes-q">Buscar</label>
-            <input id="clientes-q" name="q" type="search" defaultValue={search} placeholder="Nombre, email o teléfono" maxLength={100} />
-          </div>
-          <button type="submit" className="btn btn--coal">
-            Buscar
-          </button>
-          {search && <Link href="/admin/clientes">Ver todos</Link>}
-        </form>
-        {customers.length ? (
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th scope="col">Cliente</th>
-                  <th scope="col">Alta</th>
-                  <th scope="col">Pedidos</th>
-                  <th scope="col">Compró</th>
-                  <th scope="col">Último pedido</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customers.map((customer) => (
-                  <tr key={customer.authUserId}>
-                    <th scope="row">
-                      <Link href={`/admin/clientes/${encodeURIComponent(customer.authUserId)}`}>{customer.name || customer.email}</Link>
-                      {customer.isAdmin && <span className="badge badge--ok">Admin</span>}
-                      <br />
-                      <span className="muted">{customer.email}</span>
-                    </th>
-                    <td>{argentinaTime(customer.createdAt)}</td>
-                    <td>
-                      {customer.orderCount}
-                      {customer.orderCount > customer.paidOrderCount && <span className="muted"> ({customer.paidOrderCount} pagados)</span>}
-                    </td>
-                    <td>{customer.spentMinor ? formatPrice(customer.spentMinor / 100) : "—"}</td>
-                    <td>{customer.lastOrderAt ? argentinaTime(customer.lastOrderAt) : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted">{search ? "Nadie coincide con esa búsqueda." : "Todavía no se registró nadie."}</p>
-        )}
-        {customers.length === LIMIT && <p className="muted">Se muestran los {LIMIT} más recientes. Usá el buscador para encontrar a alguien.</p>}
-      </section>
-    </div>
+    <Stack gap={4}>
+      <PageHeader
+        title="Clientes"
+        subtitle="Las personas que crearon una cuenta en la tienda. Las compras como invitado (sin cuenta) están en Pedidos."
+      />
+
+      <Card padding="none">
+        <div className={styles.list}>
+          <CustomerFilters search={search} />
+
+          {result.items.length > 0 ? (
+            <>
+              <CustomerListTable customers={result.items} />
+              <p id={TOTAL_NOTE_ID} className={customerStyles.note}>
+                Total pagado: pedidos pagados, enviados y entregados.
+              </p>
+            </>
+          ) : filtered ? (
+            <EmptyState
+              heading="No hay clientes con estos filtros"
+              action={
+                <Button href={LIST} variant="primary">
+                  Limpiar filtros
+                </Button>
+              }
+            >
+              <p>Probá con otra búsqueda, otras fechas o quitá algún filtro.</p>
+            </EmptyState>
+          ) : (
+            <EmptyState heading="Todavía no hay clientes con cuenta">
+              <p>Cuando alguien cree una cuenta en la tienda, aparece acá.</p>
+            </EmptyState>
+          )}
+
+          {result.pages > 1 ? (
+            <div className={styles.footer}>
+              <Pagination
+                page={result.page}
+                pageSize={result.pageSize}
+                total={result.total}
+                baseHref={LIST}
+                searchParams={Object.fromEntries(new URLSearchParams(query.slice(1)))}
+              />
+            </div>
+          ) : (
+            result.total > 0 && (
+              <p className={styles.summary} role="status">
+                {result.total} {result.total === 1 ? "cliente" : "clientes"}
+              </p>
+            )
+          )}
+        </div>
+      </Card>
+    </Stack>
   );
 }
 
 export default function AdminCustomersPage({ searchParams }: PageProps<"/admin/clientes">) {
   return (
-    <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="Clientes" tone="light">
-        <p>Todas las personas que crearon una cuenta, con sus pedidos y encargos.</p>
-      </PageIntro>
-      <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
-        <Customers searchParams={searchParams} />
+    <main id="contenido" className={styles.page}>
+      <Suspense fallback={<CustomerListSkeleton />}>
+        <CustomerList searchParams={searchParams} />
       </Suspense>
     </main>
   );

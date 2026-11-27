@@ -1,0 +1,178 @@
+/*
+ * Admin customers list (/admin/clientes): what is specific to customers. The
+ * list chrome (page, card, filters, table cells, footer) is shared with the
+ * products list (../products/list.module.css). Sizes follow the list's own
+ * box (container queries), with no min-width: it never scrolls sideways.
+ */
+
+.note {
+  margin: 0;
+  padding: var(--sa-space-2) var(--sa-space-4);
+  border-top: var(--sa-border-width) solid var(--sa-color-border);
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+}
+
+/* ---------------------------------------------------------------- table */
+
+.row:last-child > .cell {
+  border-bottom: 0;
+}
+
+.row:hover > .cell {
+  background: var(--sa-color-surface-subdued);
+}
+
+.customer {
+  min-width: 0;
+  font-weight: var(--sa-font-weight-regular);
+}
+
+.nameLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-1) var(--sa-space-2);
+}
+
+.name {
+  border-radius: 2px;
+  color: var(--sa-color-text);
+  font-weight: var(--sa-font-weight-semibold);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.name:hover,
+.link:hover {
+  text-decoration: underline;
+}
+
+.name:focus-visible,
+.link:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 2px;
+}
+
+.link {
+  border-radius: 2px;
+  color: var(--sa-color-text-link);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* .table raises these over the shared th/td alignment. */
+.table .number,
+.table .money {
+  text-align: end;
+}
+
+.money,
+.date {
+  white-space: nowrap;
+}
+
+/* Below ~880px of list width (1024px screen with the menu open): phone and encargos drop. */
+@container (max-width: 880px) {
+  .table .phone,
+  .table .requests {
+    display: none;
+  }
+}
+
+/* Narrow lists (phones): each row becomes a card; labels come from data-label. */
+@container (max-width: 600px) {
+  .table,
+  .table tbody {
+    display: block;
+  }
+
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--sa-space-3);
+    row-gap: var(--sa-space-1);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  }
+
+  .row:last-child {
+    border-bottom: 0;
+  }
+
+  .table .row > .cell {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: start;
+  }
+
+  .row > .customer {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .table .row > .money {
+    grid-row: 1;
+    grid-column: 2;
+    text-align: end;
+  }
+
+  .row > .cell:not(.customer, .money) {
+    grid-column: 1 / span 2;
+    color: var(--sa-color-text);
+    font-size: var(--sa-font-size-sm);
+  }
+
+  /* The card has room for the phone and the encargos again. */
+  .table .row > .phone,
+  .table .row > .requests {
+    display: block;
+  }
+
+  .row > .cell[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--sa-color-text-subdued);
+  }
+
+  /* "N pagados" stays on the line of its count. */
+  .row > .number > span {
+    display: inline;
+  }
+
+  .row > .number > span::before {
+    content: " · ";
+  }
+}
+
+/* ---------------------------------------------------------------- loading */
+
+.skeletonRow {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+  gap: var(--sa-space-3);
+  align-items: center;
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+@container (max-width: 600px) {
+  .skeletonRow {
+    grid-template-columns: minmax(0, 1fr) 96px;
+  }
+
+  .skeletonRow > :nth-child(n + 3) {
+    display: none;
+  }
+}
