@@ -11,13 +11,15 @@ import { API_SCOPES, RATE_LIMIT, SCOPE_LABELS } from "@/server/api/keys";
 import { missingPaymentSettings } from "@/server/payments/config";
 import { getMercadoPago, mercadoPagoRedirectUri, mercadoPagoWebhookUrl } from "@/server/payments/session";
 import { disconnectMercadoPagoAction, revokeApiKeyAction } from "./actions";
+import { argentinaDateTime } from "@/components/admin/orders/detail-helpers";
 
 export const metadata: Metadata = {
   title: "Integraciones · Administración",
   robots: { index: false, follow: false },
 };
 
-const date = (value: Date | null) => (value ? `${value.toISOString().slice(0, 16).replace("T", " ")} UTC` : "nunca");
+// Argentina time, like the rest of the panel (stored timestamps stay UTC).
+const date = (value: Date | null) => (value ? argentinaDateTime(value) : "nunca");
 
 /** Result of the connect flow (?mp=… set by /api/mercadopago/callback). */
 const MP_RESULTS: Record<string, { ok: boolean; text: string }> = {

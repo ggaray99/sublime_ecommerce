@@ -8,7 +8,7 @@ import { getCategoryRepository } from "@/server/admin/session";
 import type { ProductStatus } from "@/server/admin/validation";
 import type { Option, ProductFormValues } from "./forms";
 import { orderStatusLabel } from "@/components/orders/order-view";
-import { actorLabel } from "./orders/detail-helpers";
+import { actorLabel, argentinaDateTime } from "./orders/detail-helpers";
 
 export const productStatusLabel: Record<ProductStatus, string> = {
   active: "Publicado",
@@ -49,8 +49,8 @@ export function stockLabel(product: Pick<AdminProduct, "trackStock" | "onHand" |
   return product.reserved ? `${available} (${product.reserved} reservadas)` : String(available);
 }
 
-const dateFormat = (date: Date) =>
-  `${date.toISOString().slice(0, 10).split("-").reverse().join("/")} ${date.toISOString().slice(11, 16)} UTC`;
+/** Argentina time (UTC−3, no DST), like orders and customers; stored timestamps stay UTC. */
+const dateFormat = (date: Date) => argentinaDateTime(date);
 
 type Snapshot = { status?: string; priceMinor?: number | null };
 
