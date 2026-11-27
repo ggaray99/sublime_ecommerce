@@ -63,7 +63,10 @@ export async function listInventoryMovements(sql: QueryFn, search: MovementSearc
     JOIN product_variants v ON v.id = m.variant_id
     JOIN products p ON p.id = v.product_id
     LEFT JOIN stock_reservations r ON r.id = m.reservation_id
+    -- A late-payment sale has no reservation (the expired one is not reused): its note names
+    -- the order ("Venta con pago tardío · Pedido SUB-n"), docs/inventory-stabilization.md, 1.
     LEFT JOIN orders o ON o.id = r.order_id
+      OR (m.reservation_id IS NULL AND m.reason = 'sale' AND o.number = substring(m.note FROM 'Pedido SUB-([0-9]{1,18})')::bigint)
     WHERE ($1::text IS NULL OR p.legacy_id = $1)
       AND ($2::uuid IS NULL OR v.id = $2)
       AND ($3::text[] IS NULL OR m.reason = ANY ($3))

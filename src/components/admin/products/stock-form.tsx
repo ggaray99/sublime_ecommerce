@@ -54,6 +54,8 @@ function StockFields({
   const current = onHandOf(sku);
   const difference = stockDifference(current, counted);
   const differenceId = fieldId(PREFIX, "difference");
+  // Restock only adds (docs/inventory-stabilization.md, 3): the server refuses it too.
+  const restockDown = reason === "restock" && /^\d+$/.test(counted.trim()) && Number(counted) < current;
 
   return (
     <form action={action} noValidate className={styles.grid2Stack}>
@@ -92,7 +94,7 @@ function StockFields({
           options={REASON_OPTIONS}
           value={reason}
           onChange={(event) => setReason(event.currentTarget.value)}
-          error={state.fields?.reason}
+          error={state.fields?.reason ?? (restockDown ? "La reposición solo suma unidades. Para restar, elegí Ajuste y explicá el motivo." : undefined)}
         />
         <Input
           id={fieldId(PREFIX, "note")}
@@ -109,7 +111,7 @@ function StockFields({
       </p>
       <div className={styles.saveRow}>
         <SavedMessage state={state} />
-        <Button type="submit" variant="primary" loading={pending}>
+        <Button type="submit" variant="primary" loading={pending} disabled={restockDown}>
           Registrar stock
         </Button>
       </div>

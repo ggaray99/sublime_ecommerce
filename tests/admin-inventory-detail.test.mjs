@@ -43,10 +43,17 @@ describe("inventory detail helpers (pure)", () => {
     assert.deepEqual([plan.result, plan.available, plan.valid], [7, 5, true]);
     assert.deepEqual(plan.errors, {});
     assert.equal(planAdjustment({ onHand: 10, reserved: 0, mode: "delta", amount: "+5", reason: "restock", note: "", maxStock: MAX_STOCK }).result, 15);
+    // Restock only adds: a negative change or a lower total is refused until the reason is Ajuste.
+    const restockDown = planAdjustment({ onHand: 10, reserved: 0, mode: "delta", amount: "-2", reason: "restock", note: "", maxStock: MAX_STOCK });
+    assert.equal(restockDown.valid, false);
+    assert.match(restockDown.errors.amount, /solo suma/);
+    assert.equal(planAdjustment({ onHand: 10, reserved: 0, mode: "total", amount: "8", reason: "restock", note: "", maxStock: MAX_STOCK }).valid, false);
+    assert.equal(planAdjustment({ onHand: 10, reserved: 0, mode: "total", amount: "8", reason: "adjustment", note: "Recuento", maxStock: MAX_STOCK }).valid, true);
+    assert.equal(planAdjustment({ onHand: 10, reserved: 0, mode: "total", amount: "10", reason: "restock", note: "", maxStock: MAX_STOCK }).valid, true);
   });
 
   it("counts the total as an absolute number", () => {
-    const plan = planAdjustment({ onHand: 10, reserved: 2, mode: "total", amount: "4", reason: "restock", note: "", maxStock: MAX_STOCK });
+    const plan = planAdjustment({ onHand: 10, reserved: 2, mode: "total", amount: "4", reason: "adjustment", note: "Recuento", maxStock: MAX_STOCK });
     assert.deepEqual([plan.result, plan.available, plan.valid], [4, 2, true]);
     const signed = planAdjustment({ onHand: 10, reserved: 0, mode: "total", amount: "-4", reason: "restock", note: "", maxStock: MAX_STOCK });
     assert.equal(signed.valid, false);
@@ -130,7 +137,7 @@ describe("inventory detail queries (PGlite)", () => {
     await admin.grantAdmin(owner, "owner", "test");
     // p13 with sizes S, M, L; L inactive with stock left on it.
     await variants.configureOptions(owner, "p13", [{ name: "Talle", values: ["S", "M", "L"] }]);
-    await admin.countStock(owner, "p13", { onHand: 10, reason: "restock", note: "" }, "SUB-P13");
+    await admin.countStock(owner, "p13", { onHand: 10, reason: "adjustment", note: "Recuento" }, "SUB-P13");
     await admin.countStock(owner, "p13", { onHand: 4, reason: "restock", note: "" }, "SUB-P13-M");
     await admin.countStock(owner, "p13", { onHand: 3, reason: "restock", note: "" }, "SUB-P13-L");
     const large = (await variants.listVariants("p13")).find((variant) => variant.sku === "SUB-P13-L");

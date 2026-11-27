@@ -64,6 +64,8 @@ export function planAdjustment(input: AdjustInput): AdjustPlan {
     if (result < 0) errors.amount = `El resultado no puede ser negativo: hay ${units(input.onHand)} en depósito.`;
     else if (result < input.reserved) errors.amount = `Hay ${units(input.reserved)} reservadas: el stock no puede quedar en menos de ${input.reserved}.`;
     else if (result > input.maxStock) errors.amount = `El stock puede ser de hasta ${input.maxStock} unidades.`;
+    // Restock only adds (docs/inventory-stabilization.md, 3); the server checks it again.
+    else if (input.reason === "restock" && result < input.onHand) errors.amount = "La reposición solo suma unidades. Para restar, elegí Ajuste y explicá el motivo.";
   }
 
   const note = input.note.trim();

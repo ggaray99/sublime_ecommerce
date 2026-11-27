@@ -528,9 +528,10 @@ export function createOrderRepository(sql: QueryFn) {
      * already promised to others is never touched.
      */
     async confirmPayment(actor: string, id: string, note = ""): Promise<OrderStatus> {
-      const order = await getOrder(id);
+      let order = await getOrder(id);
       if (order.status === "pending_payment") {
-        await transition(
+        try {
+          await transition(
           id,
           `WITH open_order AS (SELECT id FROM orders WHERE id = $1 AND status = 'pending_payment'),
            sold AS (
@@ -547,19 +548,28 @@ export function createOrderRepository(sql: QueryFn) {
              INSERT INTO inventory_movements (variant_id, delta_on_hand, delta_reserved, reason, reservation_id, actor, note)
              SELECT variant_id, -quantity, -quantity, 'sale', id, $2, 'Venta confirmada' FROM sold
            ),
-           paid AS (UPDATE orders SET status = 'paid', updated_at = now() WHERE id = (SELECT id FROM open_order) RETURNING id),
+           -- Re-checked under the row lock: a concurrent expiry or confirmation makes this a no-op.
+           paid AS (UPDATE orders SET status = 'paid', updated_at = now() WHERE id = (SELECT id FROM open_order) AND status = 'pending_payment' RETURNING id),
            history AS (${event("$2", "pending_payment", "paid", "$3")} FROM paid)
            SELECT id FROM paid`,
           [id, actor, note || "Pago confirmado."],
           "El pedido ya no está pendiente de pago.",
-        );
-        return "paid";
+          );
+          return "paid";
+        } catch (error) {
+          // The reservation expired while this payment arrived: record it as a late payment.
+          if (!(error instanceof OrderError) || error.code !== "invalid_transition") throw error;
+          order = await getOrder(id);
+          if (order.status !== "expired") throw error;
+        }
       }
       if (order.status === "expired") {
         try {
           await transition(
             id,
-            `WITH late AS (SELECT id FROM orders WHERE id = $1 AND status = 'expired'),
+            // FOR UPDATE: a second confirmation waits, then finds the order no longer expired and
+            // discounts nothing (docs/inventory-stabilization.md, 1).
+            `WITH late AS (SELECT id, number FROM orders WHERE id = $1 AND status = 'expired' FOR UPDATE),
              wanted AS (
                SELECT oi.variant_id, sum(oi.quantity)::int AS quantity
                FROM order_items oi JOIN product_variants v ON v.id = oi.variant_id AND v.track_stock
@@ -571,9 +581,9 @@ export function createOrderRepository(sql: QueryFn) {
              ),
              moved AS (
                INSERT INTO inventory_movements (variant_id, delta_on_hand, reason, actor, note)
-               SELECT variant_id, -quantity, 'sale', $2, 'Venta con pago tardío' FROM wanted
+               SELECT variant_id, -quantity, 'sale', $2, 'Venta con pago tardío · Pedido SUB-' || (SELECT number FROM late) FROM wanted
              ),
-             paid AS (UPDATE orders SET status = 'paid', updated_at = now() WHERE id = (SELECT id FROM late) RETURNING id),
+             paid AS (UPDATE orders SET status = 'paid', updated_at = now() WHERE id = (SELECT id FROM late) AND status = 'expired' RETURNING id),
              history AS (${event("$2", "expired", "paid", "$3")} FROM paid)
              SELECT id FROM paid`,
             [id, actor, `Pago tardío confirmado; había stock disponible. ${note}`.trim()],
@@ -617,7 +627,10 @@ export function createOrderRepository(sql: QueryFn) {
            INSERT INTO inventory_movements (variant_id, delta_reserved, reason, reservation_id, actor, note)
            SELECT variant_id, -quantity, 'reservation_released', id, $2, 'Pedido cancelado' FROM freed
          ),
-         cancelled AS (UPDATE orders SET status = 'cancelled', updated_at = now() WHERE id = (SELECT id FROM target) RETURNING id),
+         cancelled AS (
+           UPDATE orders SET status = 'cancelled', updated_at = now()
+           WHERE id = (SELECT id FROM target) AND status IN ('pending_payment', 'expired', 'needs_review') RETURNING id
+         ),
          history AS (${event("$2", order.status, "cancelled", "$3")} FROM cancelled),
          -- Like expiry: the coupon use goes back (docs/admin-orders-rules.md, 1). Only an order that
          -- still holds it (a pending one) has a redemption row; the order keeps its frozen discount.

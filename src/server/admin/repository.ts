@@ -88,7 +88,7 @@ const SORTS: Record<ProductSearch["sort"], string> = {
 const AVAILABLE = "(coalesce(i.on_hand, 0) - coalesce(i.reserved, 0))";
 const HAS_IMAGES = "EXISTS (SELECT 1 FROM product_images im WHERE im.product_id = p.id)";
 
-type AdminDataErrorCode = "not_found" | "untracked" | "below_reserved" | "conflict";
+type AdminDataErrorCode = "not_found" | "untracked" | "below_reserved" | "conflict" | "restock_decrease";
 
 export class AdminDataError extends Error {
   readonly code: AdminDataErrorCode;
@@ -260,36 +260,61 @@ export function createAdminRepository(sql: QueryFn) {
    * caller checked that the SKU tracks stock and the count covers its
    * reservations; the database still refuses a count below what is reserved.
    */
+  /**
+   * Sets a variant's physical stock to a counted value and records the difference
+   * (docs/inventory-stabilization.md, 2-3). The row is locked (FOR UPDATE) and the
+   * difference is computed against that locked value, so a concurrent count, sale or
+   * reservation is never lost from the ledger; stock, movement and audit entry are
+   * one statement (all or nothing). A restock can only add units.
+   */
   async function recordCount(actor: Admin, productId: string, input: StockCountInput, sku: string): Promise<void> {
+    // A variant counted for the first time gets its inventory row (0 units, no movement)
+    // so the next statement always has a row to lock.
+    await sql.query(
+      `INSERT INTO inventory (variant_id, on_hand)
+       SELECT v.id, 0 FROM products p JOIN product_variants v ON v.product_id = p.id AND v.sku = $2 AND v.track_stock
+       WHERE p.legacy_id = $1
+       ON CONFLICT (variant_id) DO NOTHING`,
+      [productId, sku],
+    );
+    let rows: { previous: number | null; changed: number }[];
     try {
-      await sql.query(
+      rows = (await sql.query(
         `WITH target AS (
-           SELECT v.id AS variant_id, coalesce(i.on_hand, 0) AS previous
+           SELECT v.id AS variant_id
            FROM products p
            JOIN product_variants v ON v.product_id = p.id AND v.sku = $7 AND v.track_stock
-           LEFT JOIN inventory i ON i.variant_id = v.id
            WHERE p.legacy_id = $1
          ),
+         locked AS (
+           SELECT i.variant_id, i.on_hand AS previous FROM inventory i JOIN target t ON t.variant_id = i.variant_id FOR UPDATE OF i
+         ),
+         allowed AS (SELECT * FROM locked WHERE previous <> $2::int AND ($3::text <> 'restock' OR $2::int > previous)),
          counted AS (
-           INSERT INTO inventory (variant_id, on_hand) SELECT variant_id, $2::int FROM target
-           ON CONFLICT (variant_id) DO UPDATE SET on_hand = EXCLUDED.on_hand, updated_at = now()
-           RETURNING variant_id
+           UPDATE inventory i SET on_hand = $2::int, updated_at = now() FROM allowed a WHERE i.variant_id = a.variant_id RETURNING i.variant_id
          ),
          movement AS (
            INSERT INTO inventory_movements (variant_id, delta_on_hand, reason, actor, note)
-           SELECT variant_id, $2::int - previous, $3::text, $5::text, $4::text FROM target WHERE previous <> $2::int
+           SELECT variant_id, $2::int - previous, $3::text, $5::text, $4::text FROM allowed
            RETURNING id
+         ),
+         audit AS (
+           INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
+           SELECT $6, $5::text, 'inventory.count', 'inventory', $1,
+                  jsonb_build_object('before', previous, 'after', $2::int, 'reason', $3::text, 'note', $4::text, 'sku', $7::text)
+           FROM allowed
          )
-         INSERT INTO audit_logs (actor_auth_user_id, actor_email, action, entity, entity_id, changes)
-         SELECT $6, $5::text, 'inventory.count', 'inventory', $1,
-                jsonb_build_object('before', previous, 'after', $2::int, 'reason', $3::text, 'note', $4::text, 'sku', $7::text)
-         FROM target WHERE previous <> $2::int`,
+         SELECT (SELECT previous FROM locked) AS previous, (SELECT count(*) FROM allowed)::int AS changed`,
         [productId, input.onHand, input.reason, input.note, actor.email, actor.authUserId, sku],
-      );
+      )) as { previous: number | null; changed: number }[];
     } catch (error) {
-      // A reservation may have landed between the read and the write.
+      // Below the reserved units (also when a reservation landed meanwhile): nothing was written.
       if (isCheckViolation(error)) throw new AdminDataError("below_reserved", "Hay unidades reservadas: el stock no puede ser menor.");
       throw error;
+    }
+    const [row] = rows;
+    if (input.reason === "restock" && row?.previous !== null && row?.previous !== undefined && input.onHand < row.previous) {
+      throw new AdminDataError("restock_decrease", `La reposición solo suma unidades (hay ${row.previous}). Para restar, usá Ajuste con un motivo.`);
     }
   }
 

@@ -260,6 +260,14 @@ describe("admin API v1 (PGlite)", () => {
         "SELECT m.actor, m.delta_on_hand FROM inventory_movements m JOIN product_variants v ON v.id = m.variant_id WHERE v.sku = 'SUB-P13' ORDER BY m.id DESC LIMIT 1",
       )).rows;
       assert.deepEqual(movement, { actor: "integration:n8n-catalogo", delta_on_hand: 10 });
+
+      // Restock only adds: lowering with "restock" is refused (dry run and real), "adjustment" with a note is not.
+      const restockDown = await call("POST", "stock/bulk-count", { body: { dryRun: true, items: [{ sku: "SUB-P13", onHand: 25, reason: "restock" }] } });
+      assert.equal(restockDown.body.summary.failed, 1);
+      assert.equal(restockDown.body.items[0].error.fields[0].path, "items[0].reason");
+      assert.match(restockDown.body.items[0].error.fields[0].message, /solo suma/);
+      const adjustDown = await call("POST", "stock/bulk-count", { body: { items: [{ sku: "SUB-P13", onHand: 25, reason: "adjustment", note: "recuento" }] } });
+      assert.equal(adjustDown.body.summary.updated, 1);
     });
   });
 

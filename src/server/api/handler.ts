@@ -469,6 +469,12 @@ const routes: Route[] = [
           throw new ApiError(validation([{ path: `items[${index}].onHand`, message: `Hay ${variant.reserved} unidades reservadas: el stock no puede ser menor.` }]));
         }
         if (parsed.value.onHand === variant.onHand) return { sku: variant.sku, result: "unchanged" };
+        // Restock only adds (docs/inventory-stabilization.md, 3); recordCount enforces it again under the row lock.
+        if (parsed.value.reason === "restock" && parsed.value.onHand < variant.onHand) {
+          throw new ApiError(
+            validation([{ path: `items[${index}].reason`, message: `La reposición solo suma unidades (hay ${variant.onHand}). Para restar, usá adjustment con una nota.` }]),
+          );
+        }
         // Already checked above with the SKU data read in bulk: write only.
         if (!dryRun) await repos.products.recordCount(actor, productId, parsed.value, variant.sku);
         counted.set(variant.sku, parsed.value.onHand);
