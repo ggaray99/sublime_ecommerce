@@ -40,6 +40,33 @@ describe("export and import (PGlite)", () => {
     assert.equal(report.summary.updated + report.summary.created, 0);
   });
 
+  it("re-imports the rows of a product with variants unchanged, and still refuses content changes there", async () => {
+    await db.exec(`
+      INSERT INTO products (legacy_id, slug, name, category_id, theme, status, option_names)
+        SELECT 'base-csv', 'remera-csv', 'Remera CSV', id, 'grafico', 'active', ARRAY['Talle'] FROM categories ORDER BY id LIMIT 1;
+      INSERT INTO product_variants (product_id, sku, price_minor, track_stock, is_default, options)
+        SELECT id, 'CSV-BASE', 100000, false, true, '{}'::jsonb FROM products WHERE legacy_id = 'base-csv';
+      INSERT INTO product_variants (product_id, sku, price_minor, track_stock, is_default, options)
+        SELECT id, 'CSV-S', 100000, false, false, '{"Talle":"S"}'::jsonb FROM products WHERE legacy_id = 'base-csv';
+      INSERT INTO product_variants (product_id, sku, price_minor, track_stock, is_default, options)
+        SELECT id, 'CSV-M', 120000, false, false, '{"Talle":"M"}'::jsonb FROM products WHERE legacy_id = 'base-csv';
+    `);
+    const rows = (await exportCatalog(sql, { productIds: ["base-csv"] })).filter((row) => row.sku.startsWith("CSV-"));
+    assert.deepEqual(rows.map((row) => row.sku).sort(), ["CSV-M", "CSV-S"]);
+
+    const same = await importCatalog(sql, actor, toCsv(rows), true);
+    assert.equal(same.summary.failed, 0, JSON.stringify(same.lines.filter((l) => l.result === "failed")));
+    assert.equal(same.summary.updated, 0);
+
+    const priced = await importCatalog(sql, actor, toCsv(rows.map((row) => (row.sku === "CSV-M" ? { ...row, precio: "1300" } : row))), true);
+    assert.equal(priced.summary.failed, 0);
+    assert.equal(priced.summary.updated, 1);
+
+    const renamed = await importCatalog(sql, actor, toCsv([{ ...rows[0], nombre: "Otro nombre" }]), true);
+    assert.equal(renamed.summary.failed, 1);
+    assert.match(renamed.lines[0].detail ?? JSON.stringify(renamed.lines[0]), /se cambian en su ficha/);
+  });
+
   it("previews without writing, then applies price, cost, stock, weight and a new product", async () => {
     const [category] = (await db.query("SELECT id FROM categories ORDER BY id LIMIT 1")).rows;
     const csv = [

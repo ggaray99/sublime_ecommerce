@@ -183,9 +183,9 @@ export async function importCatalog(sql: QueryFn, actor: Admin, text: string, dr
 
   const existing = new Map(
     (
-      (await sql.query("SELECT v.sku, v.is_default, p.option_names <> '{}' AS has_options FROM product_variants v JOIN products p ON p.id = v.product_id WHERE v.sku = ANY ($1)", [
+      (await sql.query("SELECT v.sku, v.is_default, p.option_names <> '{}' AS has_options, p.name, p.category_id, p.theme, p.status FROM product_variants v JOIN products p ON p.id = v.product_id WHERE v.sku = ANY ($1)", [
         records.map((record) => (record.sku ?? "").toUpperCase()),
-      ])) as { sku: string; is_default: boolean; has_options: boolean }[]
+      ])) as { sku: string; is_default: boolean; has_options: boolean; name: string; category_id: string; theme: string; status: string }[]
     ).map((row) => [row.sku, row]),
   );
 
@@ -227,7 +227,13 @@ export async function importCatalog(sql: QueryFn, actor: Admin, text: string, dr
       if (record.tema) item.theme = record.tema;
       if (status) item.status = status;
       if (Object.keys(item).length > 1) productItems.push({ record, item });
-    } else if (record.nombre || record.categoria || record.tema || record.estado) {
+    } else if (
+      // The export repeats the product's content on every variant row: only a different value is a change.
+      (record.nombre && record.nombre.trim() !== current.name) ||
+      (record.categoria && record.categoria.trim() !== current.category_id) ||
+      (record.tema && record.tema.trim() !== current.theme) ||
+      (status && status !== current.status)
+    ) {
       line.failed.push("nombre, categoría, tema y estado de un producto con variantes se cambian en su ficha");
     }
   }
