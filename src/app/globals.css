@@ -5217,3 +5217,12 @@ body:has(.admin-shell) {
 .admin-shell .admin-list .admin-table tr > :last-child {
   padding-right: 18px;
 }
+
+/* Activity list: hairline separators like the tables. */
+.admin-shell .audit-list li {
+  border-bottom-color: #ededf0;
+}
+
+.admin-shell .audit-list li:last-child {
+  border-bottom: 0;
+}
