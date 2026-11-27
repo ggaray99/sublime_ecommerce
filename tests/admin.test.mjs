@@ -279,7 +279,6 @@ describe("admin repository on PostgreSQL (PGlite)", () => {
     assert.equal(updated.name, "Remera base editada");
     assert.equal((await createVariantRepository(query).listVariants("base-prueba")).length, 1);
     assert.deepEqual(await createImageRepository(query).listImages("base-prueba"), []);
-    await db.exec(`DELETE FROM audit_log WHERE entity_id = 'base-prueba'`).catch(() => {});
     await db.exec(`DELETE FROM product_variants WHERE sku = 'BASE-PRUEBA'; DELETE FROM products WHERE legacy_id = 'base-prueba';`);
   });
 

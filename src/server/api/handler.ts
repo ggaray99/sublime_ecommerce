@@ -2,6 +2,7 @@ import { createCategoryRepository } from "../admin/categories-repository.ts";
 import { createImageRepository, type AdminImage } from "../admin/images-repository.ts";
 import { createVariantRepository, type AdminVariant } from "../admin/variants-repository.ts";
 import { parseOptionDefinitions } from "../admin/variants.ts";
+import { updateInputOf } from "../admin/product-changes.ts";
 import { parseProductSearch, type ProductSearch } from "../admin/product-search.ts";
 import { AdminDataError, createAdminRepository, productChanges, type Admin, type AdminProduct } from "../admin/repository.ts";
 import { MAX_PRICE_MINOR, parseProductCreate, parseProductUpdate, parseStockCount, type ProductUpdateInput } from "../admin/validation.ts";
@@ -104,21 +105,6 @@ function toApiProduct(product: AdminProduct, images?: AdminImage[], variants?: A
     updatedAt: product.updatedAt.toISOString(),
   };
 }
-
-/** Editable fields as the update validator expects them. */
-const updateInputOf = (product: AdminProduct): ProductUpdateInput => ({
-  name: product.name,
-  slug: product.slug,
-  description: product.description,
-  categoryId: product.categoryId,
-  theme: product.theme,
-  tags: product.tags,
-  details: product.details,
-  featured: product.featured,
-  catalogCode: product.catalogCode,
-  status: product.status,
-  priceMinor: product.priceMinor,
-});
 
 /** Products with options keep one price per variant: product-level priceMinor would be ambiguous. */
 function assertNoProductPrice(current: AdminProduct, data: Record<string, unknown>, path: string) {
