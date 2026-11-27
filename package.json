@@ -14,6 +14,7 @@
     "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs --target=staging --apply",
     "db:seed": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs --target=staging --apply --seed",
     "test:db": "node --env-file-if-exists=.env.local --test tests/db-integration.test.mjs",
+    "test:concurrency": "node --test tests/db-concurrency.test.mjs",
     "admin:grant": "node --env-file-if-exists=.env.local scripts/admin-grant.mjs --target=staging"
   },
   "dependencies": {
