@@ -17,11 +17,13 @@ Objective: redesign the admin Customers module (list and profile) on the design 
 
 - T0 inline — order business rules 1 and 3 (`docs/admin-orders-rules.md`): 3ed6d2c, 6cedd11, c8d55a8; independent verifier PASS. Status: done, on QA.
 - T1 S1 inline — audit `docs/admin-customers-audit.md` (0008066). Status: done.
-- T2 S2,S4,S5 delegated (writer A, parallel with T3) — list. Status: pending.
-- T3 S3,S4,S5 delegated (writer B, parallel with T2) — profile. Status: pending.
+- T2 S2,S4,S5 delegated (writer A, parallel with T3) — list. RED (module missing) → GREEN 12/12. Commit 2397d82. Status: done (browser QA in T4).
+- T3 S3,S4,S5 delegated (writer B, parallel with T2) — profile. RED (modules missing) → GREEN 9/9. Commit 74ab008. Status: done (browser QA in T4).
 - T4 S6 inline — QA on staging, screenshots, delivery doc. Status: pending.
 
 ## Log
 
 - L1 (2026-11-27) User pasted the stage-4 brief: "Antes de comenzar Clientes, documentá estas decisiones de negocio" (three order rules) and "SIGUIENTE ETAPA: CLIENTES" (full brief above). L1b: "dale, implementalas ahora antes de Clientes". L1c: "subilo a qa y segui con lo otro".
 - L2 Audit by a read-only explorer; C1–C11. Route: T2 and T3 independent with disjoint surfaces (list queries stay in src/server/customers/admin.ts; profile queries in a new src/server/customers/profile.ts) → two writers in parallel.
+- L3 (2026-11-27) QA c8d55a8: Actividad shows order events (SUB-1011 Pendiente → Pago confirmado → Enviado → Entregado, SUB-1012 cancelled) with links and humanized actors; "Ver anteriores" pages 50 + 50 with the new cursor, no overlap. Pre-existing: Actividad shows UTC times while orders show Argentina time (pending).
+- L4 (2026-11-27) Writers returned. A: read-only search() in admin.ts (list/count/get unchanged), customer-search.ts, filters Mostrar/Alta desde-hasta/Ordenar, 50 per page, count = matches. B: canonical redirect to auth user id, metrics from spentMinor + review count (profile.ts reviewOrderCount), orders with status-view badges, encargos with typed contact + Contacto distinto, Timeline of order and encargo events, guest matches by email apart. Combined: 772/772, tsc, lint 0, build green.
