@@ -4986,3 +4986,31 @@ body:has(.admin-shell) {
   color: #b91c1c;
   font-size: 13px;
 }
+
+/* With the side menu open the product list has less room: a narrower filter
+   column, and tables that scroll sideways instead of crushing their columns. */
+@media (min-width: 1024px) {
+  .admin-shell .admin-layout {
+    grid-template-columns: 232px minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+.admin-shell .admin-table {
+  min-width: 760px;
+}
+
+.admin-shell .admin-table__thumb {
+  min-width: 64px;
+}
+
+.admin-shell .admin-table__thumb img {
+  max-width: none;
+  border-color: var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-shell .admin-table tbody th,
+.admin-shell .admin-table td:has(> a:first-child) {
+  min-width: 160px;
+}
