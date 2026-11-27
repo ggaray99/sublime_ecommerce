@@ -10,7 +10,7 @@ import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
 import { hasMediaStorage } from "@/server/media/public-files";
 
 export const metadata: Metadata = {
-  title: "Nuevo producto",
+  title: "Nuevo producto · Administración",
   robots: { index: false, follow: false },
 };
 

@@ -21,7 +21,7 @@ import { optionsLabel } from "@/server/admin/variants";
 import { hasMediaStorage } from "@/server/media/public-files";
 
 export const metadata: Metadata = {
-  title: "Editar producto",
+  title: "Producto · Administración",
   robots: { index: false, follow: false },
 };
 

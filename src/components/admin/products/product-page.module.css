@@ -34,7 +34,18 @@
 
 .grid2 {
   display: grid;
+  align-items: start;
   gap: var(--sa-space-3);
+}
+
+/* Fields keep their own height and stay inside their column (a file input
+   or a select is as wide as its content otherwise). */
+.grid2 > *,
+.grid3 > *,
+.grid2 :is(div, input, select),
+.grid3 :is(div, input, select) {
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (min-width: 640px) {
@@ -45,6 +56,7 @@
 
 .grid3 {
   display: grid;
+  align-items: start;
   gap: var(--sa-space-3);
 }
 
@@ -354,7 +366,8 @@
 }
 
 .priceCell {
-  min-width: 140px;
+  width: 150px;
+  min-width: 130px;
 }
 
 /* Import */

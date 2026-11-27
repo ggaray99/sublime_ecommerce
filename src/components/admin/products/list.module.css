@@ -45,6 +45,12 @@
   min-width: 128px;
 }
 
+/* A select is as wide as its longest option: keep it inside its slot. */
+.filter :is(div, select) {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .clear {
   display: inline-flex;
   align-items: center;
@@ -211,9 +217,10 @@
 }
 
 .storeLink {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   min-height: 24px;
+  padding-block: 2px;
+  white-space: nowrap;
   border-radius: var(--sa-radius-sm);
   color: var(--sa-color-text-link);
   font-size: var(--sa-font-size-sm);
