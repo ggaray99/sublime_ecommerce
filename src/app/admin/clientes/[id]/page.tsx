@@ -1,18 +1,25 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import {
+  CustomerActivityCard,
+  CustomerAddressesCard,
+  CustomerContactCard,
+  CustomerGuestMatchesCard,
+  CustomerMetricsCard,
+  CustomerOrdersCard,
+  CustomerRequestsCard,
+} from "@/components/admin/customers/profile-cards";
+import { argentinaDate } from "@/components/admin/customers/profile-helpers";
+import styles from "@/components/admin/orders/detail.module.css";
 import { AdminUnavailable } from "@/components/admin/shared";
-import { argentinaTime, orderStatusLabel } from "@/components/orders/order-view";
-import { requestStatusLabel } from "@/components/requests/request-view";
-import { PageIntro } from "@/components/page-intro";
-import { formatPrice } from "@/lib/format";
+import { Badge, Breadcrumbs, PageHeader, Skeleton, SkeletonBlock, SkeletonText, Stack } from "@/components/admin/ui";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
-import { requestNumber } from "@/server/custom-requests/repository";
 import { getCustomRequestRepository } from "@/server/custom-requests/session";
+import { customerActivity, guestMatches, reviewOrderCount } from "@/server/customers/profile";
 import { getCustomerAdminRepository, getCustomerRepository } from "@/server/customers/session";
-import { orderNumber, orderTotalMinor } from "@/server/orders/repository";
+import { getSql } from "@/server/db/client";
 import { getOrderRepository } from "@/server/orders/session";
 
 export const metadata: Metadata = {
@@ -20,152 +27,96 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-async function CustomerDetail({ params }: { params: PageProps<"/admin/clientes/[id]">["params"] }) {
+type Props = PageProps<"/admin/clientes/[id]">;
+
+const LIST_LIMIT = 50;
+const ACTIVITY_LIMIT = 15;
+const GUEST_LIMIT = 20;
+
+async function CustomerProfile({ params }: Pick<Props, "params">) {
   await connection();
   if (!adminAvailable()) return <AdminUnavailable />;
   if (!(await getCurrentAdmin())) notFound();
+
   const { id } = await params;
   const customer = await getCustomerAdminRepository().get(id);
   if (!customer) notFound();
+  // One URL per customer: links that carry customers.id (orders, encargos) land on the account id.
+  if (customer.authUserId !== id) redirect(`/admin/clientes/${encodeURIComponent(customer.authUserId)}`);
+
+  const sql = getSql();
   const customerId = customer.customerId;
-  const [addresses, orders, requests] = customerId
-    ? await Promise.all([
-        getCustomerRepository().listAddresses(customerId),
-        getOrderRepository().listOrders({ customerId, limit: 200 }),
-        getCustomRequestRepository().list({ customerId, limit: 200 }),
-      ])
-    : [[], [], []];
+  const [addresses, orders, requests, activity, reviewCount, guests] = await Promise.all([
+    customerId ? getCustomerRepository().listAddresses(customerId) : [],
+    customerId ? getOrderRepository().listOrders({ customerId, limit: LIST_LIMIT }) : [],
+    customerId ? getCustomRequestRepository().list({ customerId, limit: LIST_LIMIT }) : [],
+    customerId ? customerActivity(sql, customerId, ACTIVITY_LIMIT) : [],
+    customerId ? reviewOrderCount(sql, customerId) : 0,
+    guestMatches(sql, customer.email, GUEST_LIMIT),
+  ]);
+  const name = customer.name || customer.email;
 
   return (
-    <div className="account account--wide">
-      <p className="muted">
-        <Link href="/admin/clientes">← Todos los clientes</Link>
-      </p>
-      <section className="account__section" aria-labelledby="cliente-title">
-        <div className="account__head">
-          <h2 id="cliente-title">{customer.name || customer.email}</h2>
-          {customer.isAdmin && <span className="badge badge--ok">Admin</span>}
+    <Stack gap={4}>
+      <PageHeader
+        breadcrumbs={<Breadcrumbs items={[{ label: "Clientes", href: "/admin/clientes" }, { label: name }]} />}
+        back={{ href: "/admin/clientes", label: "Volver a Clientes" }}
+        title={name}
+        meta={
+          <>
+            {customer.isAdmin && <Badge tone="attention">Admin</Badge>}
+            {!customerId && <Badge tone="info">Sin Mi cuenta</Badge>}
+            <span className={styles.headerDate}>
+              Alta <time dateTime={customer.createdAt.toISOString()}>{argentinaDate(customer.createdAt)}</time>
+            </span>
+          </>
+        }
+      />
+
+      <div className={styles.layout}>
+        <div className={styles.main}>
+          <CustomerMetricsCard customer={customer} reviewCount={reviewCount} />
+          <CustomerOrdersCard orders={orders} total={customer.orderCount} email={customer.email} />
+          <CustomerRequestsCard requests={requests} accountEmail={customer.email} total={customer.requestCount} />
+          <CustomerActivityCard events={activity} />
+          <CustomerGuestMatchesCard orders={guests.orders} requests={guests.requests} />
         </div>
-        <dl className="order-facts">
-          <div>
-            <dt>Email</dt>
-            <dd>
-              <a href={`mailto:${customer.email}`}>{customer.email}</a>
-            </dd>
-          </div>
-          <div>
-            <dt>Teléfono</dt>
-            <dd>{customer.phone || "—"}</dd>
-          </div>
-          <div>
-            <dt>Cuenta creada</dt>
-            <dd>{argentinaTime(customer.createdAt)}</dd>
-          </div>
-          <div>
-            <dt>Última actividad</dt>
-            <dd>{customer.lastSeenAt ? argentinaTime(customer.lastSeenAt) : "—"}</dd>
-          </div>
-          <div>
-            <dt>Compró</dt>
-            <dd>
-              {formatPrice(customer.spentMinor / 100)} en {customer.paidOrderCount} {customer.paidOrderCount === 1 ? "pedido pagado" : "pedidos pagados"}
-            </dd>
-          </div>
-        </dl>
-        {!customerId && <p className="panel panel--muted">Se registró pero todavía no abrió Mi cuenta: no tiene datos, direcciones ni pedidos con su cuenta.</p>}
-      </section>
 
-      <section className="account__section" aria-labelledby="pedidos-title">
-        <h2 id="pedidos-title">Pedidos ({orders.length})</h2>
-        {orders.length ? (
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th scope="col">Pedido</th>
-                  <th scope="col">Fecha</th>
-                  <th scope="col">Entrega</th>
-                  <th scope="col">Total</th>
-                  <th scope="col">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id}>
-                    <th scope="row">
-                      <Link href={`/admin/pedidos/${order.id}`}>{orderNumber(order)}</Link>
-                    </th>
-                    <td>{argentinaTime(order.createdAt)}</td>
-                    <td>{order.delivery.method === "shipping" ? `Envío · ${order.delivery.address.city}` : "Retiro"}</td>
-                    <td>{formatPrice(orderTotalMinor(order) / 100)}</td>
-                    <td>{orderStatusLabel[order.status]}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted">Sin pedidos con su cuenta. Los pedidos como invitado no se vinculan a la cuenta.</p>
-        )}
-      </section>
-
-      <section className="account__section" aria-labelledby="encargos-title">
-        <h2 id="encargos-title">Encargos ({requests.length})</h2>
-        {requests.length ? (
-          <ul className="address-list">
-            {requests.map((request) => (
-              <li key={request.id} className="address-card">
-                <p className="address-card__title">
-                  <Link href={`/admin/encargos/${request.id}`}>{requestNumber(request)}</Link> · {requestStatusLabel[request.status]}
-                </p>
-                <p className="muted">
-                  {argentinaTime(request.createdAt)} · {request.productType} · {request.quantity}
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="muted">Sin encargos con su cuenta.</p>
-        )}
-      </section>
-
-      <section className="account__section" aria-labelledby="direcciones-title">
-        <h2 id="direcciones-title">Direcciones ({addresses.length})</h2>
-        {addresses.length ? (
-          <ul className="address-list">
-            {addresses.map((address) => (
-              <li key={address.id} className="address-card">
-                <p className="address-card__title">
-                  {address.label || "Dirección"}
-                  {address.isDefault && <span className="badge badge--ok">Predeterminada</span>}
-                </p>
-                <p>
-                  {address.recipient}
-                  <br />
-                  {address.street} {address.streetNumber}
-                  {address.apartment && `, ${address.apartment}`}
-                  <br />
-                  {address.city}, {address.province} ({address.postalCode})
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="muted">Sin direcciones guardadas.</p>
-        )}
-      </section>
-    </div>
+        <div className={styles.side}>
+          <CustomerContactCard customer={customer} />
+          <CustomerAddressesCard addresses={addresses} />
+        </div>
+      </div>
+    </Stack>
   );
 }
 
-export default function AdminCustomerPage({ params }: PageProps<"/admin/clientes/[id]">) {
+function ProfileSkeleton() {
   return (
-    <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="Cliente" tone="light">
-        <p>Datos, pedidos, encargos y direcciones de la cuenta.</p>
-      </PageIntro>
-      <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>
-        <CustomerDetail params={params} />
+    <Skeleton label="Cargando el cliente…">
+      <Stack gap={4}>
+        <SkeletonText lines={2} />
+        <div className={styles.layout}>
+          <div className={styles.main}>
+            <SkeletonBlock height={140} />
+            <SkeletonBlock height={260} />
+            <SkeletonBlock height={180} />
+          </div>
+          <div className={styles.side}>
+            <SkeletonBlock height={240} />
+            <SkeletonBlock height={160} />
+          </div>
+        </div>
+      </Stack>
+    </Skeleton>
+  );
+}
+
+export default function AdminCustomerPage({ params }: Props) {
+  return (
+    <main id="contenido" className={styles.page}>
+      <Suspense fallback={<ProfileSkeleton />}>
+        <CustomerProfile params={params} />
       </Suspense>
     </main>
   );

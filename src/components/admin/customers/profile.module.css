@@ -1,0 +1,125 @@
+/* Customer profile: pieces specific to customers. The page layout (two
+   columns from 1024px), facts and text styles come from the order detail
+   (src/components/admin/orders/detail.module.css). */
+
+.badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sa-space-1);
+}
+
+/* Metrics: label over value, two per row on phones, up to five in a row. */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sa-space-3) var(--sa-space-4);
+  margin: 0;
+}
+
+.metrics div {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.metrics dt {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+}
+
+.metrics dd {
+  margin: 0;
+  font-size: var(--sa-font-size-lg);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sa-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.metrics .metricNote {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-regular);
+}
+
+.reviewNote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-2);
+  margin: 0;
+}
+
+/* Lists of records (encargos, guest matches, addresses). */
+.records {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.record {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-block: var(--sa-space-3);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+.record:first-child {
+  padding-top: 0;
+}
+
+.record:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.recordHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-2);
+}
+
+.recordLink,
+.textLink,
+.cardLink {
+  color: var(--sa-color-text-link);
+  overflow-wrap: anywhere;
+}
+
+.recordLink,
+.recordTitle {
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.amount {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sa-font-weight-semibold);
+  white-space: nowrap;
+}
+
+.cardLink {
+  font-size: var(--sa-font-size-sm);
+}
+
+.tableNote {
+  margin: 0;
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border-top: var(--sa-border-width) solid var(--sa-color-border);
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+}
+
+.factNote {
+  display: block;
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+}
+
+.address {
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
