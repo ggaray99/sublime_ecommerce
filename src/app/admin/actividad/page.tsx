@@ -59,7 +59,7 @@ async function Activity({ searchParams }: { searchParams: PageProps<"/admin/acti
 export default function AdminActivityPage({ searchParams }: PageProps<"/admin/actividad">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="ACTIVIDAD." tone="light">
+      <PageIntro kicker="Administración" title="Actividad" tone="light">
         <p>Registro de cambios del panel.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

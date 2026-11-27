@@ -49,7 +49,7 @@ async function PageEditor({ params }: { params: PageProps<"/admin/ajustes/pagina
 export default function AdminPageTextPage({ params }: PageProps<"/admin/ajustes/paginas/[slug]">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="PÁGINAS." tone="light">
+      <PageIntro kicker="Administración" title="Páginas" tone="light">
         <p>El cambio queda registrado en Actividad.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

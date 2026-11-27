@@ -214,7 +214,7 @@ async function Promotions({ searchParams }: { searchParams: PageProps<"/admin/pr
 export default function AdminPromotionsPage({ searchParams }: PageProps<"/admin/promociones">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="PROMOCIONES." tone="light">
+      <PageIntro kicker="Administración" title="Promociones" tone="light">
         <p>Descuentos automáticos, cupones, combos y descuento por medio de pago.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

@@ -88,7 +88,7 @@ async function RequestAdmin({ params }: { params: PageProps<"/admin/encargos/[id
 export default function AdminRequestPage({ params }: PageProps<"/admin/encargos/[id]">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="ENCARGO." tone="light">
+      <PageIntro kicker="Administración" title="Encargo" tone="light">
         <p>Detalle, presupuesto e historial del encargo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

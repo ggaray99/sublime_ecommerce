@@ -66,7 +66,7 @@ async function Categories({ searchParams }: { searchParams: PageProps<"/admin/ca
 export default function AdminCategoriesPage({ searchParams }: PageProps<"/admin/categorias">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="CATEGORÍAS." tone="light">
+      <PageIntro kicker="Administración" title="Categorías" tone="light">
         <p>Cada cambio queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

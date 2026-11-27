@@ -87,7 +87,7 @@ async function Customers({ searchParams }: { searchParams: PageProps<"/admin/cli
 export default function AdminCustomersPage({ searchParams }: PageProps<"/admin/clientes">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="CLIENTES." tone="light">
+      <PageIntro kicker="Administración" title="Clientes" tone="light">
         <p>Todas las personas que crearon una cuenta, con sus pedidos y encargos.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

@@ -191,7 +191,7 @@ async function Integrations({ searchParams }: { searchParams: PageProps<"/admin/
 export default function IntegrationsPage({ searchParams }: PageProps<"/admin/integraciones">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="INTEGRACIONES." tone="light">
+      <PageIntro kicker="Administración" title="Integraciones" tone="light">
         <p>Cobros con Mercado Pago y claves para conectar sistemas externos a la API de administración.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

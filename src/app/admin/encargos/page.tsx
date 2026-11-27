@@ -89,7 +89,7 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/enca
 export default function AdminRequestsPage({ searchParams }: PageProps<"/admin/encargos">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="ENCARGOS." tone="light">
+      <PageIntro kicker="Administración" title="Encargos" tone="light">
         <p>Solicitudes de encargos personalizados.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

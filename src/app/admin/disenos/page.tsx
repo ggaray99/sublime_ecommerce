@@ -94,7 +94,7 @@ async function Designs({ searchParams }: { searchParams: PageProps<"/admin/disen
 export default function AdminDesignsPage({ searchParams }: PageProps<"/admin/disenos">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="DISEÑOS." tone="light">
+      <PageIntro kicker="Administración" title="Diseños" tone="light">
         <p>Subí un diseño, elegí en qué productos se ofrece y publicalo. Cada cambio queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

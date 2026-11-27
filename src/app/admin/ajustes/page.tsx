@@ -152,7 +152,7 @@ async function Settings() {
 export default function AdminSettingsPage() {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="AJUSTES." tone="light">
+      <PageIntro kicker="Administración" title="Ajustes" tone="light">
         <p>Datos de contacto, cuotas y precios del Custom Lab.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

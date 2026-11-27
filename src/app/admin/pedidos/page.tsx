@@ -96,7 +96,7 @@ async function Orders({ searchParams }: { searchParams: PageProps<"/admin/pedido
 export default function AdminOrdersPage({ searchParams }: PageProps<"/admin/pedidos">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="PEDIDOS." tone="light">
+      <PageIntro kicker="Administración" title="Pedidos" tone="light">
         <p>Los pagos con Mercado Pago se confirman solos. Las transferencias se confirman acá.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

@@ -150,7 +150,7 @@ async function DesignAdmin({ params, searchParams }: Pick<Props, "params" | "sea
 export default function AdminDesignPage({ params, searchParams }: Props) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="EDITAR DISEÑO." tone="light">
+      <PageIntro kicker="Administración" title="Editar diseño" tone="light">
         <p>Cada cambio queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

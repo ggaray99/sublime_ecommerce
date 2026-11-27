@@ -132,7 +132,7 @@ async function Points({ searchParams }: { searchParams: PageProps<"/admin/puntos
 export default function AdminPointsPage({ searchParams }: PageProps<"/admin/puntos">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="PUNTOS DE VENTA." tone="light">
+      <PageIntro kicker="Administración" title="Puntos de venta" tone="light">
         <p>Los lugares que aparecen en el mapa de la tienda.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

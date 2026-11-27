@@ -99,7 +99,7 @@ async function CategoryAdmin({ params, searchParams }: Pick<Props, "params" | "s
 export default function AdminCategoryPage({ params, searchParams }: Props) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="EDITAR CATEGORÍA." tone="light">
+      <PageIntro kicker="Administración" title="Editar categoría" tone="light">
         <p>Cada cambio queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

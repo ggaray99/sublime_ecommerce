@@ -155,7 +155,7 @@ async function KindTemplates({ params }: Pick<Props, "params">) {
 export default function AdminKindTemplatesPage({ params }: Props) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="SOPORTES." tone="light">
+      <PageIntro kicker="Administración" title="Soportes" tone="light">
         <p>Cada cambio queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

@@ -163,7 +163,7 @@ async function CustomerDetail({ params }: { params: PageProps<"/admin/clientes/[
 export default function AdminCustomerPage({ params }: PageProps<"/admin/clientes/[id]">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="CLIENTE." tone="light">
+      <PageIntro kicker="Administración" title="Cliente" tone="light">
         <p>Datos, pedidos, encargos y direcciones de la cuenta.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

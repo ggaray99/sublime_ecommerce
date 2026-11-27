@@ -301,7 +301,7 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
 export default function AdminPage({ searchParams }: PageProps<"/admin">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Interno" title="ADMINISTRACIÓN." tone="light">
+      <PageIntro kicker="Interno" title="Administración" tone="light">
         <p>Cada cambio queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando el panel…</p>}>

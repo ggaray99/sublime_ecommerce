@@ -59,7 +59,7 @@ async function NewProduct() {
 export default function NewProductPage() {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="NUEVO PRODUCTO." tone="light">
+      <PageIntro kicker="Administración" title="Nuevo producto" tone="light">
         <p>El producto se crea y queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

@@ -81,7 +81,7 @@ async function OrderAdmin({ params }: { params: PageProps<"/admin/pedidos/[id]">
 export default function AdminOrderPage({ params }: PageProps<"/admin/pedidos/[id]">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="PEDIDO." tone="light">
+      <PageIntro kicker="Administración" title="Pedido" tone="light">
         <p>Detalle, pago, envío e historial del pedido.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

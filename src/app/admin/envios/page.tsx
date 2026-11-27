@@ -187,7 +187,7 @@ async function Shipping({ searchParams }: { searchParams: PageProps<"/admin/envi
 export default function AdminShippingPage({ searchParams }: PageProps<"/admin/envios">) {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="ENVÍOS." tone="light">
+      <PageIntro kicker="Administración" title="Envíos" tone="light">
         <p>Reglas de costo y plazo por zona, y el punto de retiro.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

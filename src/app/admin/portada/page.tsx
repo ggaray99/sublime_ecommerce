@@ -69,7 +69,7 @@ async function HomeSettings() {
 export default function AdminHomePage() {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="PORTADA." tone="light">
+      <PageIntro kicker="Administración" title="Portada" tone="light">
         <p>Qué se muestra arriba de todo en la página de inicio.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

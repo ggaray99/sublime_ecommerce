@@ -55,7 +55,7 @@ async function NewDesign() {
 export default function NewDesignPage() {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="NUEVO DISEÑO." tone="light">
+      <PageIntro kicker="Administración" title="Nuevo diseño" tone="light">
         <p>El diseño se crea y queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

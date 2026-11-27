@@ -102,7 +102,7 @@ async function MockupBases() {
 export default function AdminMockupBasesPage() {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="SOPORTES." tone="light">
+      <PageIntro kicker="Administración" title="Soportes" tone="light">
         <p>Elegí qué producto vende cada soporte de los diseños. Cada cambio queda registrado con quién lo hizo.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

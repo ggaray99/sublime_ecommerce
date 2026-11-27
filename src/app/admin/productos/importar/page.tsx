@@ -49,7 +49,7 @@ async function ImportPanel() {
 export default function ImportPage() {
   return (
     <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="IMPORTAR PLANILLA." tone="light">
+      <PageIntro kicker="Administración" title="Importar planilla" tone="light">
         <p>Cambios masivos de precios, costos, stock y logística.</p>
       </PageIntro>
       <Suspense fallback={<p className="panel panel--muted">Cargando…</p>}>

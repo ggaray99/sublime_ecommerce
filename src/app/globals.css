@@ -4348,3 +4348,351 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
   flex-basis: 100%;
   margin: 0;
 }
+
+/* ==========================================================================
+   Admin theme: a quiet, compact panel. The store stays brutalist; everything
+   here is scoped to .admin-shell, which only the admin layout renders.
+   ========================================================================== */
+
+.admin-shell {
+  --admin-bg: #f6f6f7;
+  --admin-surface: #ffffff;
+  --admin-border: #e4e4e7;
+  --admin-border-strong: #d4d4d8;
+  --admin-text: #18181b;
+  --admin-muted: #63636e;
+  --admin-hover: #f0f0f2;
+  --admin-radius: 8px;
+  --admin-radius-sm: 6px;
+  /* Store tokens re-pointed for the panel: plain type, hairlines, no hard shadows. */
+  --font-display: var(--font-text);
+  --line: 1px solid var(--admin-border-strong);
+  --shadow: none;
+  --focus: var(--cyan);
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  font-size: 14px;
+}
+
+.admin-shell .page,
+.admin-shell .page--light {
+  background: var(--admin-bg);
+  color: var(--admin-text);
+}
+
+.admin-shell .page {
+  padding-top: 16px;
+  padding-bottom: 40px;
+}
+
+/* Type */
+.admin-shell h1,
+.admin-shell h2,
+.admin-shell h3 {
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+.admin-shell .page-intro {
+  margin-bottom: 12px;
+}
+
+.admin-shell .page-intro h1 {
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.admin-shell .page-intro__body {
+  max-width: 720px;
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-size: 14px;
+}
+
+.admin-shell h2,
+.admin-shell .account__section h2 {
+  font-size: 16px;
+}
+
+.admin-shell h3 {
+  font-size: 14px;
+}
+
+.admin-shell .kicker {
+  color: var(--admin-muted);
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.admin-shell .muted,
+.admin-shell .field__hint {
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+/* Top bar */
+.admin-shell .admin-bar {
+  min-height: 48px;
+  padding-block: 6px;
+  border-bottom: 1px solid #27272a;
+}
+
+.admin-shell .brand-logo--admin img {
+  height: 24px;
+}
+
+.admin-shell .admin-bar__title {
+  color: #d4d4d8;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.admin-shell .admin-bar__user {
+  font-size: 13px;
+}
+
+.admin-shell .admin-bar .btn {
+  min-height: 32px;
+  padding: 6px 12px;
+}
+
+/* Section navigation */
+.admin-shell .admin-nav {
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+}
+
+.admin-shell .admin-nav a {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--admin-radius-sm);
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-shell .admin-nav a:hover {
+  background: var(--admin-hover);
+  color: var(--admin-text);
+}
+
+.admin-shell .admin-nav a[aria-current="page"] {
+  background: var(--admin-text);
+  color: var(--white);
+}
+
+/* Surfaces */
+.admin-shell .account {
+  gap: 16px;
+}
+
+.admin-shell .account__section,
+.admin-shell .panel {
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+}
+
+.admin-shell .panel--muted {
+  border-style: solid;
+  background: #fafafa;
+  font-size: 14px;
+}
+
+.admin-shell .admin-fieldset {
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+}
+
+.admin-shell .admin-fieldset legend {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-shell .form-alert {
+  border-width: 1px;
+  border-radius: var(--admin-radius-sm);
+}
+
+/* Buttons */
+.admin-shell .btn {
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.admin-shell .btn:hover,
+.admin-shell .btn:active {
+  transform: none;
+  box-shadow: none;
+  background: var(--admin-hover);
+}
+
+.admin-shell .btn--coal,
+.admin-shell .btn--violet,
+.admin-shell .btn--acid {
+  border-color: var(--admin-text);
+  background: var(--admin-text);
+  color: var(--white);
+}
+
+.admin-shell .btn--coal:hover,
+.admin-shell .btn--violet:hover,
+.admin-shell .btn--acid:hover {
+  border-color: #3f3f46;
+  background: #3f3f46;
+}
+
+/* The bar is black: its call to action keeps the brand cyan. */
+.admin-shell .admin-bar .btn--acid {
+  border-color: var(--cyan);
+  background: var(--cyan);
+  color: var(--black);
+}
+
+.admin-shell .admin-bar .btn--acid:hover {
+  border-color: #7fd6f7;
+  background: #7fd6f7;
+}
+
+.admin-shell .btn--lg {
+  min-height: 40px;
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.admin-shell .link-button {
+  min-height: 32px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-shell .badge {
+  padding: 2px 8px;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.admin-shell .badge--ok {
+  border-color: #bde5c9;
+}
+
+.admin-shell .badge--pending {
+  border-style: solid;
+  background: #fafafa;
+  color: var(--admin-muted);
+}
+
+/* Forms */
+.admin-shell .quote-form,
+.admin-shell .form-grid {
+  gap: 12px;
+}
+
+.admin-shell .field {
+  gap: 4px;
+}
+
+.admin-shell .field label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-shell .field input,
+.admin-shell .field select,
+.admin-shell .field textarea {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-sm);
+  font-size: 14px;
+}
+
+.admin-shell .field select {
+  padding-right: 32px;
+}
+
+.admin-shell .field textarea {
+  min-height: 96px;
+}
+
+.admin-shell .field input:hover,
+.admin-shell .field select:hover,
+.admin-shell .field textarea:hover {
+  border-color: #a1a1aa;
+}
+
+.admin-shell .field [aria-invalid="true"] {
+  border-color: #e11d48;
+  box-shadow: 0 0 0 2px var(--error);
+}
+
+/* Tables */
+.admin-shell .admin-table-wrap {
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+}
+
+.admin-shell .admin-table {
+  font-size: 14px;
+}
+
+.admin-shell .admin-table th,
+.admin-shell .admin-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ededf0;
+}
+
+.admin-shell .admin-table thead th {
+  background: #fafafa;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-shell .admin-table tbody tr:hover {
+  background: #fafafb;
+}
+
+.admin-shell .admin-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+/* Small screens zoom into inputs under 16px: keep 16px there. */
+@media (max-width: 639px) {
+  .admin-shell .field input,
+  .admin-shell .field select,
+  .admin-shell .field textarea {
+    font-size: 16px;
+  }
+}
