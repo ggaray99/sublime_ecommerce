@@ -11,7 +11,8 @@ type ActionCopy = {
   label: string;
   /** Dialog title for n products. */
   title: (count: number) => string;
-  description: string;
+  /** Dialog text for n products (singular and plural differ). */
+  description: (count: number) => string;
   confirm: string;
 };
 
@@ -21,32 +22,38 @@ const ACTIONS: Record<BulkProductAction, ActionCopy> = {
   publish: {
     label: "Publicar",
     title: (count) => `¿Publicar ${products(count)}?`,
-    description:
-      "Se van a ver en la tienda. Cada producto pasa por las mismas reglas que al guardarlo desde su ficha: los que no las cumplan (por ejemplo, sin precio) quedan como están y te contamos por qué.",
+    description: (count) =>
+      count === 1
+        ? "Se va a ver en la tienda. Pasa por las mismas reglas que al guardarlo desde su ficha: si no las cumple (por ejemplo, sin precio) queda como está y te contamos por qué."
+        : "Se van a ver en la tienda. Cada producto pasa por las mismas reglas que al guardarlo desde su ficha: los que no las cumplan (por ejemplo, sin precio) quedan como están y te contamos por qué.",
     confirm: "Publicar",
   },
   draft: {
     label: "Pasar a borrador",
     title: (count) => `¿Pasar ${products(count)} a borrador?`,
-    description: "Dejan de verse en la tienda. Podés volver a publicarlos cuando quieras.",
+    description: (count) =>
+      count === 1 ? "Deja de verse en la tienda. Podés volver a publicarlo cuando quieras." : "Dejan de verse en la tienda. Podés volver a publicarlos cuando quieras.",
     confirm: "Pasar a borrador",
   },
   archive: {
     label: "Archivar",
     title: (count) => `¿Archivar ${products(count)}?`,
-    description: "Dejan de verse en la tienda y quedan en la pestaña Archivados. Podés volver a publicarlos cuando quieras.",
+    description: (count) =>
+      count === 1
+        ? "Deja de verse en la tienda y queda en la pestaña Archivados. Podés volver a publicarlo cuando quieras."
+        : "Dejan de verse en la tienda y quedan en la pestaña Archivados. Podés volver a publicarlos cuando quieras.",
     confirm: "Archivar",
   },
   feature: {
     label: "Destacar",
     title: (count) => `¿Destacar ${products(count)}?`,
-    description: "Se marcan como destacados.",
+    description: (count) => (count === 1 ? "Se marca como destacado." : "Se marcan como destacados."),
     confirm: "Destacar",
   },
   unfeature: {
     label: "Quitar destacado",
     title: (count) => `¿Quitar el destacado de ${products(count)}?`,
-    description: "Dejan de estar marcados como destacados.",
+    description: (count) => (count === 1 ? "Deja de estar marcado como destacado." : "Dejan de estar marcados como destacados."),
     confirm: "Quitar destacado",
   },
 };
@@ -102,7 +109,7 @@ export function BulkProductActions() {
         size="sm"
         dismissible={!pending}
         title={copy.title(count)}
-        description={copy.description}
+        description={copy.description(count)}
         actions={
           <>
             <Button onClick={dialog.close} disabled={pending}>

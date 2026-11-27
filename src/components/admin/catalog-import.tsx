@@ -22,6 +22,8 @@ const COLUMNS: DataTableColumn<ImportLine>[] = [
 ];
 
 /** Upload, review (nothing is written), then apply: same importCatalogAction as before. */
+const applyLabel = (changes: number) => (changes === 1 ? "Aplicar 1 cambio" : `Aplicar ${changes} cambios`);
+
 export function CatalogImport() {
   const [state, action, pending] = useActionState<ImportState, FormData>(importCatalogAction, {});
   const toast = useToast();
@@ -83,7 +85,7 @@ export function CatalogImport() {
               {report.summary.failed > 0 && <p className={styles.muted}>Las filas con error se saltean; corregilas y volvé a subir la planilla.</p>}
               <div className={styles.saveRow}>
                 <Button type="submit" variant="primary" loading={pending}>
-                  {`Aplicar ${report.summary.created + report.summary.updated} cambios`}
+                  {applyLabel(report.summary.created + report.summary.updated)}
                 </Button>
               </div>
             </form>
