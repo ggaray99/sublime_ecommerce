@@ -71,8 +71,8 @@
   outline-offset: 2px;
 }
 
-/* Room for the selection bar only while it shows (it is otherwise a hidden status line). */
-.selection:has(> [role="group"]) {
+/* The selection bar always keeps its place (SelectionBar), so this padding is unconditional. */
+.selection {
   padding: var(--sa-space-3) var(--sa-space-4) 0;
 }
 

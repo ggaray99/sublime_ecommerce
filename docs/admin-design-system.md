@@ -349,6 +349,13 @@ const SELECT: DataTableColumn<Order> = {
 
 The table stays a server component; only the checkboxes and the bar are client components (they read the selection context). Set `rowHeader: true` on the column that names the row so the checkbox column is not used as the link.
 
+`SelectionBar` is always rendered at a fixed height, so checking the first row never moves the table:
+
+- **Nothing checked:** the bar shows `idleHint`, a subdued line. Its default is "Seleccioná filas para ver las acciones"; pass a list-specific text.
+- **One or more rows checked:** the bar shows the count, the actions (`children`) and "Quitar selección".
+
+Its `role="group"` exists only while there are actions; the live `role="status"` count is always mounted. A wrapper around the bar must not change its padding with the selection.
+
 ### FilterBar and LinkTabs
 
 `filter-bar.tsx`: a `<form method="get" role="search">` for a list. Works without JavaScript and keeps filters in the URL.

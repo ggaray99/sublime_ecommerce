@@ -4,6 +4,8 @@ import type { QueryFn } from "../customers/repository.ts";
 import type { PlacedDesign } from "../cart/quote.ts";
 import { MOCKUP_KINDS } from "../../lib/designs/kinds.ts";
 import { parseGarmentPlacement } from "../../lib/designs/mockups.ts";
+import type { OrderSearch, OrderSort } from "./order-search.ts";
+import { deliveryFilterOf, paymentFilterOf, type StatusFilter } from "./status-view.ts";
 
 /** Minutes a checkout holds stock while the payment is arranged. */
 export const RESERVATION_MINUTES = 15;
@@ -175,6 +177,21 @@ export function readDesignPlacement(value: unknown): PlacedDesign | null {
 /** Image of the designs of an order's lines, to draw their mockups (missing when the design is gone). */
 export type OrderDesignArt = { id: string; slug: string; imageUrl: string; width: number; height: number };
 
+/** Rows per page of the admin order list. */
+export const ORDER_PAGE_SIZE = 50;
+
+export type OrderSearchResult = { items: Order[]; total: number; page: number; pageSize: number; pages: number };
+
+const TOTAL_SQL = "(subtotal_minor - discount_minor + coalesce(shipping_minor, 0))";
+
+/** ORDER BY per list sort; the number breaks ties so pages never overlap. */
+const ORDER_SORT_SQL: Record<OrderSort, string> = {
+  recientes: "created_at DESC, number DESC",
+  antiguos: "created_at ASC, number ASC",
+  "total-desc": `${TOTAL_SQL} DESC, created_at DESC, number DESC`,
+  "total-asc": `${TOTAL_SQL} ASC, created_at DESC, number DESC`,
+};
+
 /** Display number: SUB-1001. */
 export const orderNumber = (order: Pick<Order, "number">) => `SUB-${order.number}`;
 
@@ -276,6 +293,60 @@ export function createOrderRepository(sql: QueryFn) {
       const { text, params } = newestFirst("orders", filter);
       const rows = (await sql.query(text, params)) as OrderRow[];
       return rows.map(toOrder);
+    },
+
+    /**
+     * One page of the admin list: search, filters and order combined with AND.
+     * Read-only; listOrders stays as it is for its other callers.
+     */
+    async searchOrders(search: OrderSearch): Promise<OrderSearchResult> {
+      const where: string[] = [];
+      const params: unknown[] = [];
+      const param = (value: unknown) => {
+        params.push(value);
+        return `$${params.length}`;
+      };
+      if (search.query) {
+        // LIKE wildcards in the search are literal characters.
+        const pattern = param(`%${search.query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`);
+        const text = `contact_name ILIKE ${pattern} ESCAPE '\\' OR contact_email ILIKE ${pattern} ESCAPE '\\'`;
+        const number = /^(?:sub-?)?(\d{1,15})$/i.exec(search.query)?.[1];
+        where.push(number ? `(number = ${param(number)}::bigint OR ${text})` : `(${text})`);
+      }
+      const statusFilters: StatusFilter[] = [];
+      if (search.status) statusFilters.push({ statuses: [search.status] });
+      const payment = paymentFilterOf(search.payment);
+      if (payment) statusFilters.push(payment);
+      const delivery = deliveryFilterOf(search.delivery);
+      if (delivery) statusFilters.push(delivery);
+      for (const filter of statusFilters) {
+        where.push(`status = ANY(${param(filter.statuses)}::text[])`);
+        if (filter.method) where.push(`delivery ->> 'method' = ${param(filter.method)}`);
+      }
+      // Dates are Argentina days (UTC−3, no daylight saving); "hasta" includes its whole day.
+      if (search.from) where.push(`created_at >= ${param(new Date(`${search.from}T00:00:00-03:00`))}::timestamptz`);
+      if (search.to) where.push(`created_at < ${param(new Date(Date.parse(`${search.to}T00:00:00-03:00`) + 24 * 60 * 60 * 1000))}::timestamptz`);
+
+      const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+      const [{ n: total }] = (await sql.query(`SELECT count(*)::int AS n FROM orders ${clause}`, params)) as { n: number }[];
+      const pageSize = ORDER_PAGE_SIZE;
+      const pages = Math.max(1, Math.ceil(total / pageSize));
+      const page = Math.min(search.page, pages);
+      const rows = (await sql.query(`SELECT * FROM orders ${clause} ORDER BY ${ORDER_SORT_SQL[search.sort]} LIMIT $${params.length + 1}::int OFFSET $${params.length + 2}::int`, [
+        ...params,
+        pageSize,
+        (page - 1) * pageSize,
+      ])) as OrderRow[];
+      return { items: rows.map(toOrder), total, page, pageSize, pages };
+    },
+
+    /** Paid orders still to deliver, by method: the "Sin enviar" and "Para retirar" counts. */
+    async countToDeliver(): Promise<{ shipping: number; pickup: number }> {
+      const rows = (await sql.query(
+        "SELECT delivery ->> 'method' AS method, count(*)::int AS n FROM orders WHERE status = 'paid' GROUP BY 1",
+      )) as { method: string; n: number }[];
+      const count = (method: string) => rows.find((row) => row.method === method)?.n ?? 0;
+      return { shipping: count("shipping"), pickup: count("pickup") };
     },
 
     async countByStatus(): Promise<Record<OrderStatus, number>> {

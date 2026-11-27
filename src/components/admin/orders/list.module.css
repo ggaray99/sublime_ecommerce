@@ -1,0 +1,178 @@
+/*
+ * Admin orders list (/admin/pedidos): what is specific to orders. The list
+ * chrome (page, card, filters, table cells, footer) is shared with the
+ * products list (../products/list.module.css). Sizes follow the list's own
+ * box (container queries), with no min-width: it never scrolls sideways.
+ */
+
+.notice {
+  margin: 0;
+  padding: var(--sa-space-2) var(--sa-space-3);
+  border: var(--sa-border-width) solid var(--sa-color-info-border);
+  border-radius: var(--sa-radius-sm);
+  background: var(--sa-color-info-bg);
+  color: var(--sa-color-info-text);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+}
+
+.activeFilter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-1) var(--sa-space-3);
+  margin: 0;
+  padding: var(--sa-space-2) var(--sa-space-4);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  color: var(--sa-color-text);
+  font-size: var(--sa-font-size-sm);
+}
+
+/* ---------------------------------------------------------------- table */
+
+.row:last-child > .cell {
+  border-bottom: 0;
+}
+
+.row:hover > .cell {
+  background: var(--sa-color-surface-subdued);
+}
+
+/* Paid after the reservation expired, without stock: needs a decision. */
+.critical > .cell,
+.critical:hover > .cell {
+  background: var(--sa-color-critical-bg);
+}
+
+.critical > .cell:first-child {
+  box-shadow: inset 3px 0 0 var(--sa-color-critical-border);
+}
+
+.order,
+.customer {
+  min-width: 0;
+}
+
+.number {
+  border-radius: 2px;
+  color: var(--sa-color-text);
+  font-weight: var(--sa-font-weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.number:hover {
+  text-decoration: underline;
+}
+
+.number:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 2px;
+}
+
+.customerName {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.state {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.total {
+  text-align: end;
+  white-space: nowrap;
+}
+
+/* Below ~880px of list width (1024px screen with the menu open): one line per cell. */
+@container (max-width: 880px) {
+  .table .secondary {
+    display: none;
+  }
+}
+
+/* Narrow lists (phones): each row becomes a card. */
+@container (max-width: 600px) {
+  .row {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    column-gap: var(--sa-space-3);
+    row-gap: var(--sa-space-1);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  }
+
+  .row:last-child {
+    border-bottom: 0;
+  }
+
+  .table .row > .cell {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .critical {
+    background: var(--sa-color-critical-bg);
+    box-shadow: inset 3px 0 0 var(--sa-color-critical-border);
+  }
+
+  .table .row > .selectCell {
+    grid-row: 1 / span 4;
+    grid-column: 1;
+    padding-top: 2px;
+  }
+
+  .row > .order {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .row > .total {
+    grid-row: 1;
+    grid-column: 3;
+  }
+
+  .row > .customer,
+  .row > .payment,
+  .row > .delivery {
+    grid-column: 2 / span 2;
+  }
+
+  /* The card has room for the date and the email again. */
+  .table .secondary {
+    display: block;
+  }
+
+  .state {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sa-space-2);
+  }
+}
+
+/* ---------------------------------------------------------------- loading */
+
+.skeletonRow {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) 120px 120px 96px;
+  gap: var(--sa-space-3);
+  align-items: center;
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+@container (max-width: 600px) {
+  .skeletonRow {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .skeletonRow > :nth-child(n + 3) {
+    display: none;
+  }
+}

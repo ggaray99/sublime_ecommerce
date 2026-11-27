@@ -4736,17 +4736,33 @@ body:has(.admin-shell) {
   white-space: nowrap;
 }
 
+/* Always rendered at the same height (a hint when nothing is checked), so
+   checking the first row never moves the table. */
 .admin-shell .admin-selection-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 16px;
+  box-sizing: border-box;
+  min-height: 50px;
   margin-bottom: 8px;
   padding: 8px 12px;
-  border: 1px solid var(--admin-border-strong);
+  border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
+  background: transparent;
+  color: var(--admin-muted);
+}
+
+.admin-shell .admin-selection-bar.is-active {
+  border-color: var(--admin-border-strong);
   background: var(--admin-hover);
   color: var(--admin-text);
+}
+
+.admin-shell .admin-selection-bar__idle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 32px;
 }
 
 .admin-shell .admin-selection-bar__count {
@@ -4758,11 +4774,6 @@ body:has(.admin-shell) {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-}
-
-.admin-shell .admin-selection-bar__actions .btn,
-.admin-shell .admin-selection-bar__actions .link-button {
-  min-height: 32px;
 }
 
 .admin-shell .admin-selection-bar__hint {
@@ -4908,12 +4919,6 @@ body:has(.admin-shell) {
   border: 0;
   border-top: 1px solid var(--admin-border);
   border-radius: 0;
-}
-
-/* With no selection bar in between, the tab bar's hairline tops the table. */
-.admin-shell .admin-list:not(:has(> .admin-selection-bar)) > .admin-tabs ~ .admin-table-wrap {
-  margin-top: -12px;
-  border-top: 0;
 }
 
 .admin-shell .admin-list > .admin-table-wrap:not(:last-child) {

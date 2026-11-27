@@ -1,14 +1,25 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { Button } from "@/components/admin/ui";
 import { useSelection } from "./selectable-table";
 
 /**
- * Bar above a selectable table, shown while rows are checked. `children` are
- * the actions on the selection (export today; bulk changes can be added the
- * same way, reading the ids with useSelection()).
+ * Bar above a selectable table. It always keeps its place (a fixed height),
+ * so checking the first row never moves the table under the pointer: with
+ * nothing checked it shows `idleHint`; with rows checked, the count, the
+ * actions (`children`, which read the ids with useSelection()) and "Quitar
+ * selección". `hint` is a note about the selection shown in both states.
  */
-export function SelectionBar({ hint, children }: { hint?: string; children: ReactNode }) {
+export function SelectionBar({
+  hint,
+  idleHint = "Seleccioná filas para ver las acciones",
+  children,
+}: {
+  hint?: string;
+  idleHint?: string;
+  children: ReactNode;
+}) {
   const { selected, clear } = useSelection();
   const count = selected.length;
   const summary = `${count} ${count === 1 ? "seleccionado" : "seleccionados"}`;
@@ -18,18 +29,26 @@ export function SelectionBar({ hint, children }: { hint?: string; children: Reac
       <p className="visually-hidden" role="status">
         {count ? summary : ""}
       </p>
-      {count > 0 && (
-        <div className="admin-selection-bar" role="group" aria-label="Acciones sobre la selección">
-          <strong className="admin-selection-bar__count">{summary}</strong>
-          <div className="admin-selection-bar__actions">
-            {children}
-            <button type="button" className="link-button" onClick={clear}>
-              Quitar selección
-            </button>
-          </div>
-          {hint && <p className="admin-selection-bar__hint muted">{hint}</p>}
-        </div>
-      )}
+      <div
+        className={count ? "admin-selection-bar is-active" : "admin-selection-bar"}
+        // A group of actions only while there are actions.
+        {...(count ? { role: "group", "aria-label": "Acciones sobre la selección" } : {})}
+      >
+        {count > 0 ? (
+          <>
+            <strong className="admin-selection-bar__count">{summary}</strong>
+            <div className="admin-selection-bar__actions">
+              {children}
+              <Button variant="tertiary" size="sm" onClick={clear}>
+                Quitar selección
+              </Button>
+            </div>
+          </>
+        ) : (
+          <p className="admin-selection-bar__idle">{idleHint}</p>
+        )}
+        {hint && <p className="admin-selection-bar__hint">{hint}</p>}
+      </div>
     </>
   );
 }
@@ -73,9 +92,9 @@ export function ExportSelectedButton({ endpoint }: { endpoint: string }) {
 
   return (
     <>
-      <button type="button" className="btn btn--coal" onClick={download} disabled={busy} aria-busy={busy}>
+      <Button size="sm" onClick={download} loading={busy}>
         {busy ? "Exportando…" : "Exportar seleccionados (CSV)"}
-      </button>
+      </Button>
       {error && (
         <span className="admin-selection-bar__error" role="alert">
           {error}

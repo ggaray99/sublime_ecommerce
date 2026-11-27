@@ -17,11 +17,12 @@ Objective: redesign the admin Orders module (list and detail) on the design syst
 
 - T1 S1 inline — audit `docs/admin-orders-audit.md`. Status: done.
 - T2 S2,S3 inline — `src/server/orders/status-view.ts` payment/delivery views and filters over the single status. RED (module missing) → GREEN 4/4. Status: done.
-- T3 S2,S5 delegated (writer A, parallel with T4) — list: search, filters, dates, sort, pagination, tabs, responsive table, bulk "Marcar entregado", shared SelectionBar fix (O11). Status: pending.
-- T4 S3,S4,S5 delegated (writer B, parallel with T3) — detail page, Timeline component, payments card, per-action dialogs. Status: pending.
+- T3 S2,S5 delegated (writer A, parallel with T4) — list: search, filters, dates, sort, pagination, tabs, responsive table, bulk "Marcar entregado", shared SelectionBar fix (O11). RED (modules missing) → GREEN 17/17. Status: done (browser QA in T5).
+- T4 S3,S4,S5 delegated (writer B, parallel with T3) — detail page, Timeline component, payments card, per-action dialogs. RED (module missing) → GREEN 11/11. Commit 1232809. Status: done (browser QA in T5).
 - T5 S6,S7 inline — QA on staging, screenshots, delivery doc. Status: pending.
 
 ## Log
 
 - L1 (2026-11-27) User pasted the stage-3 brief: "Iniciamos el siguiente módulo: PEDIDOS." (full brief: audit, list, detail, actions, design system, QA, restrictions; "No comenzar Clientes hasta completar y validar Pedidos.").
 - L2 Audit by a read-only explorer + staging screenshots; O1–O13 and three rule findings left for the user (coupon use not returned on cancel, needs_review dead end, no Actividad entries). Route: T3 and T4 independent with disjoint surfaces → two writers in parallel. Decisions: payment/delivery are derived display views; only bulk "Marcar entregado"; no new states.
+- L3 (2026-11-27) Writers returned. A: searchOrders/countToDeliver (read-only), order-search.ts, tabs Todos/Por cobrar/Sin enviar/Para retirar/En revisión, ?estado= kept with an "Estado: X · Quitar" line, bulk fulfillOrders over markFulfilled, SelectionBar always rendered at fixed height with idleHint (shared), export button on the design-system Button. B: two-column detail, Mercado Pago payments read-only (payments-view.ts), Timeline in ui, per-action dialogs keeping orderAction fields (actions.ts unchanged). Dates apply with Buscar/Enter (auto-submit would fire while typing). Combined: 737/737, tsc, lint 0, build green.
