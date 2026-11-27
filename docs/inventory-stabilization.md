@@ -123,7 +123,22 @@ What its advisories led to:
 - **A3.** The API may report "updated" with a stale `before` when a concurrent write already set the same value. Cosmetic.
 - **A5.** The movements listing joins late sales by the note. It is indexed and fine at the current size.
 
-## 8. Risks
+## 8. QA on staging (2026-11-27)
+
+Deployed to `feat/vps-self-hosting` (staging) at `032abaf`, then `fbb291d`. Checked in Chrome and in the staging database (read only).
+
+| Check | Result |
+|---|---|
+| Cron log (`/srv/sublime/outbox.log`) | Staging logs `"expiry":{…}` every minute; the store container (no DB) does not run it |
+| Scheduled expiry | Test order SUB-1014 (pickup, transfer) was left unpaid. At 19:52 UTC the cron logged `"expiry":{"reservations":1,"orders":1}`; the order became "Vencido sin pago" and the movement `reservation_expired` has actor `system` |
+| Late payment | "Confirmar pago tardío" on SUB-1014 → "Pagado". Exactly one `sale` movement (−1) with note "Venta con pago tardío · Pedido SUB-1014" |
+| Movements link | `/admin/inventario/movimientos` shows that sale linked to SUB-1014 |
+| Restock decrease, product page | The form shows the error and disables the button; a direct submit is refused with "La reposición solo suma unidades (hay 8)." |
+| CSV import | The preview shows "stock 0 → 3 (+3, reposición)". A restock decrease and an invalid `motivo_stock` are refused. The sheet was applied, then reverted with "stock 3 → 0 (−3, ajuste)" |
+
+**Verdict:** all 7 decisions validated on staging.
+
+## 9. Risks
 
 - **Reservations of a non-pending order.** `releaseExpired` now only expires reservations whose order is pending, or that have no order. An active reservation of an order in another status is not expected; it would be a data anomaly. Such a reservation would no longer be released by expiry.
 - **The cron also runs in the store container.** Expiry runs there only when the store has its database enabled (today it does not).
