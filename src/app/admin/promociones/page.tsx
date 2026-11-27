@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { PromotionForm, type PromotionFormValues } from "@/components/admin/promotion-form";
 import { AdminUnavailable, loadCategoryOptions, priceInput } from "@/components/admin/shared";
@@ -108,7 +107,6 @@ async function Promotions({ searchParams }: { searchParams: PageProps<"/admin/pr
 
   return (
     <div className="account account--wide">
-      <AdminNav current="promociones" />
 
       <section className="account__section" aria-labelledby="promos-title">
         <div className="account__head">

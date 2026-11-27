@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { OrderActions } from "@/components/admin/order-actions";
 import { AdminUnavailable } from "@/components/admin/shared";
 import { argentinaTime, loadOrderMockups, OrderSummary, orderStatusLabel } from "@/components/orders/order-view";
@@ -33,7 +32,6 @@ async function OrderAdmin({ params }: { params: PageProps<"/admin/pedidos/[id]">
 
   return (
     <div className="account">
-      <AdminNav current="pedidos" />
       <p>
         <Link href="/admin/pedidos">← Volver a pedidos</Link>
       </p>

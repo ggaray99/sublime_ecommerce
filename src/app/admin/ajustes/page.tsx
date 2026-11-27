@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { ContactForm, InstallmentsForm, LabPricingForm } from "@/components/admin/settings-forms";
 import { argentinaTime } from "@/components/orders/order-view";
@@ -41,7 +40,6 @@ async function Settings() {
 
   return (
     <div className="account account--wide">
-      <AdminNav current="ajustes" />
       <section className="account__section" aria-labelledby="estado-title" id="estado">
         <div className="account__head">
           <h2 id="estado-title">Estado de la tienda</h2>

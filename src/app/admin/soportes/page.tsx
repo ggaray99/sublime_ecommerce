@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable, productStatusLabel } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { MOCKUP_KIND_LABELS, MOCKUP_KINDS } from "@/lib/designs/kinds";
@@ -48,7 +47,6 @@ async function MockupBases() {
 
   return (
     <div className="account">
-      <AdminNav current="soportes" />
       <section className="account__section" aria-labelledby="soportes-title">
         <h2 id="soportes-title">Soportes</h2>
         <p>

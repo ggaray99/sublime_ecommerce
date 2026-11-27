@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { PageTextForm } from "@/components/admin/settings-forms";
 import { AdminUnavailable } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
@@ -33,7 +32,6 @@ async function PageEditor({ params }: { params: PageProps<"/admin/ajustes/pagina
 
   return (
     <div className="account">
-      <AdminNav current="ajustes" />
       <section className="account__section" aria-labelledby="pagina-title">
         <h2 id="pagina-title">{page.title}</h2>
         <p className="muted">

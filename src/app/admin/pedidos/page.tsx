@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable } from "@/components/admin/shared";
 import { argentinaTime, orderStatusLabel } from "@/components/orders/order-view";
 import { PageIntro } from "@/components/page-intro";
@@ -31,7 +30,6 @@ async function Orders({ searchParams }: { searchParams: PageProps<"/admin/pedido
 
   return (
     <div className="account account--wide">
-      <AdminNav current="pedidos" />
       {released.orders > 0 && (
         <p className="panel panel--muted" role="status">
           {released.orders === 1 ? "Venció 1 pedido" : `Vencieron ${released.orders} pedidos`} sin pago: su stock se liberó.

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable } from "@/components/admin/shared";
 import { argentinaTime } from "@/components/orders/order-view";
 import { PageIntro } from "@/components/page-intro";
@@ -29,7 +28,6 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/enca
 
   return (
     <div className="account account--wide">
-      <AdminNav current="encargos" />
       <section className="account__section" aria-labelledby="encargos-title">
         <h2 id="encargos-title">Encargos personalizados</h2>
         <nav className="admin-tabs" aria-label="Filtrar por estado">

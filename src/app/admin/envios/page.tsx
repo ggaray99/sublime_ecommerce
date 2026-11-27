@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { AdminUnavailable, priceInput } from "@/components/admin/shared";
 import { PickupForm, ShippingRuleForm, type RuleFormValues } from "@/components/admin/shipping-forms";
@@ -67,7 +66,6 @@ async function Shipping({ searchParams }: { searchParams: PageProps<"/admin/envi
 
   return (
     <div className="account account--wide">
-      <AdminNav current="envios" />
 
       <section className="account__section" aria-labelledby="reglas-title">
         <h2 id="reglas-title">Reglas de envío</h2>

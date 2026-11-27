@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { RequestActions, QuoteResponseForm } from "@/components/admin/request-forms";
 import { AdminUnavailable, priceInput } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
@@ -36,7 +35,6 @@ async function RequestAdmin({ params }: { params: PageProps<"/admin/encargos/[id
 
   return (
     <div className="account">
-      <AdminNav current="encargos" />
       <p>
         <Link href="/admin/encargos">← Volver a encargos</Link>
       </p>

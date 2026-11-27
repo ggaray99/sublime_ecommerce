@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { DESIGN_STATUS_LABELS, DESIGN_STATUSES, MOCKUP_KIND_LABELS, MOCKUP_KINDS, type DesignStatus } from "@/lib/designs/kinds";
@@ -30,7 +29,6 @@ async function Designs({ searchParams }: { searchParams: PageProps<"/admin/disen
 
   return (
     <div className="account account--wide">
-      <AdminNav current="disenos" />
       {query.eliminado && (
         <p className="panel panel--muted" role="status">
           Diseño eliminado.

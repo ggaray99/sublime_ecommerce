@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AutoSubmitForm } from "@/components/admin/auto-submit-form";
 import { AdminUnavailable, productStatusLabel, stockLabel } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
@@ -203,7 +202,6 @@ async function AdminContent({ searchParams }: { searchParams: PageProps<"/admin"
   return (
     <div className="account account--wide">
       <div className="account__head">
-        <AdminNav current="productos" />
         <div className="admin-toolbar">
           <SortControl search={search} />
           <p className="muted">

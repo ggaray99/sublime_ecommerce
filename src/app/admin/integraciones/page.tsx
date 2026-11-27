@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { ApiKeyForm } from "@/components/admin/api-key-form";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { AdminUnavailable } from "@/components/admin/shared";
@@ -128,7 +127,6 @@ async function Integrations({ searchParams }: { searchParams: PageProps<"/admin/
 
   return (
     <div className="account">
-      <AdminNav current="integraciones" />
 
       <MercadoPagoSection result={typeof mp === "string" ? mp : undefined} />
 

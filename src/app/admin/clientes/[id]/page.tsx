@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable } from "@/components/admin/shared";
 import { argentinaTime, orderStatusLabel } from "@/components/orders/order-view";
 import { requestStatusLabel } from "@/components/requests/request-view";
@@ -39,7 +38,6 @@ async function CustomerDetail({ params }: { params: PageProps<"/admin/clientes/[
 
   return (
     <div className="account account--wide">
-      <AdminNav current="clientes" />
       <p className="muted">
         <Link href="/admin/clientes">← Todos los clientes</Link>
       </p>

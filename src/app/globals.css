@@ -4776,3 +4776,129 @@ body:has(.admin-shell) {
 .admin-shell .design-chip input {
   accent-color: var(--admin-text);
 }
+
+/* Admin layout: bar on top, side menu on the left, the page on the right. */
+.admin-shell .admin-bar--loading {
+  min-height: 48px;
+}
+
+.admin-shell .admin-body {
+  display: flex;
+  align-items: flex-start;
+  min-height: calc(100vh - 48px);
+}
+
+.admin-shell .admin-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.admin-shell .admin-main > .page {
+  padding-inline: clamp(16px, 3vw, 40px);
+}
+
+.admin-sidenav {
+  position: sticky;
+  top: 48px;
+  flex: none;
+  align-self: flex-start;
+  width: 44px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border-right: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+}
+
+.admin-sidenav.is-open {
+  width: 208px;
+  min-height: calc(100vh - 48px);
+}
+
+.admin-sidenav__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--admin-border);
+  background: none;
+  color: var(--admin-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-sidenav__toggle:hover {
+  background: var(--admin-hover);
+  color: var(--admin-text);
+}
+
+.admin-sidenav:not(.is-open) .admin-sidenav__toggle-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.admin-sidenav__menu {
+  display: grid;
+  gap: 14px;
+  padding: 12px 8px 20px;
+}
+
+.admin-sidenav__group-label {
+  padding: 0 8px 4px;
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-sidenav ul {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-sidenav a {
+  display: block;
+  padding: 6px 8px;
+  border-radius: var(--admin-radius-sm);
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.admin-sidenav a:hover {
+  background: var(--admin-hover);
+}
+
+.admin-sidenav a[aria-current="page"] {
+  background: var(--admin-text);
+  color: var(--white);
+  font-weight: 600;
+}
+
+/* Small screens: the rail stays thin and the open menu floats over the page. */
+@media (max-width: 899px) {
+  .admin-sidenav.is-open {
+    position: fixed;
+    top: 48px;
+    bottom: 0;
+    left: 0;
+    z-index: 35;
+    min-height: 0;
+    max-height: none;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+  }
+}

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { HomeHeroForm } from "@/components/admin/home-forms";
 import { AdminUnavailable } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
@@ -36,7 +35,6 @@ async function HomeSettings() {
 
   return (
     <div className="account account--wide">
-      <AdminNav current="portada" />
       <section className="account__section" aria-labelledby="portada-title">
         <div className="account__head">
           <h2 id="portada-title">Primera sección de la tienda</h2>

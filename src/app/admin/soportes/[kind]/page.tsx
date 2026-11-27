@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable, AuditList } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { isMockupKind, MOCKUP_KIND_LABELS } from "@/lib/designs/kinds";
@@ -106,7 +105,6 @@ async function KindTemplates({ params }: Pick<Props, "params">) {
 
   return (
     <div className="account">
-      <AdminNav current="soportes" />
       <p>
         <Link href="/admin/soportes">← Volver a soportes</Link>
       </p>

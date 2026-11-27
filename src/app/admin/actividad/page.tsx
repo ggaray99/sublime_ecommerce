@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable, AUDIT_AREAS, AuditList } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import type { AuditEntity } from "@/server/admin/repository";
@@ -32,7 +31,6 @@ async function Activity({ searchParams }: { searchParams: PageProps<"/admin/acti
 
   return (
     <div className="account account--wide">
-      <AdminNav current="actividad" />
       <section className="account__section" aria-labelledby="actividad-title">
         <h2 id="actividad-title">Registro de cambios</h2>
         <p className="muted">Todo lo que se cambia en el panel, con quién y cuándo. Lo más reciente primero.</p>

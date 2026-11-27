@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { PointForm, type PointFormValues } from "@/components/admin/point-forms";
 import { AdminUnavailable } from "@/components/admin/shared";
@@ -50,7 +49,6 @@ async function Points({ searchParams }: { searchParams: PageProps<"/admin/puntos
 
   return (
     <div className="account account--wide">
-      <AdminNav current="puntos" />
 
       <section className="account__section" aria-labelledby="puntos-title">
         <div className="account__head">

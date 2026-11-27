@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { CategoryForm } from "@/components/admin/category-forms";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
 import { FALLBACK_CATEGORY_IMAGE } from "@/server/catalog/postgres-storefront";
@@ -26,7 +25,6 @@ async function Categories({ searchParams }: { searchParams: PageProps<"/admin/ca
 
   return (
     <div className="account">
-      <AdminNav current="categorias" />
       {query.eliminada && (
         <p className="panel panel--muted" role="status">
           Categoría eliminada.

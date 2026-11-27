@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminUnavailable } from "@/components/admin/shared";
 import { argentinaTime } from "@/components/orders/order-view";
 import { PageIntro } from "@/components/page-intro";
@@ -29,7 +28,6 @@ async function Customers({ searchParams }: { searchParams: PageProps<"/admin/cli
 
   return (
     <div className="account account--wide">
-      <AdminNav current="clientes" />
       <section className="account__section" aria-labelledby="clientes-title">
         <h2 id="clientes-title">Clientes ({total})</h2>
         <form className="admin-search" role="search" action="/admin/clientes">

@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { CategoryForm, DeleteCategoryForm } from "@/components/admin/category-forms";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { CategoryImageUpload } from "@/components/admin/media-forms";
 import { AdminUnavailable, AuditList } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
@@ -37,7 +36,6 @@ async function CategoryAdmin({ params, searchParams }: Pick<Props, "params" | "s
 
   return (
     <div className="account">
-      <AdminNav current="categorias" />
       <section className="account__section" aria-labelledby="categoria-title">
         <h2 id="categoria-title">{category.label}</h2>
         <p className="muted">

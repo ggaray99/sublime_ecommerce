@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { DeleteDesignForm, DesignFileUpload, DesignForm, DesignStatusForm } from "@/components/admin/design-forms";
 import { AdminUnavailable, AuditList, loadCategoryOptions } from "@/components/admin/shared";
 import { PageIntro } from "@/components/page-intro";
@@ -44,7 +43,6 @@ async function DesignAdmin({ params, searchParams }: Pick<Props, "params" | "sea
 
   return (
     <div className="account">
-      <AdminNav current="disenos" />
       <p>
         <Link href="/admin/disenos">← Volver a diseños</Link>
       </p>
