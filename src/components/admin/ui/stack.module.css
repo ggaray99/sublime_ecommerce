@@ -1,0 +1,12 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-gap);
+  min-width: 0;
+}
+
+.inline {
+  display: flex;
+  gap: var(--layout-gap);
+  min-width: 0;
+}

@@ -1,0 +1,56 @@
+.card {
+  min-width: 0;
+  border-radius: var(--sa-radius-lg);
+  background: var(--sa-color-surface);
+  box-shadow: var(--sa-shadow-card);
+  color: var(--sa-color-text);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sa-space-2) var(--sa-space-3);
+  padding: var(--sa-space-4) var(--sa-space-4) 0;
+}
+
+.header .title {
+  margin: 0;
+  color: var(--sa-color-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-md);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-md);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sa-space-2);
+}
+
+.body {
+  display: grid;
+  gap: var(--sa-space-3);
+  padding: var(--sa-space-4);
+}
+
+.flush {
+  padding: 0;
+}
+
+.header + .flush {
+  margin-top: var(--sa-space-3);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sa-space-2);
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border-top: var(--sa-border-width) solid var(--sa-color-border);
+}

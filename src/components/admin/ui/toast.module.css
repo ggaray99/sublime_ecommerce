@@ -1,0 +1,96 @@
+.region {
+  position: fixed;
+  right: 0;
+  bottom: var(--sa-space-6);
+  left: 0;
+  z-index: var(--sa-z-toast);
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--sa-space-4);
+  pointer-events: none;
+}
+
+.list {
+  display: grid;
+  gap: var(--sa-space-2);
+  width: 100%;
+  max-width: 420px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.toast {
+  --toast-icon: var(--sa-color-neutral-icon);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sa-space-2);
+  padding: var(--sa-space-2) var(--sa-space-2) var(--sa-space-2) var(--sa-space-3);
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-color-inverse-surface);
+  box-shadow: var(--sa-shadow-popover);
+  color: var(--sa-color-inverse-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+  pointer-events: auto;
+  animation: toast-in var(--sa-duration-slow) var(--sa-easing-standard);
+}
+
+/* Dark toasts (Shopify style); the tone shows in the icon (and a left rule
+   for errors). Icon contrast on the inverse surface is tested (>= 3:1). */
+.info {
+  --toast-icon: var(--sa-color-inverse-info-icon);
+}
+
+.success {
+  --toast-icon: var(--sa-color-inverse-success-icon);
+}
+
+.warning {
+  --toast-icon: var(--sa-color-inverse-warning-icon);
+}
+
+.critical {
+  --toast-icon: var(--sa-color-inverse-critical-icon);
+  box-shadow:
+    inset 3px 0 0 var(--toast-icon),
+    var(--sa-shadow-popover);
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  padding-top: 6px;
+  color: var(--toast-icon);
+}
+
+.message {
+  flex: 1;
+  margin: 0;
+  padding: 4px 0;
+}
+
+/* The close button sits on the dark toast. */
+.toast .close {
+  --button-text: var(--sa-color-inverse-text);
+  --button-bg-hover: var(--sa-color-inverse-surface-hover);
+  --button-bg-pressed: var(--sa-color-inverse-surface-hover);
+}
+
+.toast .close:focus-visible {
+  outline-color: var(--sa-color-inverse-focus);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}

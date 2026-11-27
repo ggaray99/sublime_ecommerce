@@ -1,0 +1,54 @@
+.container {
+  min-width: 0;
+}
+
+.shapes {
+  display: grid;
+  gap: var(--sa-space-3);
+}
+
+.text {
+  display: grid;
+  gap: var(--sa-space-2);
+}
+
+.shape {
+  display: block;
+  border-radius: var(--sa-radius-sm);
+  background: linear-gradient(90deg, var(--sa-color-surface-pressed) 0%, var(--sa-color-surface-hover) 50%, var(--sa-color-surface-pressed) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.line {
+  height: 12px;
+  width: 100%;
+}
+
+.lineShort {
+  width: 60%;
+}
+
+.block {
+  width: 100%;
+  border-radius: var(--sa-radius-md);
+}
+
+.cell {
+  padding: var(--sa-space-3);
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shape {
+    animation: none;
+  }
+}

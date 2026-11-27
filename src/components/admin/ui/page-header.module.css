@@ -1,0 +1,71 @@
+.header {
+  display: grid;
+  gap: var(--sa-space-2);
+  margin-bottom: var(--sa-space-4);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sa-space-3) var(--sa-space-4);
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sa-space-2);
+  min-width: 0;
+}
+
+.titles {
+  display: grid;
+  gap: var(--sa-space-1);
+  min-width: 0;
+}
+
+.titleLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-2);
+  min-height: 32px;
+}
+
+.titleLine .title {
+  margin: 0;
+  color: var(--sa-color-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-xl);
+  font-weight: var(--sa-font-weight-bold);
+  line-height: var(--sa-line-height-xl);
+  letter-spacing: -0.01em;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sa-space-1);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sa-space-2);
+}
+
+@media (max-width: 640px) {
+  .actions {
+    width: 100%;
+  }
+}

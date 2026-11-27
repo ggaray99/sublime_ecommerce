@@ -1,0 +1,135 @@
+.button {
+  --button-bg: var(--sa-color-surface);
+  --button-bg-hover: var(--sa-color-surface-hover);
+  --button-bg-pressed: var(--sa-color-surface-pressed);
+  --button-text: var(--sa-color-text);
+  --button-border: var(--sa-color-border-strong);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sa-space-2);
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 var(--sa-space-3);
+  border: var(--sa-border-width) solid var(--button-border);
+  border-radius: var(--sa-radius-sm);
+  background: var(--button-bg);
+  box-shadow: var(--sa-shadow-button);
+  color: var(--button-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-sm);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--sa-duration-fast) var(--sa-easing-standard),
+    border-color var(--sa-duration-fast) var(--sa-easing-standard);
+}
+
+.button:hover {
+  background: var(--button-bg-hover);
+}
+
+.button:active {
+  background: var(--button-bg-pressed);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  border-color: var(--sa-color-border);
+  background: var(--sa-color-surface-subdued);
+  box-shadow: none;
+  color: var(--sa-color-text-disabled);
+}
+
+.primary {
+  --button-bg: var(--sa-color-primary);
+  --button-bg-hover: var(--sa-color-primary-hover);
+  --button-bg-pressed: var(--sa-color-primary-pressed);
+  --button-text: var(--sa-color-text-on-primary);
+  --button-border: var(--sa-color-primary);
+}
+
+.critical {
+  --button-bg: var(--sa-color-critical-strong);
+  --button-bg-hover: var(--sa-color-critical-strong-hover);
+  --button-bg-pressed: var(--sa-color-critical-strong-hover);
+  --button-text: var(--sa-color-text-on-critical);
+  --button-border: var(--sa-color-critical-strong);
+}
+
+.tertiary {
+  --button-bg: transparent;
+  --button-border: transparent;
+  box-shadow: none;
+}
+
+.tertiary:disabled {
+  border-color: transparent;
+  background: transparent;
+}
+
+.sm {
+  min-height: 28px;
+  min-width: 28px;
+  padding: 0 var(--sa-space-2);
+  font-size: var(--sa-font-size-xs);
+  line-height: var(--sa-line-height-xs);
+}
+
+.md {
+  min-height: 32px;
+}
+
+.iconOnly {
+  padding: 0;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Loading: the label keeps the size and the accessible name, hidden behind the spinner. */
+.loading {
+  cursor: progress;
+}
+
+.loading .label,
+.loading .icon {
+  visibility: hidden;
+}
+
+.spinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+
+@media (max-width: 640px) {
+  /* Larger touch targets on phones. */
+  .md {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}

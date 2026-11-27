@@ -12,7 +12,7 @@ Branch `feat/admin-design-system` (off `feat/admin-minimal` 02b29ba). Delivery: 
 - **S8** "No rediseñar todos los módulos en esta etapa. Primero construir y validar el Design System y el layout general."
 
 ## Tasks
-- T1 S2,S3,S6,S7 delegated (context backstop) — tokens + primitive components (CSS Modules, no new deps) + component docs + admin-only showcase page. Status: pending.
+- T1 S2,S3,S6,S7 delegated (context backstop) — tokens + primitive components (CSS Modules, no new deps) + component docs + admin-only showcase page. Status: done (RED ERR_MODULE_NOT_FOUND, GREEN 46/46; 655/655, tsc, lint, build; showcase not rendered at runtime yet).
 - T2 S3,S4,S5,S6 delegated, after T1 — AdminShell/Sidebar/Topbar/Breadcrumbs in the admin layout + /admin/inicio dashboard with real data or empty states. Status: pending.
 - T3 S7 — validation: lint, build, tests, permissions, store regression check, screenshots 1366x768 (after QA push authorized by the user). Status: pending.
 

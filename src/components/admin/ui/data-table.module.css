@@ -1,0 +1,160 @@
+.wrap {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: inherit;
+  background: var(--sa-color-surface);
+}
+
+.wrap:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: -2px;
+}
+
+.sticky {
+  max-height: var(--table-max-height);
+  overflow-y: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--sa-color-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  padding: var(--sa-space-3) var(--sa-space-4);
+  color: var(--sa-color-text);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-semibold);
+  text-align: start;
+}
+
+.th {
+  padding: var(--sa-space-2) var(--sa-space-3);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  background: var(--sa-color-surface-subdued);
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-xs);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-xs);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.sticky .th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.td {
+  padding: var(--sa-space-2) var(--sa-space-3);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  font-weight: var(--sa-font-weight-regular);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.row:last-child > .td {
+  border-bottom: 0;
+}
+
+.th:first-child,
+.td:first-child {
+  padding-left: var(--sa-space-4);
+}
+
+.th:last-child,
+.td:last-child {
+  padding-right: var(--sa-space-4);
+}
+
+.rowHeader {
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.alignEnd {
+  text-align: end;
+}
+
+.alignCenter {
+  text-align: center;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.row:hover > .td {
+  background: var(--sa-color-surface-subdued);
+}
+
+/* Linked rows: the row-header link covers the whole row; other controls in
+   the row (checkboxes, buttons, links) stay above it and keep working. */
+.linked {
+  position: relative;
+  cursor: pointer;
+}
+
+.rowLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.rowLink:hover {
+  text-decoration: underline;
+}
+
+.rowLink:focus-visible {
+  outline: none;
+}
+
+.rowLink:focus-visible::after {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: -2px;
+  border-radius: var(--sa-radius-sm);
+}
+
+.linked .td :is(a, button, input, label, select, textarea, summary),
+.linked .rowHeader :is(button, input, label, select) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Tones */
+.critical > .td,
+.critical:hover > .td {
+  background: var(--sa-color-critical-bg);
+}
+
+.warning > .td,
+.warning:hover > .td {
+  background: var(--sa-color-warning-bg);
+}
+
+.subdued > .td {
+  color: var(--sa-color-text-subdued);
+}
+
+.emptyCell {
+  padding: 0;
+}
+
+.emptyText {
+  margin: 0;
+  padding: var(--sa-space-6) var(--sa-space-4);
+  color: var(--sa-color-text-subdued);
+  text-align: center;
+}

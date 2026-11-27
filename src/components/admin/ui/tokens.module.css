@@ -1,0 +1,167 @@
+/*
+ * Sublime Admin design tokens. Put `.theme` on the admin shell root (or any
+ * wrapper) and every component under it reads these custom properties.
+ * Scoped to the class: nothing here reaches the brutalist store.
+ * Documented in docs/admin-design-system.md; the contrast of the text pairs
+ * is checked by tests/admin-ui.test.mjs.
+ */
+.theme {
+  color-scheme: light;
+
+  /* Neutrals */
+  --sa-color-canvas: #f1f1f3;
+  --sa-color-surface: #ffffff;
+  --sa-color-surface-subdued: #f7f7f8;
+  --sa-color-surface-hover: #f1f1f3;
+  --sa-color-surface-pressed: #e8e8eb;
+  --sa-color-surface-selected: #ebebee;
+  --sa-color-border: #e3e3e6;
+  --sa-color-border-strong: #c9cacf;
+  --sa-color-border-input: #8a8c93;
+  --sa-color-text: #1a1a1a;
+  --sa-color-text-subdued: #5e5f66;
+  --sa-color-text-disabled: #a1a1aa;
+  --sa-color-text-link: #006e95;
+
+  /* Primary action (dark, Shopify-like) */
+  --sa-color-primary: #1a1a1a;
+  --sa-color-primary-hover: #303030;
+  --sa-color-primary-pressed: #000000;
+  --sa-color-text-on-primary: #ffffff;
+
+  /* Brand accent: Sublime cyan, used sparingly; text on it is dark. */
+  --sa-color-accent: #35bdf2;
+  --sa-color-accent-subdued: #e6f6fd;
+  --sa-color-text-on-accent: #0b0b0c;
+  /* Focus ring: brand cyan is 2.16:1 on white, so the ring uses a deeper
+     shade of the same hue (4.51:1 on white, 4.00:1 on the canvas). */
+  --sa-color-focus: #0a7fae;
+
+  /* Destructive action */
+  --sa-color-critical-strong: #c41230;
+  --sa-color-critical-strong-hover: #a30f28;
+  --sa-color-text-on-critical: #ffffff;
+
+  /* Semantic states: bg, border, text, icon */
+  --sa-color-neutral-bg: #f1f1f3;
+  --sa-color-neutral-border: #dcdce0;
+  --sa-color-neutral-text: #3f3f46;
+  --sa-color-neutral-icon: #71717a;
+
+  --sa-color-info-bg: #e6f6fd;
+  --sa-color-info-border: #9fdaf5;
+  --sa-color-info-text: #075674;
+  --sa-color-info-icon: #0a7fae;
+
+  --sa-color-success-bg: #e3f5e8;
+  --sa-color-success-border: #a7dcb6;
+  --sa-color-success-text: #0c5a2a;
+  --sa-color-success-icon: #1a8443;
+
+  --sa-color-warning-bg: #fff4d6;
+  --sa-color-warning-border: #f1cf74;
+  --sa-color-warning-text: #6b4a00;
+  --sa-color-warning-icon: #b78103;
+
+  --sa-color-critical-bg: #fdecee;
+  --sa-color-critical-border: #f5b5be;
+  --sa-color-critical-text: #a3132b;
+  --sa-color-critical-icon: #d6243e;
+
+  --sa-color-attention-bg: #fff1e5;
+  --sa-color-attention-border: #f8c79a;
+  --sa-color-attention-text: #8a3b00;
+  --sa-color-attention-icon: #e36c00;
+
+  /* Inverse surfaces (toasts, tooltips): dark box, light text and icons */
+  --sa-color-inverse-surface: #1a1a1a;
+  --sa-color-inverse-surface-hover: #303030;
+  --sa-color-inverse-text: #ffffff;
+  --sa-color-inverse-focus: #35bdf2;
+  --sa-color-inverse-info-icon: #35bdf2;
+  --sa-color-inverse-success-icon: #4cc77a;
+  --sa-color-inverse-warning-icon: #f5b923;
+  --sa-color-inverse-critical-icon: #ff8a9c;
+
+  /* Typography: the store's text face (already loaded by the root layout). */
+  --sa-font-family: var(--font-gontserrat), "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --sa-font-family-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --sa-font-size-xs: 12px;
+  --sa-font-size-sm: 13px;
+  --sa-font-size-md: 14px;
+  --sa-font-size-lg: 16px;
+  --sa-font-size-xl: 20px;
+  --sa-font-size-2xl: 24px;
+  --sa-line-height-xs: 16px;
+  --sa-line-height-sm: 20px;
+  --sa-line-height-md: 20px;
+  --sa-line-height-lg: 24px;
+  --sa-line-height-xl: 28px;
+  --sa-line-height-2xl: 32px;
+  --sa-font-weight-regular: 400;
+  --sa-font-weight-semibold: 600;
+  --sa-font-weight-bold: 700;
+
+  /* Spacing: 4px base */
+  --sa-space-0: 0px;
+  --sa-space-1: 4px;
+  --sa-space-2: 8px;
+  --sa-space-3: 12px;
+  --sa-space-4: 16px;
+  --sa-space-5: 20px;
+  --sa-space-6: 24px;
+  --sa-space-8: 32px;
+  --sa-space-10: 40px;
+  --sa-space-12: 48px;
+  --sa-space-16: 64px;
+
+  /* Radius and borders */
+  --sa-radius-sm: 6px;
+  --sa-radius-md: 8px;
+  --sa-radius-lg: 12px;
+  --sa-radius-full: 9999px;
+  --sa-border-width: 1px;
+
+  /* Shadows */
+  --sa-shadow-card: 0 1px 0 rgb(0 0 0 / 0.04), 0 1px 3px rgb(0 0 0 / 0.08);
+  --sa-shadow-popover: 0 4px 12px rgb(0 0 0 / 0.12), 0 0 0 1px rgb(0 0 0 / 0.06);
+  --sa-shadow-dialog: 0 20px 40px rgb(0 0 0 / 0.2), 0 0 0 1px rgb(0 0 0 / 0.06);
+  --sa-shadow-button: 0 1px 0 rgb(0 0 0 / 0.05);
+  --sa-focus-ring: 0 0 0 2px var(--sa-color-surface), 0 0 0 4px var(--sa-color-focus);
+
+  /* Breakpoints (reference only: @media cannot read custom properties, so
+     the modules repeat these literal values) */
+  --sa-breakpoint-sm: 640px;
+  --sa-breakpoint-md: 900px;
+  --sa-breakpoint-lg: 1200px;
+  --sa-breakpoint-xl: 1440px;
+
+  /* Layers */
+  --sa-z-sidebar: 100;
+  --sa-z-topbar: 200;
+  --sa-z-popover: 300;
+  --sa-z-dialog: 400;
+  --sa-z-toast: 500;
+
+  /* Motion */
+  --sa-duration-fast: 100ms;
+  --sa-duration-base: 200ms;
+  --sa-duration-slow: 300ms;
+  --sa-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --sa-easing-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Base text for everything inside the theme */
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+  color: var(--sa-color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme {
+    --sa-duration-fast: 0ms;
+    --sa-duration-base: 0ms;
+    --sa-duration-slow: 0ms;
+  }
+}

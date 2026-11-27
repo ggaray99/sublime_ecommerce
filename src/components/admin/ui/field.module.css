@@ -1,0 +1,162 @@
+.field {
+  display: grid;
+  gap: var(--sa-space-1);
+  min-width: 0;
+}
+
+.label {
+  color: var(--sa-color-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-sm);
+}
+
+.required {
+  color: var(--sa-color-critical-text);
+}
+
+.hint {
+  margin: 0;
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sa-space-1);
+  margin: 0;
+  color: var(--sa-color-critical-text);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+}
+
+.error > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* The box around the control (holds prefix/suffix for inputs). */
+.control {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  border: var(--sa-border-width) solid var(--sa-color-border-input);
+  border-radius: var(--sa-radius-sm);
+  background: var(--sa-color-surface);
+  color: var(--sa-color-text);
+  transition: border-color var(--sa-duration-fast) var(--sa-easing-standard);
+}
+
+.control:hover {
+  border-color: var(--sa-color-text-subdued);
+}
+
+.control:focus-within {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 1px;
+  border-color: var(--sa-color-focus);
+}
+
+.control.invalid {
+  border-color: var(--sa-color-critical-icon);
+  background: var(--sa-color-critical-bg);
+}
+
+.control.disabled {
+  border-color: var(--sa-color-border);
+  background: var(--sa-color-surface-subdued);
+  color: var(--sa-color-text-disabled);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  margin: 0;
+  padding: 0 var(--sa-space-3);
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+  outline: none;
+  appearance: none;
+}
+
+.input::placeholder {
+  color: var(--sa-color-text-subdued);
+  opacity: 1;
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+.affix {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-md);
+}
+
+.affix:first-child {
+  padding-left: var(--sa-space-3);
+}
+
+.affix:last-child {
+  padding-right: var(--sa-space-3);
+}
+
+.affix:first-child + .input {
+  padding-left: var(--sa-space-2);
+}
+
+.input:has(+ .affix) {
+  padding-right: var(--sa-space-2);
+}
+
+.select {
+  padding-right: var(--sa-space-8);
+  cursor: pointer;
+}
+
+.chevron {
+  position: absolute;
+  right: var(--sa-space-3);
+  pointer-events: none;
+  color: var(--sa-color-text-subdued);
+  display: inline-flex;
+}
+
+.selectControl {
+  position: relative;
+}
+
+.textarea {
+  height: auto;
+  min-height: 88px;
+  padding: var(--sa-space-2) var(--sa-space-3);
+  resize: vertical;
+}
+
+@media (max-width: 640px) {
+  /* 16px keeps iOS from zooming into the field. */
+  .input {
+    font-size: var(--sa-font-size-lg);
+  }
+
+  .control {
+    min-height: 40px;
+  }
+
+  .input:not(.textarea) {
+    height: 38px;
+  }
+}

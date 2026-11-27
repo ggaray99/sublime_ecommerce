@@ -1,0 +1,144 @@
+/* Showcase layout only; the components carry their own styles. */
+.canvas {
+  margin-inline: calc(-1 * var(--sa-space-2));
+  padding: var(--sa-space-6) var(--sa-space-2) var(--sa-space-10);
+  border-radius: var(--sa-radius-lg);
+  background: var(--sa-color-canvas);
+}
+
+@media (min-width: 900px) {
+  .canvas {
+    padding-inline: var(--sa-space-6);
+    margin-inline: 0;
+  }
+}
+
+.muted {
+  margin: 0;
+  color: var(--sa-color-text-subdued);
+}
+
+.group {
+  display: grid;
+  gap: var(--sa-space-2);
+}
+
+.group .subheading {
+  margin: 0;
+  color: var(--sa-color-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-sm);
+  letter-spacing: normal;
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sa-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.swatch {
+  display: flex;
+  align-items: center;
+  gap: var(--sa-space-2);
+  min-width: 0;
+}
+
+.chip {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: var(--sa-border-width) solid var(--sa-color-border);
+  border-radius: var(--sa-radius-sm);
+}
+
+.code {
+  font-family: var(--sa-font-family-mono);
+  font-size: var(--sa-font-size-xs);
+  line-height: var(--sa-line-height-xs);
+  overflow-wrap: anywhere;
+}
+
+.plainList {
+  display: grid;
+  gap: var(--sa-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.typeRow {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sa-space-3);
+}
+
+.spaceBar {
+  display: block;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--sa-color-accent);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sa-space-4);
+}
+
+.tile {
+  display: flex;
+  align-items: flex-end;
+  min-height: 72px;
+  padding: var(--sa-space-2);
+  border: var(--sa-border-width) solid var(--sa-color-border-strong);
+  background: var(--sa-color-surface-subdued);
+}
+
+.shadowTile {
+  border: 0;
+  border-radius: var(--sa-radius-lg);
+  background: var(--sa-color-surface);
+}
+
+.dots {
+  font-weight: var(--sa-font-weight-bold);
+  letter-spacing: 1px;
+}
+
+.formStack {
+  display: grid;
+  gap: var(--sa-space-6);
+}
+
+.selectionBar {
+  padding: 0 var(--sa-space-4);
+}
+
+.selectionBar:empty {
+  display: none;
+}
+
+.grid {
+  display: grid;
+  gap: var(--sa-space-4);
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .typeRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sa-space-1);
+  }
+}
