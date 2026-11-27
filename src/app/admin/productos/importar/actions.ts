@@ -23,6 +23,6 @@ export async function importCatalogAction(_state: ImportState, form: FormData): 
   }
   const result = await importCatalog(getSql(), admin, text, !apply);
   if ("error" in result) return { error: result.error };
-  if (apply) catalogChanged("/admin");
+  if (apply) catalogChanged("/admin/productos");
   return { report: result, text: apply ? undefined : text, fileName };
 }

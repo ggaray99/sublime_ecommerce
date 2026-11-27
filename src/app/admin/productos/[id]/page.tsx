@@ -71,7 +71,7 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
   return (
     <div className="account">
       <p>
-        <Link href="/admin">← Volver a productos</Link>
+        <Link href="/admin/productos">← Volver a productos</Link>
       </p>
       <section className="account__section" aria-labelledby="producto-title">
         <div className="account__head">

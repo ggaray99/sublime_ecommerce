@@ -21,7 +21,7 @@ async function ImportPanel() {
   return (
     <div className="account">
       <p>
-        <Link href="/admin">← Volver a productos</Link>
+        <Link href="/admin/productos">← Volver a productos</Link>
       </p>
       <section className="account__section" aria-labelledby="importar-title">
         <h2 id="importar-title">Importar planilla</h2>

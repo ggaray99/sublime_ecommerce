@@ -23,6 +23,10 @@ const nextConfig: NextConfig = {
     // request bodies above this size (10 MB by default): keep it at the Server Action limit.
     proxyClientMaxBodySize: "16mb",
   },
+  // The dashboard is /admin; /admin/inicio was its address during stage 1.
+  async redirects() {
+    return [{ source: "/admin/inicio", destination: "/admin", permanent: false }];
+  },
   turbopack: {
     rules: {
       "*.css": {

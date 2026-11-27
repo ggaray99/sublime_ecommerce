@@ -27,8 +27,8 @@ export type NavLink = {
   href: string;
   label: string;
   icon: NavIconKey;
-  /** Matches more than the href and its sub-paths (products live at /admin and /admin/productos/…). */
-  match?: "products";
+  /** "exact": only the href itself is current (Inicio at /admin would otherwise match every page). */
+  match?: "exact";
   /** Only these roles see the link (the page itself enforces the same rule). */
   roles?: readonly AdminRole[];
 };
@@ -36,7 +36,7 @@ export type NavLink = {
 export type NavGroup = { label: string; links: NavLink[] };
 
 /** First item, above the groups. */
-export const NAV_HOME: NavLink = { href: "/admin/inicio", label: "Inicio", icon: "home" };
+export const NAV_HOME: NavLink = { href: "/admin", label: "Inicio", icon: "home", match: "exact" };
 
 /** Linked from the bottom of the sidebar, not part of the menu groups. */
 export const DESIGN_SYSTEM_LINK: NavLink = { href: "/admin/sistema-de-diseno", label: "Sistema de diseño", icon: "palette" };
@@ -55,7 +55,7 @@ const GROUPS: NavGroup[] = [
   {
     label: "Catálogo",
     links: [
-      { href: "/admin", label: "Productos", icon: "box", match: "products" },
+      { href: "/admin/productos", label: "Productos", icon: "box" },
       { href: "/admin/disenos", label: "Diseños", icon: "image" },
       { href: "/admin/soportes", label: "Soportes", icon: "shirt" },
       { href: "/admin/categorias", label: "Categorías", icon: "folder" },
@@ -89,6 +89,20 @@ export function navGroups(role: AdminRole): NavGroup[] {
 
 /** Whether `path` belongs to the link's section (the href itself or a sub-path). */
 export function isCurrentLink(link: Pick<NavLink, "href" | "match">, path: string): boolean {
-  if (link.match === "products") return path === "/admin" || path === "/admin/productos" || path.startsWith("/admin/productos/");
+  if (link.match === "exact") return path === link.href;
   return path === link.href || path.startsWith(`${link.href}/`);
+}
+
+/**
+ * The products list moved from /admin to /admin/productos. Old links and
+ * bookmarks with list filters (/admin?stock=bajo) go to the list with the same
+ * query; /admin without a query is the dashboard (null).
+ */
+export function legacyProductsHref(searchParams: Record<string, string | string[] | undefined>): string | null {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) query.append(key, item);
+  }
+  const text = query.toString();
+  return text ? `/admin/productos?${text}` : null;
 }

@@ -1,7 +1,7 @@
 import { PRODUCT_STATUSES, type ProductStatus } from "./validation.ts";
 
 /**
- * Admin product list filters. They travel in the URL (/admin?categoria=…&stock=sin)
+ * Admin product list filters. They travel in the URL (/admin/productos?categoria=…&stock=sin)
  * so a filtered view can be bookmarked or shared; unknown values are ignored.
  */
 export const STOCK_FILTERS = ["con", "sin", "bajo", "pedido"] as const;

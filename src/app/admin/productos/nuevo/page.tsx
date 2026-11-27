@@ -24,7 +24,7 @@ async function NewProduct() {
   return (
     <div className="account">
       <p>
-        <Link href="/admin">← Volver a productos</Link>
+        <Link href="/admin/productos">← Volver a productos</Link>
       </p>
       <section className="account__section" aria-labelledby="nuevo-title">
         <h2 id="nuevo-title">Datos del producto</h2>

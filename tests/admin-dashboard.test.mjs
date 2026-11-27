@@ -1,4 +1,4 @@
-// Admin shell and dashboard (/admin/inicio): the side menu's link list (role
+// Admin shell and dashboard (/admin): the side menu's link list (role
 // filtering, current section) and the "Para atender" counts, which must match
 // the filtered lists they link to (PGlite with migrations + seeds). React
 // rendering has no harness here; the pages are checked in the browser.
@@ -7,7 +7,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
-import { navGroups, isCurrentLink, NAV_HOME, DESIGN_SYSTEM_LINK } from "../src/components/admin/shell/nav-items.ts";
+import { navGroups, isCurrentLink, legacyProductsHref, NAV_HOME, DESIGN_SYSTEM_LINK } from "../src/components/admin/shell/nav-items.ts";
 import { attentionGroups, loadDashboard, RECENT_ACTIVITY } from "../src/server/admin/dashboard.ts";
 import { createAdminRepository } from "../src/server/admin/repository.ts";
 import { createCustomRequestRepository } from "../src/server/custom-requests/repository.ts";
@@ -15,6 +15,31 @@ import { createOrderRepository } from "../src/server/orders/repository.ts";
 
 const files = (folder) => readdirSync(join("db", folder)).filter((n) => n.endsWith(".sql")).sort().map((n) => readFileSync(join("db", folder, n), "utf8"));
 const hrefs = (role) => navGroups(role).flatMap((group) => group.links.map((link) => link.href));
+
+describe("old products list links", () => {
+  it("sends /admin with list filters to /admin/productos with the same query", () => {
+    assert.equal(legacyProductsHref({ stock: "bajo" }), "/admin/productos?stock=bajo");
+    assert.equal(
+      legacyProductsHref({ q: "taza remera", categoria: "packs", pagina: "2" }),
+      "/admin/productos?q=taza+remera&categoria=packs&pagina=2",
+    );
+    assert.equal(legacyProductsHref({ etiqueta: ["a", "b"] }), "/admin/productos?etiqueta=a&etiqueta=b");
+  });
+
+  it("keeps the dashboard when /admin has no query", () => {
+    assert.equal(legacyProductsHref({}), null);
+    assert.equal(legacyProductsHref({ vacio: undefined }), null);
+  });
+
+  it("redirects /admin/inicio to /admin (one dashboard, not two)", async () => {
+    const { default: config } = await import("../next.config.ts");
+    const rules = await config.redirects();
+    assert.deepEqual(
+      rules.filter((rule) => rule.source === "/admin/inicio"),
+      [{ source: "/admin/inicio", destination: "/admin", permanent: false }],
+    );
+  });
+});
 
 describe("side menu links", () => {
   it("shows Integraciones (API) only to owners, like the page's own guard", () => {
@@ -37,7 +62,7 @@ describe("side menu links", () => {
       "/admin/encargos",
       "/admin/clientes",
       "/admin/promociones",
-      "/admin",
+      "/admin/productos",
       "/admin/disenos",
       "/admin/soportes",
       "/admin/categorias",
@@ -48,7 +73,7 @@ describe("side menu links", () => {
       "/admin/ajustes",
       "/admin/actividad",
     ]);
-    assert.equal(NAV_HOME.href, "/admin/inicio");
+    assert.equal(NAV_HOME.href, "/admin");
     assert.equal(NAV_HOME.label, "Inicio");
     // Inicio and Portada no longer share an icon.
     const portada = navGroups("owner").flatMap((group) => group.links).find((link) => link.href === "/admin/portada");
@@ -60,12 +85,13 @@ describe("side menu links", () => {
     assert.equal(DESIGN_SYSTEM_LINK.href, "/admin/sistema-de-diseno");
   });
 
-  it("marks the current section: products at /admin and /admin/productos/*, sub-pages under their section", () => {
+  it("marks the current section: Inicio only at /admin, products at /admin/productos/*, sub-pages under their section", () => {
     const all = [NAV_HOME, ...navGroups("owner").flatMap((group) => group.links)];
     const current = (path) => all.filter((link) => isCurrentLink(link, path)).map((link) => link.href);
     assert.deepEqual(current("/admin"), ["/admin"]);
-    assert.deepEqual(current("/admin/productos/p08"), ["/admin"]);
-    assert.deepEqual(current("/admin/inicio"), ["/admin/inicio"]);
+    assert.deepEqual(current("/admin/productos"), ["/admin/productos"]);
+    assert.deepEqual(current("/admin/productos/p08"), ["/admin/productos"]);
+    assert.deepEqual(current("/admin/productos/nuevo"), ["/admin/productos"]);
     assert.deepEqual(current("/admin/pedidos/123"), ["/admin/pedidos"]);
     assert.deepEqual(current("/admin/ajustes/paginas"), ["/admin/ajustes"]);
     assert.deepEqual(current("/admin/sistema-de-diseno"), []);
@@ -96,7 +122,7 @@ describe("attention groups", () => {
           ],
         ],
         ["requests", [["Recibidos sin presupuesto", 4, "/admin/encargos?estado=received"]]],
-        ["stock", [["Sin stock", 5, "/admin?stock=sin"]]],
+        ["stock", [["Sin stock", 5, "/admin/productos?stock=sin"]]],
       ],
     );
   });
@@ -108,7 +134,7 @@ describe("attention groups", () => {
       [
         ["orders", 0, "/admin/pedidos"],
         ["requests", 0, "/admin/encargos"],
-        ["stock", 0, "/admin"],
+        ["stock", 0, "/admin/productos"],
       ],
     );
     for (const group of groups) assert.ok(group.emptyMessage.startsWith("No hay"), group.emptyMessage);
@@ -191,7 +217,7 @@ describe("dashboard data (PGlite)", () => {
     const sin = await total("sin");
     const bajo = await total("bajo");
     assert.ok(sin >= 1 && bajo >= 1, `sin ${sin}, bajo ${bajo}`);
-    assert.deepEqual(byId.stock, { "/admin?stock=sin": sin, "/admin?stock=bajo": bajo });
+    assert.deepEqual(byId.stock, { "/admin/productos?stock=sin": sin, "/admin/productos?stock=bajo": bajo });
   });
 
   it("brings the latest activity entries, newest first", async () => {

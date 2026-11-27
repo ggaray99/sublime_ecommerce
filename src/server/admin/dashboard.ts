@@ -4,7 +4,7 @@ import { createOrderRepository, type OrderStatus } from "../orders/repository.ts
 import { createAdminRepository, type AuditEntry } from "./repository.ts";
 
 /**
- * Admin dashboard (/admin/inicio): what needs attention today, from the same
+ * Admin dashboard (/admin): what needs attention today, from the same
  * repository queries the lists use, so every count matches the filtered list
  * it links to. Sales metrics are not computed anywhere yet: the page shows
  * them as unavailable instead of inventing numbers.
@@ -93,7 +93,7 @@ export function attentionGroups(counts: AttentionCounts): AttentionGroup[] {
     {
       id: "stock",
       title: "Stock",
-      listHref: "/admin",
+      listHref: "/admin/productos",
       listLabel: "Ver productos",
       emptyMessage: "No hay productos sin stock ni con stock bajo",
       items: [
@@ -101,14 +101,14 @@ export function attentionGroups(counts: AttentionCounts): AttentionGroup[] {
           label: "Sin stock",
           description: "Productos con control de stock y nada disponible.",
           count: counts.stock.sin,
-          href: "/admin?stock=sin",
+          href: "/admin/productos?stock=sin",
           tone: "critical",
         },
         {
           label: "Stock bajo",
           description: "Quedan pocas unidades disponibles.",
           count: counts.stock.bajo,
-          href: "/admin?stock=bajo",
+          href: "/admin/productos?stock=bajo",
           tone: "warning",
         },
       ],

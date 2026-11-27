@@ -42,16 +42,18 @@ Components only look right inside an element with `adminThemeClassName` (it defi
 | `AdminTopbar` | `admin-shell.tsx` | Inverse (dark) surface, 56px, sticky. Logo, "Administración", store status badge → `/admin/ajustes#estado`, "Ir a la tienda →" or, with the store closed, "Ver la tienda (vista previa) →" (`startPreviewAction`), email, "Salir" (`signOutAction`). Root class `admin-bar`: while it is on the page the store header, cart and footer are hidden. Only for admins. |
 | `AdminTopbarPlaceholder` | `admin-shell.tsx` | Suspense fallback: an empty bar with `admin-bar`, so the store chrome does not flash while the session is checked. Shows nothing about the panel. |
 | `Sidebar` / `AdminSidebar` | `sidebar.tsx`, `admin-shell.tsx` | 240px, white, "Inicio" first, then Ventas / Catálogo / Tienda / Sistema. Current item: selected background + semibold. Footer: "Sistema de diseño" link (the showcase stays out of the groups) and "Contraer menú". Folded (≥ 900px): 56px rail; names show as tooltips on hover and keyboard focus (`position: fixed`, so the menu's scroll box does not cut them; no ancestor may get a transform or filter). The choice is stored in `localStorage["sublime-admin-nav"]`. Below 900px: hidden; the top bar's menu button opens it over the page with a backdrop; a section link, Escape or a click outside closes it (Escape returns focus to the button). |
-| Menu data | `nav-items.ts` | Plain data, tested: `navGroups(role)` hides "Integraciones (API)" from editors (the page answers 404 to them); `isCurrentLink()` matches the section and its sub-pages (Productos: `/admin` and `/admin/productos/…`). |
+| Menu data | `nav-items.ts` | Plain data, tested: `navGroups(role)` hides "Integraciones (API)" from editors (the page answers 404 to them); `isCurrentLink()` matches the section and its sub-pages; Inicio (`match: "exact"`) only at `/admin`. `legacyProductsHref()` maps old product-list links (`/admin?stock=bajo`) to `/admin/productos?…`. |
 | Shared state | `shell-state.tsx` | `ShellProviders` (sidebar state + `ToastProvider`), `useShellNav()`, `SidebarMenuButton`. |
 
 Breadcrumbs are used where they are cheap (the showcase page). Current pages keep their own headers until they are redesigned.
 
-### Dashboard (`/admin/inicio`)
+### Dashboard (`/admin`)
 
-`src/app/admin/inicio/page.tsx` with `src/server/admin/dashboard.ts` (`loadDashboard(sql)`, `attentionGroups()`; tested in `tests/admin-dashboard.test.mjs`). Same guard as the other pages; a `Skeleton` while it loads. `/admin` is still the products list.
+`src/app/admin/page.tsx` with `src/server/admin/dashboard.ts` (`loadDashboard(sql)`, `attentionGroups()`; tested in `tests/admin-dashboard.test.mjs`). Same guard as the other pages; a `Skeleton` while it loads.
 
-- **Para atender**: Pedidos (pendientes de pago, en revisión, pago confirmado sin enviar), Encargos (recibidos sin presupuesto), Stock (sin stock, stock bajo). Counts come from the same queries as the lists (`countByStatus`, `productFacets`) and each row links to the filtered list (`/admin/pedidos?estado=…`, `/admin/encargos?estado=received`, `/admin?stock=sin|bajo`). Like the orders list, it first releases expired reservations. A card with nothing to do shows an `EmptyState`.
+Routes: `/admin` is the dashboard and the panel's landing page; the products list lives at `/admin/productos`. `/admin` with a query (old product-list links and bookmarks such as `/admin?stock=bajo`) redirects, after the admin check, to `/admin/productos` with the same query. `/admin/inicio` (the stage-1 address) redirects to `/admin` (`next.config.ts`, temporary redirect).
+
+- **Para atender**: Pedidos (pendientes de pago, en revisión, pago confirmado sin enviar), Encargos (recibidos sin presupuesto), Stock (sin stock, stock bajo). Counts come from the same queries as the lists (`countByStatus`, `productFacets`) and each row links to the filtered list (`/admin/pedidos?estado=…`, `/admin/encargos?estado=received`, `/admin/productos?stock=sin|bajo`). Like the orders list, it first releases expired reservations. A card with nothing to do shows an `EmptyState`.
 - **Ventas**: `EmptyState variant="unavailable"`: there is no sales reporting yet, so no numbers are shown.
 - **Actividad reciente**: the last 5 audit entries (`AuditList`) and a link to `/admin/actividad`.
 

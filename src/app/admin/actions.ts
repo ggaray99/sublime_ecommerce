@@ -204,6 +204,6 @@ export async function updateVariantAction(_state: AdminFormState, form: FormData
 export async function duplicateProductAction(form: FormData): Promise<void> {
   const admin = await requireAdmin();
   const copy = await getAdminRepository().duplicateProduct(admin, String(form.get("productId") ?? ""));
-  catalogChanged("/admin");
+  catalogChanged("/admin/productos");
   redirect(`/admin/productos/${copy.id}?copia=1`);
 }

@@ -51,7 +51,7 @@ async function MockupBases() {
         <h2 id="soportes-title">Soportes</h2>
         <p>
           Cada soporte (remera, musculosa, taza, sticker) se vende a través de un producto base. El precio, las variantes (talle, color) y
-          el stock se editan en ese producto, desde <Link href="/admin">Productos</Link>. Los diseños usan esos datos: no tienen precio
+          el stock se editan en ese producto, desde <Link href="/admin/productos">Productos</Link>. Los diseños usan esos datos: no tienen precio
           propio.
         </p>
         <p className="muted">
