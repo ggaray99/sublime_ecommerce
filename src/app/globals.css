@@ -4765,8 +4765,11 @@ body:has(.admin-shell) {
   line-height: 32px;
 }
 
+/* The active row is as tall as the idle line (32px), so the bar keeps its
+   height when the first row is checked, with or without a hint below. */
 .admin-shell .admin-selection-bar__count {
   font-weight: 600;
+  line-height: 32px;
 }
 
 .admin-shell .admin-selection-bar__actions {
@@ -4774,6 +4777,7 @@ body:has(.admin-shell) {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
+  min-height: 32px;
 }
 
 .admin-shell .admin-selection-bar__hint {
