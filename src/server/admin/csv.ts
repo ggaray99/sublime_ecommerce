@@ -286,7 +286,14 @@ export async function importCatalog(sql: QueryFn, actor: Admin, text: string, dr
       const line = note(record);
       const outcome = items?.[index];
       if (!outcome) line.failed.push(apiMessage(response.body));
-      else if (outcome.result === "failed") line.failed.push(route === "prices/bulk-update" ? `precio: ${apiMessage(outcome.error)}` : apiMessage(outcome.error));
+      else if (outcome.result === "failed") {
+        line.failed.push(
+          route === "prices/bulk-update"
+            ? `precio: ${apiMessage(outcome.error)}`
+            : // The API speaks of "adjustment"; in the sheet the column value is "ajuste".
+              apiMessage(outcome.error).replace(/^reason: /, "motivo_stock: ").replace("usá adjustment con una nota", "poné ajuste en motivo_stock"),
+        );
+      }
       else if (outcome.result === "updated" && route === "stock/bulk-count" && typeof outcome.before === "number" && typeof outcome.after === "number") {
         // The preview shows the expected result: "stock 10 → 15 (+5, reposición)".
         const delta = outcome.after - outcome.before;

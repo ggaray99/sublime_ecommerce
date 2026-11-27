@@ -113,7 +113,7 @@ describe("export and import (PGlite)", () => {
       JSON.stringify(preview.lines),
     );
     assert.match(preview.lines[0].detail, /stock 10 → 15 \(\+5, reposición\)/);
-    assert.match(preview.lines[1].detail, /solo suma/);
+    assert.equal(preview.lines[1].detail, "motivo_stock: La reposición solo suma unidades (hay 10). Para restar, poné ajuste en motivo_stock.");
     assert.match(preview.lines[2].detail, /stock 10 → 7 \(−3, ajuste\)/);
     assert.match(preview.lines[3].detail, /motivo_stock: reposicion o ajuste/);
     const onHand = async (sku) => (await db.query("SELECT i.on_hand FROM inventory i JOIN product_variants v ON v.id = i.variant_id WHERE v.sku = $1", [sku])).rows[0].on_hand;
