@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     rules: {
       "*.css": {
+        // CSS Modules stay out: run through this loader they become global CSS with
+        // unhashed class names and an empty class map.
+        condition: { not: { path: /\.module\.css$/ } },
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
       },
