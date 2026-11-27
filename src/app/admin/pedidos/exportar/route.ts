@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { orderStatusLabel } from "@/components/orders/order-view";
+import { recordSelectionExport } from "@/server/admin/export-audit";
 import { exportSelection, UUID_ID } from "@/server/admin/selection-export";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
 import { getSql } from "@/server/db/client";
@@ -15,5 +16,6 @@ export async function POST(request: Request) {
     idPattern: UUID_ID,
     filePrefix: "pedidos-seleccionados",
     build: (ids) => exportOrdersCsv(getSql(), ids, orderStatusLabel),
+    audit: (who, ids) => recordSelectionExport(getSql(), who, "orders", ids),
   });
 }

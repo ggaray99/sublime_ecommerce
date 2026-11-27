@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { exportCatalog, toCsv } from "@/server/admin/csv";
+import { recordSelectionExport } from "@/server/admin/export-audit";
 import { exportSelection, PRODUCT_ID } from "@/server/admin/selection-export";
 import { adminAvailable, getCurrentAdmin } from "@/server/admin/session";
 import { getSql } from "@/server/db/client";
@@ -30,5 +31,6 @@ export async function POST(request: Request) {
     idPattern: PRODUCT_ID,
     filePrefix: "productos-seleccionados",
     build: async (ids) => toCsv(await exportCatalog(getSql(), { productIds: ids })),
+    audit: (who, ids) => recordSelectionExport(getSql(), who, "products", ids),
   });
 }

@@ -1,6 +1,7 @@
 import { themes } from "@/data/products";
 import { DESIGN_STATUS_LABELS, isMockupKind, MOCKUP_KIND_LABELS, type DesignStatus } from "@/lib/designs/kinds";
 import { formatPrice } from "@/lib/format";
+import { describeExport, isExportAction } from "@/server/admin/export-audit";
 import type { AdminProduct, AuditEntry } from "@/server/admin/repository";
 import { getCategoryRepository } from "@/server/admin/session";
 import type { ProductStatus } from "@/server/admin/validation";
@@ -79,6 +80,8 @@ function fieldChange(field: string, before: unknown, after: unknown): string {
 /** Human summary of an audit entry, built from the stored before/after values. */
 function describe(entry: AuditEntry): string {
   const changes = entry.changes;
+  const exported = describeExport(entry);
+  if (exported) return exported;
   if (entry.action === "inventory.count") return `Stock ${changes.before} → ${changes.after}${changes.note ? ` (${changes.note})` : ""}`;
   if (entry.action === "integration.create") return `Clave de API creada (${(changes.scopes as string[] | undefined)?.join(", ") ?? ""})`;
   if (entry.action === "integration.revoke") return "Clave de API revocada";
@@ -145,6 +148,7 @@ function describe(entry: AuditEntry): string {
 /** Areas of the panel, as the activity page filters them. */
 export const AUDIT_AREAS = {
   product: "Productos",
+  order: "Pedidos y encargos",
   inventory: "Stock",
   category: "Categorías",
   shipping: "Envíos",
@@ -161,6 +165,8 @@ export const AUDIT_AREAS = {
 function subject(entry: AuditEntry): string {
   const name = (entry.changes as { name?: unknown; label?: unknown }).name ?? (entry.changes as { label?: unknown }).label;
   if (entry.entity === "admin") return "Accesos";
+  // A selection export is about a list, not one record: name the area.
+  if (isExportAction(entry.action) && entry.entity in AUDIT_AREAS) return AUDIT_AREAS[entry.entity as keyof typeof AUDIT_AREAS];
   if (entry.entity === "integration") return `Integración ${entry.entityId}`;
   if (entry.entity === "home") return "Portada";
   if (entry.entity === "settings") return "Ajustes";

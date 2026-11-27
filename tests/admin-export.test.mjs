@@ -7,6 +7,8 @@ import { after, before, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { csvCell, formatCsv, pesosCell } from "../src/lib/csv.ts";
 import { exportCatalog, toCsv } from "../src/server/admin/csv.ts";
+import { describeExport, recordSelectionExport } from "../src/server/admin/export-audit.ts";
+import { createAdminRepository } from "../src/server/admin/repository.ts";
 import { exportSelection, MAX_EXPORT_IDS, parseSelectedIds, PRODUCT_ID, UUID_ID } from "../src/server/admin/selection-export.ts";
 import { createCustomRequestRepository } from "../src/server/custom-requests/repository.ts";
 import { exportOrdersCsv } from "../src/server/orders/export.ts";
@@ -82,23 +84,50 @@ describe("export endpoint guard", () => {
     idPattern: PRODUCT_ID,
     filePrefix: "productos-seleccionados",
     build: async (ids) => `${BOM}ids\r\n${ids.join("|")}\r\n`,
+    audit: async () => {},
     now: new Date("2026-11-26T02:00:00Z"),
     ...overrides,
   });
 
-  it("answers 404 to non-admins without building the file", async () => {
+  it("answers 404 to non-admins without building the file or recording anything", async () => {
     let built = false;
-    const response = await exportSelection(options({ admin: null, build: async () => ((built = true), "") }));
+    let audited = false;
+    const response = await exportSelection(options({ admin: null, build: async () => ((built = true), ""), audit: async () => void (audited = true) }));
     assert.equal(response.status, 404);
     assert.equal(built, false);
+    assert.equal(audited, false);
   });
 
-  it("rejects non-JSON bodies, broken JSON and invalid ids", async () => {
-    assert.equal((await exportSelection(options({ request: post("ids=p08", "application/x-www-form-urlencoded") }))).status, 415);
-    assert.equal((await exportSelection(options({ request: post("{nope") }))).status, 400);
-    const bad = await exportSelection(options({ request: post({ ids: ["../x"] }) }));
+  it("rejects non-JSON bodies, broken JSON and invalid ids, recording nothing", async () => {
+    let audited = 0;
+    const audit = async () => void audited++;
+    assert.equal((await exportSelection(options({ audit, request: post("ids=p08", "application/x-www-form-urlencoded") }))).status, 415);
+    assert.equal((await exportSelection(options({ audit, request: post("{nope") }))).status, 400);
+    const bad = await exportSelection(options({ audit, request: post({ ids: ["../x"] }) }));
     assert.equal(bad.status, 400);
     assert.match(await bad.text(), /\S/);
+    assert.equal(audited, 0);
+  });
+
+  it("records the export once, after the file was built, with the admin and the deduplicated ids", async () => {
+    const calls = [];
+    const response = await exportSelection(
+      options({
+        request: post({ ids: ["p08", "p09", "p08"] }),
+        build: async (ids) => (calls.push("build"), ids.join("|")),
+        audit: async (who, ids) => void calls.push(["audit", who, ids]),
+      }),
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls, ["build", ["audit", admin, ["p08", "p09"]]]);
+  });
+
+  it("fails the export (500, no CSV) when the record cannot be written", async () => {
+    const response = await exportSelection(options({ audit: async () => { throw new Error("db down"); } }));
+    assert.equal(response.status, 500);
+    assert.equal(response.headers.get("content-type"), "text/plain; charset=utf-8");
+    assert.equal(response.headers.get("content-disposition"), null);
+    assert.equal(await response.text(), "No pudimos exportar la selección. Probá de nuevo.");
   });
 
   it("returns the CSV as an attachment named with the Argentina date", async () => {
@@ -217,5 +246,79 @@ describe("exports over PGlite", () => {
     const quoted = await exportRequestsCsv(sql, [requestA.id, requestB.id], requestLabels);
     assert.equal(lines(quoted).length, 3);
     assert.ok(quoted.includes('"Logo de la banda; con ""comillas"""'));
+  });
+
+  describe("export audit (Admin › Actividad)", () => {
+    const admin = { authUserId: "auth-export", email: "export@example.com", role: "editor" };
+    const auditRows = async () =>
+      (await db.query("SELECT actor_auth_user_id, actor_email, action, entity, entity_id, changes FROM audit_logs WHERE action LIKE 'export.%' ORDER BY id")).rows;
+    const post = (body, type = "application/json") =>
+      new Request("http://localhost/admin/x/exportar", { method: "POST", headers: { "content-type": type }, body: typeof body === "string" ? body : JSON.stringify(body) });
+    const run = (kind, request, overrides = {}) =>
+      exportSelection({
+        admin,
+        request,
+        idPattern: kind === "products" ? PRODUCT_ID : UUID_ID,
+        filePrefix: "x",
+        build: async (ids) => ids.join("|"),
+        audit: (who, ids) => recordSelectionExport(sql, who, kind, ids),
+        ...overrides,
+      });
+
+    it("writes nothing for rejected requests (non-admin, wrong type, bad ids)", async () => {
+      const before = (await auditRows()).length;
+      assert.equal((await run("orders", post({ ids: [orderA.id] }), { admin: null })).status, 404);
+      assert.equal((await run("orders", post("ids=1", "text/plain"))).status, 415);
+      assert.equal((await run("orders", post({ ids: ["nope"] }))).status, 400);
+      assert.equal((await auditRows()).length, before);
+    });
+
+    it("writes one row per successful export with actor, entity, action, entity_id and { count, ids }", async () => {
+      const before = (await auditRows()).length;
+      assert.equal((await run("orders", post({ ids: [orderA.id, orderB.id, orderA.id] }))).status, 200);
+      assert.equal((await run("requests", post({ ids: [requestA.id] }))).status, 200);
+      assert.equal((await run("products", post({ ids: ["p08", "p09"] }))).status, 200);
+      const rows = (await auditRows()).slice(before);
+      const actor = { actor_auth_user_id: "auth-export", actor_email: "export@example.com", entity_id: "seleccion" };
+      assert.deepEqual(rows, [
+        { ...actor, action: "export.orders", entity: "order", changes: { count: 2, ids: [orderA.id, orderB.id] } },
+        { ...actor, action: "export.requests", entity: "order", changes: { count: 1, ids: [requestA.id] } },
+        { ...actor, action: "export.products", entity: "product", changes: { count: 2, ids: ["p08", "p09"] } },
+      ]);
+    });
+
+    it("the activity filter by 'order' returns the order and request exports", async () => {
+      const entries = await createAdminRepository(sql).listAudit({ entity: "order" });
+      assert.ok(entries.length >= 2);
+      assert.ok(entries.every((entry) => entry.entity === "order"));
+      assert.deepEqual(new Set(entries.map((entry) => entry.action)), new Set(["export.orders", "export.requests"]));
+    });
+
+    it("the full catalog export (GET) still records nothing", async () => {
+      const before = (await db.query("SELECT count(*)::int AS n FROM audit_logs")).rows[0].n;
+      toCsv(await exportCatalog(sql));
+      assert.equal((await db.query("SELECT count(*)::int AS n FROM audit_logs")).rows[0].n, before);
+    });
+  });
+});
+
+describe("export entries in Actividad", () => {
+  const entry = (action, count) => ({ action, changes: { count, ids: [] } });
+
+  it("describes each export, plural and singular", () => {
+    assert.equal(describeExport(entry("export.orders", 3)), "Exportó 3 pedidos seleccionados (CSV)");
+    assert.equal(describeExport(entry("export.orders", 1)), "Exportó 1 pedido seleccionado (CSV)");
+    assert.equal(describeExport(entry("export.requests", 2)), "Exportó 2 encargos seleccionados (CSV)");
+    assert.equal(describeExport(entry("export.requests", 1)), "Exportó 1 encargo seleccionado (CSV)");
+    assert.equal(describeExport(entry("export.products", 12)), "Exportó 12 productos seleccionados (CSV)");
+    assert.equal(describeExport(entry("export.products", 1)), "Exportó 1 producto seleccionado (CSV)");
+    assert.equal(describeExport(entry("product.update", 1)), null, "other actions are not exports");
+  });
+
+  it("the activity areas include orders and requests, and the activity uses describeExport", () => {
+    const source = readFileSync(join("src", "components", "admin", "shared.tsx"), "utf8");
+    const areas = source.slice(source.indexOf("export const AUDIT_AREAS"), source.indexOf("} as const;"));
+    assert.match(areas, /\border: "Pedidos y encargos",/);
+    assert.match(source, /describeExport\(entry\)/);
   });
 });

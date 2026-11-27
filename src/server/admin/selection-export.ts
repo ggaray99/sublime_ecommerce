@@ -38,6 +38,8 @@ export async function exportSelection(options: {
   idPattern: RegExp;
   filePrefix: string;
   build: (ids: string[]) => Promise<string>;
+  /** Records the export in Admin › Actividad; if it fails, the file is not handed out. */
+  audit: (admin: Admin, ids: string[]) => Promise<void>;
   now?: Date;
 }): Promise<Response> {
   if (!options.admin) return text("No encontrado", 404);
@@ -52,6 +54,13 @@ export async function exportSelection(options: {
   const selection = parseSelectedIds(body, options.idPattern);
   if (!selection.ok) return text(selection.message, 400);
   const csv = await options.build(selection.ids);
+  try {
+    await options.audit(options.admin, selection.ids);
+  } catch (error) {
+    // Personal data never leaves without a trace: no record, no file.
+    console.error("selection export audit failed", error);
+    return text("No pudimos exportar la selección. Probá de nuevo.", 500);
+  }
   const date = new Date((options.now ?? new Date()).getTime() - 3 * 3600_000).toISOString().slice(0, 10);
   return new Response(csv, {
     headers: {
