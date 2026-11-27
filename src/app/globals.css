@@ -4797,30 +4797,53 @@ body:has(.admin-shell) {
   padding-inline: clamp(16px, 3vw, 40px);
 }
 
+/* Side menu: open, icon + name; folded, a 56px rail of icons whose names show
+   as tooltips on hover and keyboard focus. Sized so the whole menu fits about
+   600px of height; below that it scrolls with a thin bar shown on hover. */
 .admin-sidenav {
   position: sticky;
   top: 48px;
   flex: none;
   align-self: flex-start;
-  width: 44px;
+  width: 56px;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
   border-right: 1px solid var(--admin-border);
   background: var(--admin-surface);
 }
 
+.admin-sidenav:hover,
+.admin-sidenav:focus-within {
+  scrollbar-color: var(--admin-border-strong) transparent;
+}
+
 .admin-sidenav.is-open {
-  width: 208px;
+  width: 216px;
   min-height: calc(100vh - 48px);
 }
 
-.admin-sidenav__toggle {
+.admin-sidenav__toggle,
+.admin-sidenav a {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 18px;
+  text-decoration: none;
+}
+
+.admin-sidenav__toggle svg,
+.admin-sidenav a svg {
+  flex: none;
+}
+
+.admin-sidenav__toggle {
   width: 100%;
-  min-height: 40px;
-  padding: 8px 14px;
+  min-height: 44px;
+  padding: 0 19px;
   border: 0;
   border-bottom: 1px solid var(--admin-border);
   background: none;
@@ -4837,26 +4860,18 @@ body:has(.admin-shell) {
   color: var(--admin-text);
 }
 
-.admin-sidenav:not(.is-open) .admin-sidenav__toggle-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 .admin-sidenav__menu {
   display: grid;
-  gap: 14px;
-  padding: 12px 8px 20px;
+  gap: 10px;
+  padding: 8px 8px 12px;
 }
 
 .admin-sidenav__group-label {
-  padding: 0 8px 4px;
+  padding: 2px 11px 2px;
   color: var(--admin-muted);
   font-size: 11px;
   font-weight: 600;
+  line-height: 15px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -4870,23 +4885,79 @@ body:has(.admin-shell) {
 }
 
 .admin-sidenav a {
-  display: block;
-  padding: 6px 8px;
+  padding: 6px 11px;
   border-radius: var(--admin-radius-sm);
-  color: var(--admin-text);
-  font-size: 13px;
+  color: var(--admin-muted);
   font-weight: 500;
-  text-decoration: none;
 }
 
 .admin-sidenav a:hover {
   background: var(--admin-hover);
+  color: var(--admin-text);
 }
 
 .admin-sidenav a[aria-current="page"] {
   background: var(--admin-text);
   color: var(--white);
   font-weight: 600;
+}
+
+/* The menu scrolls, so outlines are drawn inside to stay visible. */
+.admin-sidenav__toggle:focus-visible,
+.admin-sidenav a:focus-visible {
+  outline-width: 2px;
+  outline-offset: -2px;
+}
+
+.admin-sidenav__label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Folded: icons only, a hairline between groups instead of their names. */
+.admin-sidenav:not(.is-open) .admin-sidenav__menu {
+  gap: 6px;
+}
+
+.admin-sidenav:not(.is-open) .admin-sidenav__group-label {
+  display: none;
+}
+
+.admin-sidenav:not(.is-open) .admin-sidenav__group + .admin-sidenav__group {
+  padding-top: 6px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-sidenav:not(.is-open) .admin-sidenav__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Tooltip: fixed with no offsets, it stays where the label would sit (so it
+   follows the icon) but is not cut by the scrolling rail; then it moves just
+   past the rail's right edge (icon starts 19px in, rail is 56px wide). */
+.admin-sidenav:not(.is-open) :is(a, .admin-sidenav__toggle):is(:hover, :focus-visible) .admin-sidenav__label {
+  position: fixed;
+  z-index: 60;
+  width: auto;
+  height: auto;
+  padding: 4px 8px;
+  overflow: visible;
+  clip-path: none;
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-text);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  pointer-events: none;
+  transform: translateX(45px);
 }
 
 /* Small screens: the rail stays thin and the open menu floats over the page. */
@@ -5013,4 +5084,136 @@ body:has(.admin-shell) {
 .admin-shell .admin-table tbody th,
 .admin-shell .admin-table td:has(> a:first-child) {
   min-width: 160px;
+}
+
+/* ==========================================================================
+   Admin list filters: an underline tab bar on top of the list card (tabs,
+   then the table, one card). Replaces the pill row for every .admin-tabs in
+   the panel. Scoped to .admin-shell; the store rules for .admin-tabs stay.
+   ========================================================================== */
+
+.admin-shell .admin-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-shell .admin-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-shell .admin-tabs a {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 0 9px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.admin-shell .admin-tabs a:hover {
+  border-color: var(--admin-border-strong);
+  color: var(--admin-text);
+}
+
+.admin-shell .admin-tabs a[aria-current="page"] {
+  border-color: var(--admin-text);
+  background: none;
+  color: var(--admin-text);
+  font-weight: 600;
+}
+
+/* The bar scrolls sideways, so the outline is drawn inside. */
+.admin-shell .admin-tabs a:focus-visible {
+  outline-width: 2px;
+  outline-offset: -2px;
+}
+
+.admin-shell .admin-tabs__count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--admin-hover);
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-shell .admin-tabs a[aria-current="page"] .admin-tabs__count {
+  background: var(--admin-border);
+  color: var(--admin-text);
+}
+
+/* Filters with nothing in them read quieter but stay usable (4.5:1 text). */
+.admin-shell .admin-tabs a.is-empty:not([aria-current="page"], :hover) {
+  color: #737373;
+}
+
+.admin-shell .admin-tabs a.is-empty:not([aria-current="page"], :hover) .admin-tabs__count {
+  background: #f7f7f8;
+  color: #737373;
+}
+
+/* The list card: tabs flush on top, contents padded, the table edge to edge. */
+.admin-shell .account__section.admin-list {
+  padding: 0 0 16px;
+  gap: 12px;
+}
+
+.admin-shell .admin-list > * {
+  margin-inline: 18px;
+}
+
+.admin-shell .admin-list > .admin-tabs {
+  margin-inline: 0;
+  padding-inline: 18px;
+}
+
+.admin-shell .admin-list > .admin-table-wrap {
+  margin-inline: 0;
+  border: 0;
+  border-top: 1px solid var(--admin-border);
+  border-radius: 0;
+}
+
+/* With no selection bar in between, the tab bar's hairline tops the table. */
+.admin-shell .admin-list:not(:has(> .admin-selection-bar)) > .admin-tabs ~ .admin-table-wrap {
+  margin-top: -12px;
+  border-top: 0;
+}
+
+.admin-shell .admin-list > .admin-table-wrap:not(:last-child) {
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-shell .admin-list:has(> .admin-table-wrap:last-child) {
+  padding-bottom: 0;
+}
+
+.admin-shell .admin-list > .admin-table-wrap:last-child {
+  border-bottom-left-radius: calc(var(--admin-radius) - 1px);
+  border-bottom-right-radius: calc(var(--admin-radius) - 1px);
+}
+
+.admin-shell .admin-list .admin-table tr > :first-child {
+  padding-left: 18px;
+}
+
+.admin-shell .admin-list .admin-table tr > :last-child {
+  padding-right: 18px;
 }

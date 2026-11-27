@@ -31,19 +31,22 @@ async function Activity({ searchParams }: { searchParams: PageProps<"/admin/acti
 
   return (
     <div className="account account--wide">
-      <section className="account__section" aria-labelledby="actividad-title">
-        <h2 id="actividad-title">Registro de cambios</h2>
-        <p className="muted">Todo lo que se cambia en el panel, con quién y cuándo. Lo más reciente primero.</p>
+      <section className="account__section admin-list" aria-labelledby="actividad-title">
+        {/* The page title and intro already name this list: the heading stays for screen readers. */}
+        <h2 id="actividad-title" className="visually-hidden">
+          Registro de cambios
+        </h2>
         <nav className="admin-tabs" aria-label="Filtrar por área">
           <Link href="/admin/actividad" aria-current={!area ? "page" : undefined}>
-            Todo
+            <span className="admin-tabs__label">Todo</span>
           </Link>
           {(Object.entries(AUDIT_AREAS) as [AuditEntity, string][]).map(([value, label]) => (
             <Link key={value} href={link({ area: value })} aria-current={area === value ? "page" : undefined}>
-              {label}
+              <span className="admin-tabs__label">{label}</span>
             </Link>
           ))}
         </nav>
+        <p className="muted">Todo lo que se cambia en el panel, con quién y cuándo. Lo más reciente primero.</p>
         <AuditList entries={entries} />
         <div className="admin-pagination">
           {before ? <Link href={link({ area })}>← Lo más reciente</Link> : <span />}

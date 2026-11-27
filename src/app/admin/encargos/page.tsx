@@ -27,18 +27,31 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/enca
   const status = REQUEST_STATUSES.find((value) => value === query.estado) as RequestStatus | undefined;
   const repo = getCustomRequestRepository();
   const [requests, counts] = await Promise.all([repo.list({ status, limit: 200 }), repo.countByStatus()]);
+  const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
 
   return (
     <div className="account account--wide">
-      <section className="account__section" aria-labelledby="encargos-title">
-        <h2 id="encargos-title">Encargos personalizados</h2>
+      <section className="account__section admin-list" aria-labelledby="encargos-title">
+        {/* The page title already says "Encargos": the heading stays for screen readers. */}
+        <h2 id="encargos-title" className="visually-hidden">
+          Encargos personalizados
+        </h2>
         <nav className="admin-tabs" aria-label="Filtrar por estado">
-          <Link href="/admin/encargos" aria-current={!status ? "page" : undefined}>
-            Todos ({Object.values(counts).reduce((sum, n) => sum + n, 0)})
+          <Link href="/admin/encargos" aria-current={!status ? "page" : undefined} className={total ? undefined : "is-empty"}>
+            <span className="admin-tabs__label">Todos</span>
+            <span className="visually-hidden">, </span>
+            <span className="admin-tabs__count">{total}</span>
           </Link>
           {REQUEST_STATUSES.map((value) => (
-            <Link key={value} href={`/admin/encargos?estado=${value}`} aria-current={status === value ? "page" : undefined}>
-              {requestStatusLabel[value]} ({counts[value]})
+            <Link
+              key={value}
+              href={`/admin/encargos?estado=${value}`}
+              aria-current={status === value ? "page" : undefined}
+              className={counts[value] ? undefined : "is-empty"}
+            >
+              <span className="admin-tabs__label">{requestStatusLabel[value]}</span>
+              <span className="visually-hidden">, </span>
+              <span className="admin-tabs__count">{counts[value]}</span>
             </Link>
           ))}
         </nav>

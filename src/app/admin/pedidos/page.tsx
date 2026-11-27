@@ -29,6 +29,7 @@ async function Orders({ searchParams }: { searchParams: PageProps<"/admin/pedido
   // Expiry does not depend on a scheduled job: due reservations are released here too.
   const released = await repo.releaseExpired();
   const [orders, counts] = await Promise.all([repo.listOrders({ status, limit: 200 }), repo.countByStatus()]);
+  const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
 
   return (
     <div className="account account--wide">
@@ -37,15 +38,27 @@ async function Orders({ searchParams }: { searchParams: PageProps<"/admin/pedido
           {released.orders === 1 ? "Venció 1 pedido" : `Vencieron ${released.orders} pedidos`} sin pago: su stock se liberó.
         </p>
       )}
-      <section className="account__section" aria-labelledby="pedidos-title">
-        <h2 id="pedidos-title">Pedidos</h2>
+      <section className="account__section admin-list" aria-labelledby="pedidos-title">
+        {/* The page title already says "Pedidos": the heading stays for screen readers. */}
+        <h2 id="pedidos-title" className="visually-hidden">
+          Pedidos
+        </h2>
         <nav className="admin-tabs" aria-label="Filtrar por estado">
-          <Link href="/admin/pedidos" aria-current={!status ? "page" : undefined}>
-            Todos ({Object.values(counts).reduce((sum, n) => sum + n, 0)})
+          <Link href="/admin/pedidos" aria-current={!status ? "page" : undefined} className={total ? undefined : "is-empty"}>
+            <span className="admin-tabs__label">Todos</span>
+            <span className="visually-hidden">, </span>
+            <span className="admin-tabs__count">{total}</span>
           </Link>
           {ORDER_STATUSES.map((value) => (
-            <Link key={value} href={`/admin/pedidos?estado=${value}`} aria-current={status === value ? "page" : undefined}>
-              {orderStatusLabel[value]} ({counts[value]})
+            <Link
+              key={value}
+              href={`/admin/pedidos?estado=${value}`}
+              aria-current={status === value ? "page" : undefined}
+              className={counts[value] ? undefined : "is-empty"}
+            >
+              <span className="admin-tabs__label">{orderStatusLabel[value]}</span>
+              <span className="visually-hidden">, </span>
+              <span className="admin-tabs__count">{counts[value]}</span>
             </Link>
           ))}
         </nav>

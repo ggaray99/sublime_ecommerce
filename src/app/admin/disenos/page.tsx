@@ -25,6 +25,7 @@ async function Designs({ searchParams }: { searchParams: PageProps<"/admin/disen
   const [all, bases, query] = await Promise.all([repo.listDesigns(), repo.listMockupBases(), searchParams]);
   const status = DESIGN_STATUSES.find((value) => value === query.estado);
   const designs = status ? all.filter((design) => design.status === status) : all;
+  const countOf = (value: DesignStatus) => all.filter((design) => design.status === value).length;
   const unlinked = MOCKUP_KINDS.filter((kind) => !bases[kind] && all.some((design) => design.kinds.includes(kind)));
 
   return (
@@ -34,8 +35,30 @@ async function Designs({ searchParams }: { searchParams: PageProps<"/admin/disen
           Diseño eliminado.
         </p>
       )}
-      <section className="account__section" aria-labelledby="disenos-title">
-        <h2 id="disenos-title">Diseños</h2>
+      <section className="account__section admin-list" aria-labelledby="disenos-title">
+        {/* The page title already says "Diseños": the heading stays for screen readers. */}
+        <h2 id="disenos-title" className="visually-hidden">
+          Diseños
+        </h2>
+        <nav className="admin-tabs" aria-label="Filtrar por estado">
+          <Link href="/admin/disenos" aria-current={!status ? "page" : undefined} className={all.length ? undefined : "is-empty"}>
+            <span className="admin-tabs__label">Todos</span>
+            <span className="visually-hidden">, </span>
+            <span className="admin-tabs__count">{all.length}</span>
+          </Link>
+          {DESIGN_STATUSES.map((value) => (
+            <Link
+              key={value}
+              href={`/admin/disenos?estado=${value}`}
+              aria-current={status === value ? "page" : undefined}
+              className={countOf(value) ? undefined : "is-empty"}
+            >
+              <span className="admin-tabs__label">{DESIGN_STATUS_LABELS[value]}</span>
+              <span className="visually-hidden">, </span>
+              <span className="admin-tabs__count">{countOf(value)}</span>
+            </Link>
+          ))}
+        </nav>
         <p>
           <Link href="/admin/disenos/nuevo" className="btn btn--coal">
             Nuevo diseño
@@ -48,16 +71,6 @@ async function Designs({ searchParams }: { searchParams: PageProps<"/admin/disen
             <Link href="/admin/soportes">Configurar soportes</Link>
           </p>
         )}
-        <nav className="admin-tabs" aria-label="Filtrar por estado">
-          <Link href="/admin/disenos" aria-current={!status ? "page" : undefined}>
-            Todos ({all.length})
-          </Link>
-          {DESIGN_STATUSES.map((value) => (
-            <Link key={value} href={`/admin/disenos?estado=${value}`} aria-current={status === value ? "page" : undefined}>
-              {DESIGN_STATUS_LABELS[value]} ({all.filter((design) => design.status === value).length})
-            </Link>
-          ))}
-        </nav>
         {designs.length ? (
           <ul className="address-list">
             {designs.map((design) => (
