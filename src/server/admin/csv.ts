@@ -25,12 +25,16 @@ export const CSV_COLUMNS = [
   "largo_cm",
   "ancho_cm",
   "alto_cm",
-  // Stock reason (docs/inventory-stabilization.md, 6): reposicion only adds; ajuste adds or lowers.
-  // Empty keeps the previous behavior (ajuste), so older sheets import the same way.
-  "motivo_stock",
 ] as const;
 
-type Column = (typeof CSV_COLUMNS)[number];
+/**
+ * Accepted on import only (the export stays byte-identical): the stock reason,
+ * docs/inventory-stabilization.md, 6. reposicion only adds; ajuste adds or lowers;
+ * empty keeps the previous behavior (ajuste), so older sheets import the same way.
+ */
+export const IMPORT_ONLY_COLUMNS = ["motivo_stock"] as const;
+
+type Column = (typeof CSV_COLUMNS)[number] | (typeof IMPORT_ONLY_COLUMNS)[number];
 export type CsvRow = Partial<Record<Column, string>>;
 
 /** motivo_stock values, accents and case ignored. */
@@ -187,7 +191,7 @@ export async function importCatalog(sql: QueryFn, actor: Admin, text: string, dr
   if (!header.includes("sku")) return { error: "Falta la columna sku en la primera fila. Descargá la planilla actual para ver el formato." };
   if (!rows.length) return { error: "La planilla no tiene filas." };
   if (rows.length > MAX_IMPORT_ROWS) return { error: `Hasta ${MAX_IMPORT_ROWS} filas por archivo.` };
-  const unknown = header.filter((name) => name && !(CSV_COLUMNS as readonly string[]).includes(name));
+  const unknown = header.filter((name) => name && ![...CSV_COLUMNS, ...IMPORT_ONLY_COLUMNS].includes(name as Column));
   if (unknown.length) return { error: `Columnas que no conocemos: ${unknown.join(", ")}.` };
 
   const records: (CsvRow & { row: number })[] = rows.map((cells, index) => ({

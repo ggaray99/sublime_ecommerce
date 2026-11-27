@@ -140,8 +140,8 @@ describe("export and import (PGlite)", () => {
       await db.query("SELECT m.reason FROM inventory_movements m JOIN product_variants v ON v.id = m.variant_id WHERE v.sku = 'SUB-P14' ORDER BY m.id DESC LIMIT 1")
     ).rows;
     assert.equal(movement.reason, "adjustment");
-    // The export offers the column (empty) so the sheet can be filled in.
-    assert.ok(Object.keys((await exportCatalog(sql))[0]).includes("motivo_stock") || toCsv((await exportCatalog(sql)).slice(0, 1)).split("\n")[0].includes("motivo_stock"));
+    // The export is unchanged: motivo_stock is accepted on import only.
+    assert.ok(!toCsv((await exportCatalog(sql)).slice(0, 1)).split("\n")[0].includes("motivo_stock"));
   });
 
   it("rejects files without sku or with unknown columns", async () => {

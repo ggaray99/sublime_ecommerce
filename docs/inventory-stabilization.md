@@ -79,7 +79,7 @@ The functional specification is in `docs/returns-spec.md`. It covers full and pa
 ## 4. Contracts
 
 - **API v1 `stock/bulk-count`.** A `restock` that would lower stock now returns the item as `failed` with `validation_failed` (path `items[i].reason`). That is the approved rule; the response shape is unchanged.
-- **CSV.** The export has one more column (`motivo_stock`, empty). Sheets without it still import.
+- **CSV.** The export is byte-identical, pinned by `tests/admin-export.test.mjs`. `motivo_stock` is accepted on import only (`IMPORT_ONLY_COLUMNS`), and sheets without it import as before.
 - **Internal route.** It returns an `expiry` field in its JSON log.
 
 ## 5. Tests

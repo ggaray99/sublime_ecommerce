@@ -40,7 +40,7 @@ async function ImportPanel() {
         <p className={styles.muted}>
           Columnas: {CSV_COLUMNS.join(", ")}. Una celda vacía no cambia nada. Un SKU nuevo crea el producto en borrador (con
           nombre, categoría y precio). Precios en pesos (8900 o 8.900,50), medidas en cm. Hasta {MAX_IMPORT_ROWS} filas por archivo.
-          En motivo_stock poné reposicion (solo suma unidades) o ajuste (suma o resta); vacío se registra como ajuste. La revisión muestra el stock que va a quedar.
+          Para el stock podés sumar la columna motivo_stock: poné reposicion (solo suma unidades) o ajuste (suma o resta); vacío se registra como ajuste. La revisión muestra el stock que va a quedar.
         </p>
       </Card>
       <CatalogImport />
