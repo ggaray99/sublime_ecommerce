@@ -63,6 +63,7 @@ describe("side menu links", () => {
       "/admin/clientes",
       "/admin/promociones",
       "/admin/productos",
+      "/admin/inventario",
       "/admin/disenos",
       "/admin/soportes",
       "/admin/categorias",

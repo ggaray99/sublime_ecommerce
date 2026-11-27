@@ -1,0 +1,286 @@
+/*
+ * Admin inventory list (/admin/inventario) and movements (/admin/inventario/movimientos):
+ * what is specific to inventory. The list chrome (page, card, filters, table
+ * cells, footer) is shared with the products list (../products/list.module.css).
+ * Sizes follow the list's own box (container queries), with no min-width: it
+ * never scrolls sideways.
+ */
+
+/* ---------------------------------------------------------------- summary */
+
+.summaryBox {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sa-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stat {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border-radius: var(--sa-radius-lg);
+  background: var(--sa-color-surface);
+  box-shadow: var(--sa-shadow-card);
+}
+
+.statLabel {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+}
+
+.statValue {
+  color: var(--sa-color-text);
+  font-size: var(--sa-font-size-xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sa-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.statNote {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+}
+
+.statLink {
+  justify-self: start;
+  min-height: 24px;
+  padding-block: 2px;
+  border-radius: var(--sa-radius-sm);
+  color: var(--sa-color-text-link);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-semibold);
+  text-decoration: none;
+}
+
+.statLink:hover,
+.link:hover,
+.name:hover {
+  text-decoration: underline;
+}
+
+.statLink:focus-visible,
+.link:focus-visible,
+.name:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 2px;
+}
+
+@container (max-width: 720px) {
+  .summaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 360px) {
+  .summaryGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------------------------------------------------------------- tables */
+
+.footNote {
+  margin: 0;
+  padding: var(--sa-space-2) var(--sa-space-4);
+  border-top: var(--sa-border-width) solid var(--sa-color-border);
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+}
+
+.row:last-child > .cell {
+  border-bottom: 0;
+}
+
+.row:hover > .cell {
+  background: var(--sa-color-surface-subdued);
+}
+
+.product {
+  min-width: 0;
+  font-weight: var(--sa-font-weight-regular);
+}
+
+.nameLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-1) var(--sa-space-2);
+}
+
+.name {
+  border-radius: 2px;
+  color: var(--sa-color-text);
+  font-weight: var(--sa-font-weight-semibold);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.link {
+  border-radius: 2px;
+  color: var(--sa-color-text-link);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sku {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* .table raises these over the shared th/td alignment. */
+.table .number {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.date,
+.state {
+  white-space: nowrap;
+}
+
+.note {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Below ~880px of list width (1024px screen with the menu open): SKU (variants) and the note (movements) drop. */
+@container (max-width: 880px) {
+  .table .wideOnly {
+    display: none;
+  }
+}
+
+/* Narrow lists (phones): each row becomes a card; labels come from data-label. */
+@container (max-width: 600px) {
+  .table,
+  .table tbody {
+    display: block;
+  }
+
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--sa-space-3);
+    row-gap: var(--sa-space-1);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  }
+
+  .row:last-child {
+    border-bottom: 0;
+  }
+
+  .table .row > .cell {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: start;
+  }
+
+  .row:hover > .cell {
+    background: none;
+  }
+
+  /* The card has room for what the medium width hid. */
+  .table .row > .wideOnly {
+    display: block;
+  }
+
+  .row > .lead {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .row > .corner {
+    grid-row: 1;
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .row > .cell:not(.lead, .corner) {
+    grid-column: 1 / span 2;
+    color: var(--sa-color-text);
+    font-size: var(--sa-font-size-sm);
+  }
+
+  .row > .cell[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--sa-color-text-subdued);
+  }
+
+  /* Variant rows: the thumbnail sits beside the product. */
+  .variantRow {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+  }
+
+  .variantRow > .thumbCell {
+    grid-row: 1 / span 6;
+    grid-column: 1;
+  }
+
+  .variantRow > .lead {
+    grid-column: 2;
+  }
+
+  .variantRow > .corner {
+    grid-column: 3;
+  }
+
+  .variantRow > .cell:not(.lead, .corner, .thumbCell) {
+    grid-column: 2 / span 2;
+  }
+}
+
+/* ---------------------------------------------------------------- loading */
+
+.skeletonStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sa-space-3);
+}
+
+.skeletonRow {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+  gap: var(--sa-space-3);
+  align-items: center;
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+@container (max-width: 600px) {
+  .skeletonStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .skeletonRow {
+    grid-template-columns: 40px minmax(0, 1fr) 96px;
+  }
+
+  .skeletonRow > :nth-child(n + 4) {
+    display: none;
+  }
+}
