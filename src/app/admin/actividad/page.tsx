@@ -23,7 +23,8 @@ async function Activity({ searchParams }: { searchParams: PageProps<"/admin/acti
   const query = await searchParams;
   const area = typeof query.area === "string" && query.area in AUDIT_AREAS ? (query.area as AuditEntity) : undefined;
   const before = typeof query.antes === "string" ? query.antes : undefined;
-  const entries = await getAdminRepository().listAudit({ entity: area, before, limit: PAGE });
+  // Audit log and order history together (docs/admin-orders-rules.md, 3).
+  const entries = await getAdminRepository().listActivity({ entity: area, before, limit: PAGE });
   const link = (params: Record<string, string | undefined>) => {
     const search = new URLSearchParams(Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])));
     return `/admin/actividad${search.size ? `?${search}` : ""}`;
@@ -46,7 +47,7 @@ async function Activity({ searchParams }: { searchParams: PageProps<"/admin/acti
             </Link>
           ))}
         </nav>
-        <p className="muted">Todo lo que se cambia en el panel, con quién y cuándo. Lo más reciente primero.</p>
+        <p className="muted">Todo lo que se cambia en el panel y cada cambio de estado de los pedidos, con quién y cuándo. Lo más reciente primero.</p>
         <AuditList entries={entries} />
         <div className="admin-pagination">
           {before ? <Link href={link({ area })}>← Lo más reciente</Link> : <span />}

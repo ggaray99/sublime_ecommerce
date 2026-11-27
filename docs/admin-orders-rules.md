@@ -83,6 +83,13 @@ The three rules below were pending from the orders redesign (`docs/admin-orders-
 
 ## Status
 
-- **Documented** on 2026-11-27.
-- **Rules 1 and 3 are not implemented yet.** They wait for the owner's go-ahead.
-- **Rule 2** requires no change.
+- **Rule 1: implemented** (`3ed6d2c`). `cancelOrder` frees the redemption and lowers `uses_count` in its own statement. Tests: `tests/order-coupon-release.test.mjs`, covering pending, expired, a concurrent cancel and expiry, paid, review, and stock movements.
+- **Rule 2:** no change. It is documented and kept.
+- **Rule 3: implemented.**
+  - `listActivity` reads `audit_logs` and `order_events` together; nothing is copied.
+  - The cursor is `<epoch microseconds>.<source>.<id>`, compared as integers. Old numeric `?antes=` links still work.
+  - The "Pedidos y encargos" area includes order events. Each event links to its order and shows readable actors.
+  - Tests: `tests/admin-activity.test.mjs`, covering merge order, area filter, paging across sources, same-instant ties, the legacy cursor, malformed cursors, and `listAudit` unchanged.
+- **Not included:**
+  - Encargo events (`custom_request_events`) in Actividad.
+  - The Inicio dashboard's "Actividad reciente", which still reads `audit_logs` only.

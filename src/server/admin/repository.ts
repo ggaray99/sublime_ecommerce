@@ -42,6 +42,8 @@ export type AuditEntry = {
   entityId: string;
   changes: Record<string, unknown>;
   createdAt: Date;
+  /** Page of the record, when the entry links to one (order events). */
+  href?: string;
 };
 
 export type AuditEntity = "product" | "order" | "inventory" | "admin" | "category" | "integration" | "shipping" | "point" | "home" | "settings" | "promotion" | "design";
@@ -650,7 +652,70 @@ export function createAdminRepository(sql: QueryFn) {
         createdAt: new Date(row.created_at),
       }));
     },
+
+    /**
+     * Admin › Actividad: the audit log and the order history (order_events)
+     * together, newest first (docs/admin-orders-rules.md, 3). Order events are
+     * read where they already live, never copied. `before` is the last entry's
+     * id: "<epoch microseconds>.<source>.<id>" (source a = audit, o = order);
+     * a bare number is an old audit_logs id and keeps working.
+     */
+    async listActivity(options: { entity?: AuditEntity; limit?: number; before?: string } = {}): Promise<AuditEntry[]> {
+      const cursor = parseActivityCursor(options.before);
+      const rows = (await sql.query(
+        `WITH legacy AS (SELECT (extract(epoch FROM created_at) * 1000000)::bigint AS micros FROM audit_logs WHERE id = $5),
+         -- Compared as whole microseconds on both sides: no float rounding between pages.
+         bound AS (
+           SELECT coalesce((SELECT micros FROM legacy), $3::bigint) AS micros,
+                  CASE WHEN $5::bigint IS NOT NULL THEN 'a' ELSE $4::text END AS source,
+                  coalesce($5::bigint, $6::bigint) AS id
+         ),
+         merged AS (
+           SELECT 'a' AS source, a.id, a.actor_email AS actor, a.action, a.entity, a.entity_id, a.changes, a.created_at, NULL::uuid AS order_id
+           FROM audit_logs a WHERE ($1::text IS NULL OR a.entity = $1)
+           UNION ALL
+           SELECT 'o', e.id, e.actor, 'order.status', 'order', 'SUB-' || o.number,
+                  jsonb_build_object('number', o.number, 'from', e.from_status, 'to', e.to_status, 'note', e.note), e.created_at, o.id
+           FROM order_events e JOIN orders o ON o.id = e.order_id WHERE ($1::text IS NULL OR $1 = 'order')
+         )
+         SELECT m.*, (extract(epoch FROM m.created_at) * 1000000)::bigint AS micros
+         FROM merged m, bound b
+         WHERE b.micros IS NULL OR ((extract(epoch FROM m.created_at) * 1000000)::bigint, m.source, m.id) < (b.micros, b.source, b.id)
+         ORDER BY micros DESC, m.source DESC, m.id DESC
+         LIMIT $2`,
+        [options.entity ?? null, options.limit ?? 50, cursor?.micros ?? null, cursor?.source ?? null, cursor?.legacyId ?? null, cursor?.id ?? null],
+      )) as {
+        source: "a" | "o";
+        id: string | number;
+        actor: string;
+        action: string;
+        entity: string;
+        entity_id: string;
+        changes: Record<string, unknown>;
+        created_at: Date;
+        order_id: string | null;
+        micros: string | number;
+      }[];
+      return rows.map((row) => ({
+        id: `${row.micros}.${row.source}.${row.id}`,
+        actorEmail: row.actor,
+        action: row.action,
+        entity: row.entity,
+        entityId: row.entity_id,
+        changes: row.changes,
+        createdAt: new Date(row.created_at),
+        ...(row.order_id ? { href: `/admin/pedidos/${row.order_id}` } : {}),
+      }));
+    },
   };
+}
+
+/** "<micros>.<a|o>.<id>", or an old bare audit id; anything else is ignored. */
+function parseActivityCursor(value: string | undefined): { micros?: string; source?: string; id?: string; legacyId?: string } | null {
+  if (!value) return null;
+  if (/^\d{1,18}$/.test(value)) return { legacyId: value };
+  const match = /^(\d{1,20})\.([ao])\.(\d{1,18})$/.exec(value);
+  return match ? { micros: match[1], source: match[2], id: match[3] } : null;
 }
 
 export type AdminRepository = ReturnType<typeof createAdminRepository>;

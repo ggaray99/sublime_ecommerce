@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { themes } from "@/data/products";
 import { DESIGN_STATUS_LABELS, isMockupKind, MOCKUP_KIND_LABELS, type DesignStatus } from "@/lib/designs/kinds";
 import { formatPrice } from "@/lib/format";
@@ -6,6 +7,8 @@ import type { AdminProduct, AuditEntry } from "@/server/admin/repository";
 import { getCategoryRepository } from "@/server/admin/session";
 import type { ProductStatus } from "@/server/admin/validation";
 import type { Option, ProductFormValues } from "./forms";
+import { orderStatusLabel } from "@/components/orders/order-view";
+import { actorLabel } from "./orders/detail-helpers";
 
 export const productStatusLabel: Record<ProductStatus, string> = {
   active: "Publicado",
@@ -78,10 +81,17 @@ function fieldChange(field: string, before: unknown, after: unknown): string {
 }
 
 /** Human summary of an audit entry, built from the stored before/after values. */
+const statusText = (status: unknown) => (typeof status === "string" ? (orderStatusLabel as Record<string, string>)[status] ?? status : "");
+
 function describe(entry: AuditEntry): string {
   const changes = entry.changes;
   const exported = describeExport(entry);
   if (exported) return exported;
+  // Order history read from order_events (Actividad): status change and its note.
+  if (entry.action === "order.status") {
+    const change = changes.from ? `${statusText(changes.from)} → ${statusText(changes.to)}` : statusText(changes.to);
+    return `${change}${changes.note ? ` (${changes.note})` : ""}`;
+  }
   if (entry.action === "inventory.count") return `Stock ${changes.before} → ${changes.after}${changes.note ? ` (${changes.note})` : ""}`;
   if (entry.action === "integration.create") return `Clave de API creada (${(changes.scopes as string[] | undefined)?.join(", ") ?? ""})`;
   if (entry.action === "integration.revoke") return "Clave de API revocada";
@@ -184,10 +194,10 @@ export function AuditList({ entries }: { entries: AuditEntry[] }) {
       {entries.map((entry) => (
         <li key={entry.id}>
           <p>
-            <strong>{subject(entry)}</strong> · {describe(entry)}
+            <strong>{entry.href ? <Link href={entry.href}>{subject(entry)}</Link> : subject(entry)}</strong> · {describe(entry)}
           </p>
           <p className="muted">
-            {entry.actorEmail} · <time dateTime={entry.createdAt.toISOString()}>{dateFormat(entry.createdAt)}</time>
+            {entry.action === "order.status" ? actorLabel(entry.actorEmail) : entry.actorEmail} · <time dateTime={entry.createdAt.toISOString()}>{dateFormat(entry.createdAt)}</time>
           </p>
         </li>
       ))}
