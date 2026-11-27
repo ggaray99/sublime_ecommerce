@@ -45,9 +45,9 @@ describe("inventory under real concurrency (PostgreSQL)", { skip: safe ? false :
     await pool.query(`
       DELETE FROM inventory_movements WHERE variant_id = (SELECT id FROM product_variants WHERE sku = 'SUB-P08');
       UPDATE stock_reservations SET status = 'released', resolved_at = now() WHERE status = 'active';
-      UPDATE inventory SET on_hand = 100, reserved = 0 FROM product_variants v WHERE v.id = inventory.variant_id AND v.sku = 'SUB-P08';
+      UPDATE inventory SET on_hand = 1000, reserved = 0 FROM product_variants v WHERE v.id = inventory.variant_id AND v.sku = 'SUB-P08';
       INSERT INTO inventory_movements (variant_id, delta_on_hand, reason, actor, note)
-        SELECT id, 100, 'initial_count', 'test', 'base' FROM product_variants WHERE sku = 'SUB-P08';
+        SELECT id, 1000, 'initial_count', 'test', 'base' FROM product_variants WHERE sku = 'SUB-P08';
     `);
   });
 
@@ -93,7 +93,7 @@ describe("inventory under real concurrency (PostgreSQL)", { skip: safe ? false :
       assert.equal(rows[0].n, 1, `round ${round}: one sale`);
     }
     const s = await assertLedger("late payments");
-    assert.equal(s.on_hand, 100 - 2 * ROUNDS);
+    assert.equal(s.on_hand, 1000 - 2 * ROUNDS);
   });
 
   it("a payment that meets the expiry is recorded once", async () => {
@@ -105,7 +105,7 @@ describe("inventory under real concurrency (PostgreSQL)", { skip: safe ? false :
       assert.equal((await orders.getOrder(order.id)).status, "paid", `round ${round}`);
     }
     const s = await assertLedger("payment vs expiry");
-    assert.deepEqual([s.on_hand, s.reserved], [100 - ROUNDS, 0]);
+    assert.deepEqual([s.on_hand, s.reserved], [1000 - ROUNDS, 0]);
   });
 
   it("two simultaneous expiry runs release each reservation once", async () => {
@@ -116,12 +116,12 @@ describe("inventory under real concurrency (PostgreSQL)", { skip: safe ? false :
       assert.equal(a.orders + b.orders, 1, `round ${round}`);
     }
     const s = await assertLedger("double expiry");
-    assert.deepEqual([s.on_hand, s.reserved], [100, 0]);
+    assert.deepEqual([s.on_hand, s.reserved], [1000, 0]);
   });
 
   it("simultaneous counts keep the ledger equal to the stock", async () => {
     for (let round = 0; round < ROUNDS; round++) {
-      const targets = [110 + round, 120 + round, 105 + round];
+      const targets = [1010 + round, 1020 + round, 1005 + round];
       await Promise.allSettled(targets.map((onHand, i) => admin.countStock(owner, "p08", { onHand, reason: "adjustment", note: `conteo ${round}.${i}` })));
       const s = await assertLedger(`counts round ${round}`);
       assert.ok(targets.includes(s.on_hand), `round ${round}: on_hand is one of the counted values`);
@@ -133,7 +133,7 @@ describe("inventory under real concurrency (PostgreSQL)", { skip: safe ? false :
       const order = await place(1);
       await Promise.allSettled([
         orders.confirmPayment("mercadopago", order.id, "venta"),
-        admin.countStock(owner, "p08", { onHand: 90, reason: "adjustment", note: `recuento ${round}` }),
+        admin.countStock(owner, "p08", { onHand: 990, reason: "adjustment", note: `recuento ${round}` }),
         place(1),
       ]);
       await assertLedger(`count vs sale round ${round}`);
@@ -151,6 +151,15 @@ describe("inventory under real concurrency (PostgreSQL)", { skip: safe ? false :
       const count = results[1];
       // If the sale landed first, restocking to the old value would add; otherwise it is unchanged. Never a decrease.
       if (count.status === "rejected") assert.equal(count.reason.code, "restock_decrease");
+      // A restock below the stock, racing another sale, is refused under the lock and writes nothing.
+      const now = (await state()).on_hand;
+      const other = await place(1);
+      const [, lower] = await Promise.allSettled([
+        orders.confirmPayment("mercadopago", other.id, "venta"),
+        admin.countStock(owner, "p08", { onHand: now - 2, reason: "restock", note: "" }),
+      ]);
+      assert.equal(lower.status, "rejected", `round ${round}`);
+      assert.equal(lower.reason.code, "restock_decrease");
       const { rows } = await pool.query("SELECT count(*)::int AS n FROM inventory_movements WHERE reason = 'restock' AND delta_on_hand < 0");
       assert.equal(rows[0].n, 0, `round ${round}`);
       await assertLedger(`restock round ${round}`);

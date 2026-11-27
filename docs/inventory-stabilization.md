@@ -69,6 +69,7 @@ The functional specification is in `docs/returns-spec.md`. It covers full and pa
 - **Infrastructure.** The VPS already runs `/etc/cron.d/sublime-outbox` every minute; it calls the protected internal route (`/api/internal/outbox`, `OUTBOX_TOKEN`, constant-time check) in the staging and store containers. No new cron or scheduler was added.
 - **The run.** That route now calls `runScheduledExpiry` → `releaseExpired` first. It is idempotent and row-locked: only active, due reservations are released, with actor `system`.
 - **Logging.** The result (`expiry: {reservations, orders}`) or the error goes to `/srv/sublime/outbox.log`. An error never stops the rest of the run.
+- **Lock order.** `releaseExpired` now locks the pending orders first (`FOR UPDATE`, ordered by id), then their reservations, then inventory: the same order as `confirmPayment` and `cancelOrder`. This removes a pre-existing deadlock between a payment and the expiry, which the every-minute cron made more likely. A pending order whose payment is being confirmed waits, is then skipped, and the payment wins.
 - **Complement.** `releaseExpired` keeps running from the panel, cart and checkout as before.
 - **Store.** The store container only runs it when its database is enabled (`ordersAvailable`).
 
@@ -87,7 +88,7 @@ The functional specification is in `docs/returns-spec.md`. It covers full and pa
 | File | What it proves |
 |---|---|
 | `tests/inventory-stabilization.test.mjs` (14, PGlite) | Late sale names and links its order; repeated confirmations discount once; concurrent late confirmations discount once; `needs_review` unchanged; a payment that meets the expiry is recorded once; a count after a sale records the real difference; counts in a row; restock only adds; below reserved writes nothing; an equal count writes nothing; the ledger matches the stock; scheduled expiry is idempotent, touches only due reservations, uses actor `system` and reports errors |
-| `tests/db-concurrency.test.mjs` (real PostgreSQL, many rounds) | 3 simultaneous late confirmations; payment against two expiry runs; two expiry runs; 3 simultaneous counts; a count racing a sale and a reservation; restock against a sale. After every round, movements add up to `on_hand` and to `reserved`. It runs only with `CONCURRENCY_DATABASE_URL` pointing to a disposable `*concurrency_test` database: PGlite has a single connection and cannot reproduce real races. |
+| `tests/db-concurrency.test.mjs` (real PostgreSQL; **run 2026-11-27: 6/6 with 25 rounds and 6/6 with 60 rounds**, on a temporary `sublime_concurrency_test` database in the staging Postgres container, reached through an SSH tunnel; the database and role were dropped afterwards) | 3 simultaneous late confirmations; payment against two expiry runs; two expiry runs; 3 simultaneous counts; a count racing a sale and a reservation; restock against a sale, including a restock below the stock that must be refused under the lock. After every round, movements add up to `on_hand` and to `reserved`. It runs only with `CONCURRENCY_DATABASE_URL` pointing to a disposable `*concurrency_test` database: PGlite has a single connection and cannot reproduce real races. |
 | `tests/admin-api.test.mjs` | `restock` decrease refused (dry run), `adjustment` with a note allowed |
 | `tests/catalog-csv.test.mjs` | `reposicion` and `ajuste` rows, a refused decrease, an unknown reason, the preview text, recorded reasons, old sheets unchanged |
 | `tests/admin-inventory-detail.test.mjs` | The dialog refuses a restock decrease and allows the same total with Ajuste |
@@ -97,3 +98,33 @@ The functional specification is in `docs/returns-spec.md`. It covers full and pa
 - **Returns** (decision 5): specification only.
 - **Low-stock definitions** (decision 4): unchanged by decision.
 - **Late sales and coupons.** Observed in the orders rules: a late-paid order keeps its discount, but its coupon use is not counted again. Undecided.
+
+## 7. Independent verification
+
+**Verdict:** PASS on all 7 decisions, with no blockers.
+
+The verifier's evidence:
+
+- probes on PGlite;
+- baseline-vs-HEAD differentials (CSV export and API `stock/bulk-count` responses byte-identical);
+- an analysis of the row-lock order;
+- an analysis of READ COMMITTED races.
+
+What its advisories led to:
+
+| Advisory | Outcome |
+|---|---|
+| **A1:** pre-existing deadlock between a payment and the expiry | Fixed with the lock order above |
+| **A4:** the concurrency test never exercised the refusal under the lock | Added to the test |
+
+**Remaining advisories, not changed:**
+
+- **A2.** Statements locking several inventory rows follow the join order (pre-existing).
+- **A3.** The API may report "updated" with a stale `before` when a concurrent write already set the same value. Cosmetic.
+- **A5.** The movements listing joins late sales by the note. It is indexed and fine at the current size.
+
+## 8. Risks
+
+- **Reservations of a non-pending order.** `releaseExpired` now only expires reservations whose order is pending, or that have no order. An active reservation of an order in another status is not expected; it would be a data anomaly. Such a reservation would no longer be released by expiry.
+- **The cron also runs in the store container.** Expiry runs there only when the store has its database enabled (today it does not).
+- **Production is not touched.** The branch goes to QA only. The VPS cron already exists, so no infrastructure change is needed.

@@ -489,9 +489,21 @@ export function createOrderRepository(sql: QueryFn) {
      */
     async releaseExpired(): Promise<{ reservations: number; orders: number }> {
       const [row] = (await sql.query(
-        `WITH due AS (
+        // Lock order: orders first, then reservations, then inventory, the same as
+        // confirmPayment and cancelOrder, so a payment arriving at the expiry never
+        // deadlocks (docs/inventory-stabilization.md, 7). A pending order that a
+        // payment is confirming waits here and is then skipped (no longer pending).
+        `WITH due_orders AS (
+           SELECT o.id FROM orders o
+           WHERE o.status = 'pending_payment'
+             AND EXISTS (SELECT 1 FROM stock_reservations r WHERE r.order_id = o.id AND r.status = 'active' AND r.expires_at < now())
+           ORDER BY o.id
+           FOR UPDATE OF o
+         ),
+         due AS (
            UPDATE stock_reservations SET status = 'expired', resolved_at = now()
            WHERE status = 'active' AND expires_at < now()
+             AND (order_id IS NULL OR order_id IN (SELECT id FROM due_orders))
            RETURNING id, variant_id, quantity, order_id
          ),
          per_variant AS (SELECT variant_id, sum(quantity)::int AS quantity FROM due GROUP BY variant_id),
