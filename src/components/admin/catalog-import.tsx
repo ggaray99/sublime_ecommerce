@@ -1,81 +1,95 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { importCatalogAction, type ImportState } from "@/app/admin/productos/importar/actions";
+import { Badge, Button, Card, DataTable, Input, useToast, type BadgeTone, type DataTableColumn } from "@/components/admin/ui";
+import type { ImportLine } from "@/server/admin/csv";
+import { importReview } from "./products/product-page-helpers";
+import styles from "./products/product-page.module.css";
 
-const RESULT_LABEL = { created: "Nuevo", updated: "Cambia", unchanged: "Igual", failed: "Error" } as const;
+const RESULT: Record<ImportLine["result"], { label: string; tone: BadgeTone }> = {
+  created: { label: "Nuevo", tone: "info" },
+  updated: { label: "Cambia", tone: "success" },
+  unchanged: { label: "Igual", tone: "neutral" },
+  failed: { label: "Error", tone: "critical" },
+};
 
+const COLUMNS: DataTableColumn<ImportLine>[] = [
+  { key: "row", header: "Fila", cell: (line) => line.row, align: "end", width: "64px" },
+  { key: "sku", header: "SKU", cell: (line) => line.sku || "—", rowHeader: true, nowrap: true },
+  { key: "result", header: "Resultado", cell: (line) => <Badge tone={RESULT[line.result].tone}>{RESULT[line.result].label}</Badge> },
+  { key: "detail", header: "Detalle", cell: (line) => line.detail },
+];
+
+/** Upload, review (nothing is written), then apply: same importCatalogAction as before. */
 export function CatalogImport() {
   const [state, action, pending] = useActionState<ImportState, FormData>(importCatalogAction, {});
+  const toast = useToast();
+  const announced = useRef<ImportState | null>(null);
   const report = state.report;
   const canApply = report?.dryRun && report.summary.created + report.summary.updated > 0;
+  const review = report ? importReview(report) : null;
+  const applied = report && !report.dryRun;
+
+  useEffect(() => {
+    if (applied && announced.current !== state) {
+      announced.current = state;
+      toast.show("Planilla aplicada.", { tone: "success" });
+    }
+  }, [applied, state, toast]);
 
   return (
-    <div className="quote-form">
-      <form action={action} className="quote-form" noValidate>
-        <div className="field">
-          <label htmlFor="import-file">Archivo CSV</label>
-          <input id="import-file" name="file" type="file" accept=".csv,text/csv" required />
-        </div>
-        <button type="submit" className="btn btn--coal" disabled={pending}>
-          {pending ? "Revisando…" : "Revisar planilla"}
-        </button>
-      </form>
-
-      {state.error && (
-        <p className="form-alert" role="alert">
-          {state.error}
-        </p>
-      )}
-
-      {report && (
-        <section aria-labelledby="import-result" className="import-report">
-          <h3 id="import-result" className="account__subtitle">
-            {report.dryRun ? `Vista previa de ${state.fileName}: todavía no se cambió nada` : "Planilla aplicada"}
-          </h3>
-          <p role="status">
-            {report.summary.created} nuevos · {report.summary.updated} con cambios · {report.summary.unchanged} sin cambios ·{" "}
-            {report.summary.failed} con errores
-          </p>
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th scope="col">Fila</th>
-                  <th scope="col">SKU</th>
-                  <th scope="col">Resultado</th>
-                  <th scope="col">Detalle</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.lines.map((line) => (
-                  <tr key={line.row} className={line.result === "unchanged" ? "is-inactive" : undefined}>
-                    <td>{line.row}</td>
-                    <td>{line.sku || "—"}</td>
-                    <td>
-                      <span className={`badge ${line.result === "failed" ? "badge--sale" : line.result === "unchanged" ? "badge--pending" : "badge--ok"}`}>
-                        {RESULT_LABEL[line.result]}
-                      </span>
-                    </td>
-                    <td>{line.detail}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <>
+      <Card section id="importar-archivo" title="Archivo">
+        <form action={action} noValidate className={styles.grid2Stack}>
+          <Input id="import-file" name="file" type="file" accept=".csv,text/csv" label="Archivo CSV" required error={state.error} hint="Hasta 512 KB." />
+          <div className={styles.saveRow}>
+            <Button type="submit" variant={canApply ? "secondary" : "primary"} loading={pending}>
+              Revisar planilla
+            </Button>
           </div>
+        </form>
+      </Card>
+
+      {report && review && (
+        <Card section id="importar-resultado" title={report.dryRun ? `Vista previa de ${state.fileName}` : "Planilla aplicada"}>
+          <p className={styles.text} role="status">
+            {report.dryRun && "Todavía no se cambió nada. "}
+            {report.summary.created} nuevos · {report.summary.updated} con cambios · {report.summary.failed} con errores ·{" "}
+            {review.unchanged} sin cambios (no se muestran)
+          </p>
+          {applied && (
+            <div className={styles.saveRow}>
+              <Button href="/admin/productos" variant="primary">
+                Ver productos
+              </Button>
+            </div>
+          )}
+          {review.rows.length > 0 && (
+            <DataTable
+              caption={report.dryRun ? "Filas que cambian o tienen errores" : "Filas aplicadas o con errores"}
+              captionHidden
+              columns={COLUMNS}
+              rows={review.rows}
+              rowKey={(line) => String(line.row)}
+              rowTone={(line) => (line.result === "failed" ? "critical" : undefined)}
+            />
+          )}
           {canApply && (
-            <form action={action}>
+            <form action={action} className={styles.grid2Stack}>
               <input type="hidden" name="apply" value="1" />
               <input type="hidden" name="text" value={state.text ?? ""} />
               <input type="hidden" name="fileName" value={state.fileName ?? ""} />
-              <button type="submit" className="btn btn--acid" disabled={pending}>
-                {pending ? "Aplicando…" : `Aplicar ${report.summary.created + report.summary.updated} cambios`}
-              </button>
-              {report.summary.failed > 0 && <p className="muted">Las filas con error se saltean; corregilas y volvé a subir la planilla.</p>}
+              {report.summary.failed > 0 && <p className={styles.muted}>Las filas con error se saltean; corregilas y volvé a subir la planilla.</p>}
+              <div className={styles.saveRow}>
+                <Button type="submit" variant="primary" loading={pending}>
+                  {`Aplicar ${report.summary.created + report.summary.updated} cambios`}
+                </Button>
+              </div>
             </form>
           )}
-        </section>
+        </Card>
       )}
-    </div>
+    </>
   );
 }

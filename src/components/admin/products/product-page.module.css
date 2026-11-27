@@ -1,0 +1,395 @@
+/* Product page, new product and import: layout and the pieces specific to
+   products. The design-system components carry their own styles. */
+.page {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: var(--sa-space-6) clamp(16px, 3vw, 40px) var(--sa-space-10);
+  line-height: var(--sa-line-height-md);
+}
+
+.narrow {
+  max-width: 960px;
+}
+
+/* Two columns like Shopify from 1024px: content on the left, publication and organization on the right. */
+.layout {
+  display: grid;
+  gap: var(--sa-space-4);
+  align-items: start;
+}
+
+.main,
+.side {
+  display: grid;
+  gap: var(--sa-space-4);
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  }
+}
+
+.grid2 {
+  display: grid;
+  gap: var(--sa-space-3);
+}
+
+@media (min-width: 640px) {
+  .grid2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.grid3 {
+  display: grid;
+  gap: var(--sa-space-3);
+}
+
+@media (min-width: 640px) {
+  .grid3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Paragraphs inside cards: two classes beat the current admin theme. */
+.page .text,
+.page .muted {
+  margin: 0;
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+}
+
+.page .muted {
+  color: var(--sa-color-text-subdued);
+}
+
+.page .subtitle {
+  margin: 0;
+  color: var(--sa-color-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-md);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-md);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.block {
+  display: grid;
+  gap: var(--sa-space-3);
+  padding-top: var(--sa-space-4);
+  border-top: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+/* Save row: feedback next to the button that saved. */
+.saveRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sa-space-2) var(--sa-space-3);
+}
+
+.saved {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sa-space-1);
+  color: var(--sa-color-success-text);
+  font-size: var(--sa-font-size-sm);
+}
+
+.inlineError {
+  color: var(--sa-color-critical-text);
+  font-size: var(--sa-font-size-sm);
+}
+
+/* Error summary at the top of a card; focused after a failed save. */
+.summary {
+  display: grid;
+  gap: var(--sa-space-2);
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border: var(--sa-border-width) solid var(--sa-color-critical-border);
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-color-critical-bg);
+  color: var(--sa-color-critical-text);
+}
+
+.summary:focus-visible {
+  outline: none;
+  box-shadow: var(--sa-focus-ring);
+}
+
+.page .summaryTitle {
+  margin: 0;
+  color: var(--sa-color-critical-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-md);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-md);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.summaryList {
+  display: grid;
+  gap: var(--sa-space-1);
+  margin: 0;
+  padding-left: var(--sa-space-5);
+}
+
+.summaryList a {
+  color: var(--sa-color-critical-text);
+  text-decoration: underline;
+}
+
+/* Checkbox in the design-system look (native control, visible label). */
+.check {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--sa-space-1) var(--sa-space-2);
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--sa-color-primary);
+}
+
+.check label {
+  color: var(--sa-color-text);
+  font-size: var(--sa-font-size-md);
+}
+
+.checkHint {
+  grid-column: 2;
+  margin: 0;
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+}
+
+/* Publication card */
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-2);
+}
+
+.actionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sa-space-2);
+}
+
+/* Stock */
+.stockFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sa-space-2);
+  margin: 0;
+}
+
+.stockFacts div {
+  display: grid;
+  gap: 2px;
+  padding: var(--sa-space-2) var(--sa-space-3);
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-color-surface-subdued);
+}
+
+.stockFacts dt {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+}
+
+.stockFacts dd {
+  margin: 0;
+  font-size: var(--sa-font-size-lg);
+  font-weight: var(--sa-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.difference {
+  margin: 0;
+  font-size: var(--sa-font-size-md);
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.movements {
+  display: grid;
+  gap: var(--sa-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.movements li {
+  display: grid;
+  gap: 2px;
+  padding-bottom: var(--sa-space-2);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  font-size: var(--sa-font-size-md);
+}
+
+.movements li:last-child {
+  border-bottom: 0;
+}
+
+.delta {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+/* Images */
+.images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: var(--sa-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.image {
+  display: grid;
+  gap: var(--sa-space-2);
+  align-content: start;
+  padding: var(--sa-space-3);
+  border: var(--sa-border-width) solid var(--sa-color-border);
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-color-surface);
+}
+
+.thumbWrap {
+  position: relative;
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--sa-radius-sm);
+  background: var(--sa-color-surface-subdued);
+}
+
+.cover {
+  position: absolute;
+  top: var(--sa-space-2);
+  left: var(--sa-space-2);
+}
+
+.imageMeta {
+  margin: 0;
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+}
+
+.imageTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-1);
+}
+
+.imageTools form {
+  display: contents;
+}
+
+.push {
+  margin-left: auto;
+}
+
+/* Variants table: scrolls inside its own region on phones, never the page. */
+.tableRegion {
+  overflow-x: auto;
+  border: var(--sa-border-width) solid var(--sa-color-border);
+  border-radius: var(--sa-radius-md);
+}
+
+.tableRegion:focus-visible {
+  outline: none;
+  box-shadow: var(--sa-focus-ring);
+}
+
+.table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: var(--sa-font-size-md);
+}
+
+.table th,
+.table td {
+  padding: var(--sa-space-2) var(--sa-space-3);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table thead th {
+  background: var(--sa-color-surface-subdued);
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-semibold);
+}
+
+.table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.table .inactive {
+  color: var(--sa-color-text-subdued);
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.priceCell {
+  min-width: 140px;
+}
+
+/* Import */
+.steps {
+  display: grid;
+  gap: var(--sa-space-2);
+  margin: 0;
+  padding-left: var(--sa-space-5);
+  font-size: var(--sa-font-size-md);
+}
+
+.page .steps a,
+.page .text a {
+  color: var(--sa-color-text-link);
+}
+
+.grid2Stack {
+  display: grid;
+  gap: var(--sa-space-2);
+}
+
+/* One-time notices before JavaScript turns them into toasts. */
+.page .notice,
+.page .noticeCritical {
+  margin: 0;
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border: var(--sa-border-width) solid var(--sa-color-info-border);
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-color-info-bg);
+  color: var(--sa-color-info-text);
+  font-size: var(--sa-font-size-md);
+}
+
+.page .noticeCritical {
+  border-color: var(--sa-color-critical-border);
+  background: var(--sa-color-critical-bg);
+  color: var(--sa-color-critical-text);
+}

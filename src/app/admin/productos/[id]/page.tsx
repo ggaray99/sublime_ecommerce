@@ -1,29 +1,24 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { ProductForm, StockForm } from "@/components/admin/forms";
 import { ImageManager } from "@/components/admin/image-manager";
+import { ProductExtrasForm, ProductPricingCard, ProductShippingCard } from "@/components/admin/product-extras-form";
+import { ProductDataCard, ProductDataForm, ProductOrganizationCard } from "@/components/admin/products/product-form";
+import { ProductDuplicateButton } from "@/components/admin/products/product-duplicate-button";
+import { ProductNotices, type ProductNotice } from "@/components/admin/products/product-notices";
+import { STATUS_BADGE } from "@/components/admin/products/product-page-helpers";
+import { ProductPublicationCard } from "@/components/admin/products/product-publication-card";
+import { StockForm } from "@/components/admin/products/stock-form";
+import styles from "@/components/admin/products/product-page.module.css";
+import { AdminUnavailable, AuditList, loadCategoryOptions, priceInput, productFormValues, themeOptions } from "@/components/admin/shared";
+import { Badge, Breadcrumbs, Button, Card, PageHeader, Skeleton, SkeletonBlock, SkeletonText, Stack } from "@/components/admin/ui";
 import { VariantsManager } from "@/components/admin/variants-manager";
-import {
-  AdminUnavailable,
-  AuditList,
-  loadCategoryOptions,
-  priceInput,
-  productFormValues,
-  productStatusLabel,
-  stockLabel,
-  themeOptions,
-} from "@/components/admin/shared";
-import { PageIntro } from "@/components/page-intro";
+import { toArgentinaInput } from "@/server/admin/product-extras";
 import { AdminDataError } from "@/server/admin/repository";
 import { adminAvailable, getAdminRepository, getCurrentAdmin, getImageRepository, getProductExtrasRepository, getVariantRepository } from "@/server/admin/session";
 import { optionsLabel } from "@/server/admin/variants";
 import { hasMediaStorage } from "@/server/media/public-files";
-import { ProductExtrasForm } from "@/components/admin/product-extras-form";
-import { toArgentinaInput } from "@/server/admin/product-extras";
-import { duplicateProductAction } from "@/app/admin/actions";
 
 export const metadata: Metadata = {
   title: "Editar producto",
@@ -65,144 +60,183 @@ async function ProductAdmin({ params, searchParams }: Pick<Props, "params" | "se
   const stockVariants = hasOptions
     ? variants
         .filter((variant) => variant.active && variant.trackStock)
-        .map((variant) => ({ value: variant.sku, label: `${optionsLabel(variant.options, product.optionNames)} (${variant.sku})` }))
+        .map((variant) => ({
+          value: variant.sku,
+          label: `${optionsLabel(variant.options, product.optionNames)} (${variant.sku})`,
+          onHand: variant.onHand,
+        }))
     : undefined;
 
+  // One-time notices after creating, duplicating or a failed first photo (same texts as before).
+  const notices: ProductNotice[] = [];
+  if (query.creado) {
+    notices.push({
+      tone: "success",
+      message: `Producto creado.${product.status === "draft" ? " Está en borrador: publicalo cuando esté completo." : ""}`,
+    });
+  }
+  if (query.copia) {
+    notices.push({
+      tone: "success",
+      message: "Copia creada en borrador, con las mismas variantes y precios. Cargá el stock y las fotos, y publicala cuando esté lista.",
+    });
+  }
+  if (query.imagen === "error") {
+    notices.push({
+      tone: "critical",
+      message: "El producto se creó, pero no pudimos guardar la foto. Probá subirla de nuevo en la sección Imágenes.",
+    });
+  }
+
+  const badge = STATUS_BADGE[product.status];
+  const available = product.onHand - product.reserved;
+
   return (
-    <div className="account">
-      <p>
-        <Link href="/admin/productos">← Volver a productos</Link>
-      </p>
-      <section className="account__section" aria-labelledby="producto-title">
-        <div className="account__head">
-          <h2 id="producto-title">{product.name}</h2>
-          <form action={duplicateProductAction}>
-            <input type="hidden" name="productId" value={product.id} />
-            <button type="submit" className="btn btn--ghost">
-              Duplicar
-            </button>
-          </form>
-          {product.status === "active" ? (
-            <Link className="btn btn--acid" href={`/producto/${product.slug}`}>
-              Ver en la tienda
-            </Link>
-          ) : (
-            <span className="badge badge--pending">No visible en la tienda ({productStatusLabel[product.status].toLowerCase()})</span>
-          )}
-        </div>
-        <p className="muted">
-          SKU {product.sku} · {productStatusLabel[product.status]}
-        </p>
-        {query.creado && (
-          <p className="panel panel--muted" role="status">
-            Producto creado. {product.status === "draft" && "Está en borrador: publicalo cuando esté completo."}
-          </p>
-        )}
-        {query.copia && (
-          <p className="panel panel--muted" role="status">
-            Copia creada en borrador, con las mismas variantes y precios. Cargá el stock y las fotos, y publicala cuando esté lista.
-          </p>
-        )}
-        {query.imagen === "error" && (
-          <p className="form-alert" role="alert">
-            El producto se creó, pero no pudimos guardar la foto. Probá subirla de nuevo en la sección Imágenes.
-          </p>
-        )}
-        <ProductForm
-          mode="edit"
-          productId={product.id}
-          requiresQuote={product.requiresQuote}
-          initial={productFormValues(product)}
-          categories={categoryOptions}
-          themes={themeOptions}
-          hasOptions={hasOptions}
-        />
-      </section>
-
-      <section className="account__section" aria-labelledby="venta-title">
-        <h2 id="venta-title">Venta y logística</h2>
-        <ProductExtrasForm
-          productId={product.id}
-          priceMinor={product.priceMinor}
-          hasOptions={hasOptions}
-          initial={{
-            weightG: extras?.weightG ? String(extras.weightG) : "",
-            length: extras?.lengthMm ? String(extras.lengthMm / 10).replace(".", ",") : "",
-            width: extras?.widthMm ? String(extras.widthMm / 10).replace(".", ",") : "",
-            height: extras?.heightMm ? String(extras.heightMm / 10).replace(".", ",") : "",
-            cost: extras?.costMinor !== null && extras?.costMinor !== undefined ? priceInput(extras.costMinor) : "",
-            lowStockThreshold: extras?.lowStockThreshold !== null && extras?.lowStockThreshold !== undefined ? String(extras.lowStockThreshold) : "",
-            saleKind: extras?.salePercent ? "percent" : extras?.salePriceMinor ? "price" : "none",
-            salePercent: extras?.salePercent ? String(extras.salePercent) : "",
-            salePrice: extras?.salePriceMinor ? priceInput(extras.salePriceMinor) : "",
-            saleStartsAt: toArgentinaInput(extras?.saleStartsAt ?? null),
-            saleEndsAt: toArgentinaInput(extras?.saleEndsAt ?? null),
-          }}
-        />
-      </section>
-
-      <section className="account__section" aria-labelledby="variantes-title">
-        <h2 id="variantes-title">Variantes</h2>
-        <VariantsManager product={product} variants={variants} />
-      </section>
-
-      <section className="account__section" aria-labelledby="imagenes-title">
-        <h2 id="imagenes-title">Imágenes</h2>
-        <ImageManager product={product} images={images} uploadsEnabled={hasMediaStorage()} />
-      </section>
-
-      <section className="account__section" aria-labelledby="stock-title">
-        <h2 id="stock-title">Stock</h2>
-        {product.trackStock ? (
+    <Stack gap={4}>
+      <PageHeader
+        breadcrumbs={<Breadcrumbs items={[{ label: "Productos", href: "/admin/productos" }, { label: product.name }]} />}
+        back={{ href: "/admin/productos", label: "Volver a Productos" }}
+        title={product.name}
+        subtitle={`SKU ${product.sku}`}
+        meta={
           <>
-            <p className="muted">
-              Disponible: {stockLabel(product)} · En depósito: {product.onHand}
-            </p>
-            <StockForm productId={product.id} onHand={product.onHand} variants={stockVariants} />
-            <h3 className="account__subtitle">Movimientos</h3>
-            {movements.length ? (
-              <ol className="audit-list">
-                {movements.map((movement) => (
-                  <li key={movement.id}>
-                    <p>
-                      <strong>
-                        {movement.deltaOnHand > 0 ? "+" : ""}
-                        {movement.deltaOnHand}
-                      </strong>{" "}
-                      · {REASON_LABEL[movement.reason] ?? movement.reason}
-                      {hasOptions && ` · ${movement.sku}`}
-                      {movement.note && ` · ${movement.note}`}
-                    </p>
-                    <p className="muted">
-                      {movement.actor} · <time dateTime={movement.createdAt.toISOString()}>{movement.createdAt.toISOString().slice(0, 10)}</time>
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="muted">Sin movimientos registrados.</p>
-            )}
+            <Badge tone={badge.tone}>{badge.label}</Badge>
+            {product.featured && <Badge tone="info">Destacado</Badge>}
           </>
-        ) : (
-          <p className="muted">Producto a pedido: se fabrica para cada encargo y no lleva stock.</p>
-        )}
-      </section>
+        }
+        secondaryActions={
+          <>
+            {product.status === "active" && <Button href={`/producto/${product.slug}`}>Ver en la tienda</Button>}
+            <ProductDuplicateButton productId={product.id} />
+          </>
+        }
+      />
 
-      <section className="account__section" aria-labelledby="historial-title">
-        <h2 id="historial-title">Historial de cambios</h2>
-        <AuditList entries={audit} />
-      </section>
-    </div>
+      <ProductNotices notices={notices} />
+
+      <ProductDataForm productId={product.id} status={product.status} initial={productFormValues(product)}>
+        <div className={styles.layout}>
+          <div className={styles.main}>
+            <ProductDataCard requiresQuote={product.requiresQuote} hasOptions={hasOptions} />
+
+            <Card section id="imagenes" title="Imágenes">
+              <ImageManager product={product} images={images} uploadsEnabled={hasMediaStorage()} />
+            </Card>
+
+            <ProductExtrasForm
+              productId={product.id}
+              priceMinor={product.priceMinor}
+              hasOptions={hasOptions}
+              initial={{
+                weightG: extras?.weightG ? String(extras.weightG) : "",
+                length: extras?.lengthMm ? String(extras.lengthMm / 10).replace(".", ",") : "",
+                width: extras?.widthMm ? String(extras.widthMm / 10).replace(".", ",") : "",
+                height: extras?.heightMm ? String(extras.heightMm / 10).replace(".", ",") : "",
+                cost: extras?.costMinor !== null && extras?.costMinor !== undefined ? priceInput(extras.costMinor) : "",
+                lowStockThreshold: extras?.lowStockThreshold !== null && extras?.lowStockThreshold !== undefined ? String(extras.lowStockThreshold) : "",
+                saleKind: extras?.salePercent ? "percent" : extras?.salePriceMinor ? "price" : "none",
+                salePercent: extras?.salePercent ? String(extras.salePercent) : "",
+                salePrice: extras?.salePriceMinor ? priceInput(extras.salePriceMinor) : "",
+                saleStartsAt: toArgentinaInput(extras?.saleStartsAt ?? null),
+                saleEndsAt: toArgentinaInput(extras?.saleEndsAt ?? null),
+              }}
+            >
+              <ProductPricingCard />
+
+              <Card section id="variantes" title="Variantes">
+                <VariantsManager product={product} variants={variants} />
+              </Card>
+
+              <Card section id="stock" title="Stock">
+                {product.trackStock ? (
+                  <>
+                    <dl className={styles.stockFacts}>
+                      <div>
+                        <dt>En depósito</dt>
+                        <dd>{product.onHand}</dd>
+                      </div>
+                      <div>
+                        <dt>Reservado</dt>
+                        <dd>{product.reserved}</dd>
+                      </div>
+                      <div>
+                        <dt>Disponible</dt>
+                        <dd>{available}</dd>
+                      </div>
+                    </dl>
+                    <StockForm productId={product.id} onHand={product.onHand} variants={stockVariants} />
+                    <div className={styles.block}>
+                      <h3 className={styles.subtitle}>Movimientos</h3>
+                      {movements.length ? (
+                        <ol className={styles.movements}>
+                          {movements.map((movement) => (
+                            <li key={movement.id}>
+                              <span>
+                                <span className={styles.delta}>
+                                  {movement.deltaOnHand > 0 ? "+" : ""}
+                                  {movement.deltaOnHand}
+                                </span>{" "}
+                                · {REASON_LABEL[movement.reason] ?? movement.reason}
+                                {hasOptions && ` · ${movement.sku}`}
+                                {movement.note && ` · ${movement.note}`}
+                              </span>
+                              <span className={styles.imageMeta}>
+                                {movement.actor} · <time dateTime={movement.createdAt.toISOString()}>{movement.createdAt.toISOString().slice(0, 10)}</time>
+                              </span>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className={styles.muted}>Sin movimientos registrados.</p>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className={styles.muted}>Producto a pedido: se fabrica para cada encargo y no lleva stock.</p>
+                )}
+              </Card>
+
+              <ProductShippingCard />
+            </ProductExtrasForm>
+          </div>
+
+          <div className={styles.side}>
+            <ProductPublicationCard productId={product.id} status={product.status} />
+            <ProductOrganizationCard categories={categoryOptions} themes={themeOptions} />
+            <Card section id="historial" title="Historial">
+              <AuditList entries={audit} />
+            </Card>
+          </div>
+        </div>
+      </ProductDataForm>
+    </Stack>
+  );
+}
+
+function ProductSkeleton() {
+  return (
+    <Skeleton label="Cargando el producto…">
+      <Stack gap={4}>
+        <SkeletonText lines={2} />
+        <div className={styles.layout}>
+          <div className={styles.main}>
+            <SkeletonBlock height={320} />
+            <SkeletonBlock height={200} />
+          </div>
+          <div className={styles.side}>
+            <SkeletonBlock height={140} />
+            <SkeletonBlock height={240} />
+          </div>
+        </div>
+      </Stack>
+    </Skeleton>
   );
 }
 
 export default function AdminProductPage({ params, searchParams }: Props) {
   return (
-    <main id="contenido" className="page page--light">
-      <PageIntro kicker="Administración" title="Editar producto" tone="light">
-        <p>Cada cambio queda registrado con quién lo hizo.</p>
-      </PageIntro>
-      <Suspense fallback={<p className="panel panel--muted">Cargando el producto…</p>}>
+    <main id="contenido" className={styles.page}>
+      <Suspense fallback={<ProductSkeleton />}>
         <ProductAdmin params={params} searchParams={searchParams} />
       </Suspense>
     </main>

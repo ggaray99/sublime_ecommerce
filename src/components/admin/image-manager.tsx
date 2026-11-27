@@ -1,9 +1,9 @@
 import Image from "next/image";
-import { moveImageAction, removeImageAction } from "@/app/admin/actions";
+import { Badge } from "@/components/admin/ui";
 import { MAX_IMAGES_PER_PRODUCT, type AdminImage } from "@/server/admin/images-repository";
 import type { AdminProduct } from "@/server/admin/repository";
-import { ConfirmButton } from "./confirm-button";
-import { ImageAltForm, ProductImageUpload } from "./media-forms";
+import { ImageAltForm, ImageTools, ImageUploadForm } from "./products/product-image-tools";
+import styles from "./products/product-page.module.css";
 
 const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
 
@@ -12,67 +12,41 @@ export function ImageManager({ product, images, uploadsEnabled }: { product: Adm
   return (
     <>
       {images.length ? (
-        <ol className="image-admin-list">
+        <ol className={styles.images} aria-label="Imágenes en orden: la primera es la portada">
           {images.map((image, index) => (
-            <li key={image.id} className="image-admin">
-              <Image src={image.url} alt="" width={160} height={160} className="image-admin__thumb" />
-              <div className="image-admin__body">
-                <p>
-                  <strong>{index === 0 ? "Portada" : `Imagen ${index + 1}`}</strong>
-                  <span className="muted">
-                    {" · "}
-                    {image.uploaded
-                      ? `${image.width}×${image.height} px · ${kb(image.sizeBytes ?? 0)}`
-                      : "Imagen original del catálogo"}
+            <li key={image.id} className={styles.image}>
+              <div className={styles.thumbWrap}>
+                <Image src={image.url} alt="" width={240} height={240} className={styles.thumb} />
+                {index === 0 && (
+                  <span className={styles.cover} aria-hidden="true">
+                    <Badge tone="info">Portada</Badge>
                   </span>
-                </p>
-                <ImageAltForm productId={product.id} imageId={image.id} alt={image.alt} />
-                <div className="image-admin__actions">
-                  {index > 0 && (
-                    <form action={moveImageAction}>
-                      <input type="hidden" name="productId" value={product.id} />
-                      <input type="hidden" name="imageId" value={image.id} />
-                      <button type="submit" name="move" value="first" className="link-button">
-                        Usar como portada
-                      </button>
-                      <button type="submit" name="move" value="up" className="link-button">
-                        Subir<span className="visually-hidden"> imagen {index + 1}</span>
-                      </button>
-                    </form>
-                  )}
-                  {index < images.length - 1 && (
-                    <form action={moveImageAction}>
-                      <input type="hidden" name="productId" value={product.id} />
-                      <input type="hidden" name="imageId" value={image.id} />
-                      <button type="submit" name="move" value="down" className="link-button">
-                        Bajar<span className="visually-hidden"> imagen {index + 1}</span>
-                      </button>
-                    </form>
-                  )}
-                  <form action={removeImageAction}>
-                    <input type="hidden" name="productId" value={product.id} />
-                    <input type="hidden" name="imageId" value={image.id} />
-                    <ConfirmButton message="¿Quitar esta imagen? Si se subió desde el panel, el archivo se elimina.">
-                      Quitar<span className="visually-hidden"> imagen {index + 1}</span>
-                    </ConfirmButton>
-                  </form>
-                </div>
+                )}
               </div>
+              <p className={styles.imageMeta}>
+                {index === 0 ? "Portada" : `Imagen ${index + 1}`}
+                {" · "}
+                {image.uploaded ? `${image.width}×${image.height} px · ${kb(image.sizeBytes ?? 0)}` : "Imagen original del catálogo"}
+              </p>
+              <ImageAltForm productId={product.id} imageId={image.id} alt={image.alt} position={index + 1} />
+              <ImageTools productId={product.id} imageId={image.id} position={index + 1} isFirst={index === 0} isLast={index === images.length - 1} />
             </li>
           ))}
         </ol>
       ) : (
-        <p className="muted">Sin imágenes: la tienda muestra la imagen de la categoría.</p>
+        <p className={styles.muted}>Sin imágenes: la tienda muestra la imagen de la categoría.</p>
       )}
 
-      <h3 className="account__subtitle">Agregar imagen</h3>
-      {!uploadsEnabled ? (
-        <p className="panel panel--muted">La carga de imágenes no está configurada en este entorno (falta configurar el almacenamiento de archivos).</p>
-      ) : images.length >= MAX_IMAGES_PER_PRODUCT ? (
-        <p className="muted">Llegaste al máximo de {MAX_IMAGES_PER_PRODUCT} imágenes. Quitá alguna para subir otra.</p>
-      ) : (
-        <ProductImageUpload productId={product.id} productName={product.name} />
-      )}
+      <div className={styles.block}>
+        <h3 className={styles.subtitle}>Agregar imagen</h3>
+        {!uploadsEnabled ? (
+          <p className={styles.muted}>La carga de imágenes no está configurada en este entorno (falta configurar el almacenamiento de archivos).</p>
+        ) : images.length >= MAX_IMAGES_PER_PRODUCT ? (
+          <p className={styles.muted}>Llegaste al máximo de {MAX_IMAGES_PER_PRODUCT} imágenes. Quitá alguna para subir otra.</p>
+        ) : (
+          <ImageUploadForm productId={product.id} productName={product.name} />
+        )}
+      </div>
     </>
   );
 }

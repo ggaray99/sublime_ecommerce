@@ -9,6 +9,9 @@ import { parseOptionDefinitions } from "@/server/admin/variants";
 import { deleteStoredImage, hasMediaStorage, storeImage } from "@/server/media/public-files";
 import { inspectImage } from "@/server/media/image-file";
 import type { ImageMove } from "@/server/admin/images-repository";
+import { changeProducts } from "@/server/admin/product-changes";
+import { PRODUCT_STATUSES, type ProductStatus } from "@/server/admin/validation";
+import { statusChangeMessage } from "@/components/admin/products/product-page-helpers";
 
 /**
  * Creates the product and, optionally, its first photo. The photo is validated
@@ -87,7 +90,29 @@ export async function updateProductExtrasAction(_state: AdminFormState, form: Fo
     return dataError(error, values);
   }
   catalogChanged(`/admin/productos/${productId}`);
-  return { ok: "Venta y logística guardadas.", values };
+  return { ok: "Precio y envío guardados.", values };
+}
+
+/**
+ * Publication card: changes only the status, with the same validation and
+ * `product.update` audit entry as saving the product form (changeProducts).
+ * A product the form would refuse (e.g. without price) keeps its status and
+ * the card shows the reason.
+ */
+export async function setProductStatusAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
+  const admin = await requireAdmin();
+  const { productId = "", status = "" } = formValues(form);
+  if (!PRODUCT_STATUSES.includes(status as ProductStatus)) return { error: "Elegí un estado válido." };
+  let message: ReturnType<typeof statusChangeMessage>;
+  try {
+    const result = await changeProducts(getAdminRepository(), admin, [productId], { status: status as ProductStatus });
+    message = statusChangeMessage(result, status as ProductStatus);
+  } catch (error) {
+    return dataError(error);
+  }
+  if (message.tone === "critical") return { error: message.message };
+  catalogChanged(`/admin/productos/${productId}`);
+  return { ok: message.message };
 }
 
 export async function countStockAction(_state: AdminFormState, form: FormData): Promise<AdminFormState> {
