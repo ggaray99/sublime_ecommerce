@@ -1,0 +1,21 @@
+# Sublime Admin design system — stage 1: tokens, components, shell, dashboard
+Branch `feat/admin-design-system` (off `feat/admin-minimal` 02b29ba). Delivery: `ask-on-risk`; QA (`feat/vps-self-hosting`) only when the user says so, never production. Runner: `node --test` (PGlite), `npm.cmd run lint`, `DATABASE_URL= npm.cmd run build`, Chrome on staging for screenshots (only after a QA push the user authorizes).
+
+## Specs
+- **S1** "Estética: Modern SaaS. Referencia UX/UI: Shopify Admin." "La tienda pública mantiene su identidad brutalista." "El administrador tendrá un sistema visual independiente, moderno y minimalista."
+- **S2** Design system: "Tokens de color. Tipografía. Escala de espaciado. Bordes y radios. Sombras. Estados semánticos. Breakpoints."
+- **S3** Components: "AdminShell. Sidebar. Topbar. Breadcrumbs. PageHeader. Button. Badge. Input. Select. Dialog. Toast. DataTable. FilterBar. Pagination. EmptyState. Skeleton. FormSection."
+- **S4** "Implementar el nuevo lenguaje visual en el layout global del administrador." Keep: "Las rutas actuales. Los permisos. Las funcionalidades. Las integraciones. Las Server Actions. La lógica de negocio."
+- **S5** "Utilizar el Dashboard como primera pantalla para validar el sistema visual." "No inventar métricas ni conectar datos ficticios como si fueran reales. Si todavía no existen los datos necesarios, utilizar estados vacíos claramente identificados." Decision (parent, to confirm with the user): new route `/admin/inicio`, first in the menu; `/admin` stays the products list (keeps current routes).
+- **S6** "Next.js App Router. TypeScript estricto. React Server Components cuando corresponda." "No instalar librerías innecesarias." "No afectar los estilos de la tienda pública." "Diseño responsive." "Accesibilidad WCAG 2.2 AA como objetivo."
+- **S7** Validation: "Ejecutar lint y build. Probar navegación. Verificar permisos. Comparar el administrador con la tienda pública para detectar regresiones. Generar capturas a 1366x768. Documentar los componentes y sus variantes."
+- **S8** "No rediseñar todos los módulos en esta etapa. Primero construir y validar el Design System y el layout general."
+
+## Tasks
+- T1 S2,S3,S6,S7 delegated (context backstop) — tokens + primitive components (CSS Modules, no new deps) + component docs + admin-only showcase page. Status: pending.
+- T2 S3,S4,S5,S6 delegated, after T1 — AdminShell/Sidebar/Topbar/Breadcrumbs in the admin layout + /admin/inicio dashboard with real data or empty states. Status: pending.
+- T3 S7 — validation: lint, build, tests, permissions, store regression check, screenshots 1366x768 (after QA push authorized by the user). Status: pending.
+
+## Log
+- L1 (2026-11-27) User pasted the stage-1 brief: "Vamos a iniciar el rediseño integral de Sublime Admin." (full brief: Modern SaaS, Shopify Admin reference, tokens, 17 components, layout, dashboard demo, technical requirements, validation, "No rediseñar todos los módulos en esta etapa").
+- L2 Route: two sequential writer units (T2 depends on T1's tokens and components); parent context at the long-session backstop. Risk: none of items 1–5 expected (styles, new components, one new admin-only route); item 6 (visual regressions not caught by tests) → Chrome screenshots and store comparison.
