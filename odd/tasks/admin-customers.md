@@ -19,7 +19,7 @@ Objective: redesign the admin Customers module (list and profile) on the design 
 - T1 S1 inline — audit `docs/admin-customers-audit.md` (0008066). Status: done.
 - T2 S2,S4,S5 delegated (writer A, parallel with T3) — list. RED (module missing) → GREEN 12/12. Commit 2397d82. Status: done (browser QA in T4).
 - T3 S3,S4,S5 delegated (writer B, parallel with T2) — profile. RED (modules missing) → GREEN 9/9. Commit 74ab008. Status: done (browser QA in T4).
-- T4 S6 inline — QA on staging, screenshots, delivery doc. Status: pending.
+- T4 S6 inline — QA on staging, screenshots, delivery doc `docs/admin-customers-redesign.md`. Status: done (see L5).
 
 ## Log
 
@@ -27,3 +27,4 @@ Objective: redesign the admin Customers module (list and profile) on the design 
 - L2 Audit by a read-only explorer; C1–C11. Route: T2 and T3 independent with disjoint surfaces (list queries stay in src/server/customers/admin.ts; profile queries in a new src/server/customers/profile.ts) → two writers in parallel.
 - L3 (2026-11-27) QA c8d55a8: Actividad shows order events (SUB-1011 Pendiente → Pago confirmado → Enviado → Entregado, SUB-1012 cancelled) with links and humanized actors; "Ver anteriores" pages 50 + 50 with the new cursor, no overlap. Pre-existing: Actividad shows UTC times while orders show Argentina time (pending).
 - L4 (2026-11-27) Writers returned. A: read-only search() in admin.ts (list/count/get unchanged), customer-search.ts, filters Mostrar/Alta desde-hasta/Ordenar, 50 per page, count = matches. B: canonical redirect to auth user id, metrics from spentMinor + review count (profile.ts reviewOrderCount), orders with status-view badges, encargos with typed contact + Contacto distinto, Timeline of order and encargo events, guest matches by email apart. Combined: 772/772, tsc, lint 0, build green.
+- L5 (2026-11-27) User: "dale, subilo a QA y validalo con Chrome". QA b8149a7: list search/filters/sorts/dates/count OK; profile metrics ($5.600 = SUB-1010 + SUB-1011), ENC-5002/5003 show Contacto distinto (typed contact facundo, owned by Administrador), redirect from order link to canonical profile, empty states, 1024 zoom screenshots, 390 popup no overflow. Guest matches not visible on staging (no data); covered by tests.
