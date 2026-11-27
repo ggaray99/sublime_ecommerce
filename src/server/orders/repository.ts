@@ -618,7 +618,14 @@ export function createOrderRepository(sql: QueryFn) {
            SELECT variant_id, -quantity, 'reservation_released', id, $2, 'Pedido cancelado' FROM freed
          ),
          cancelled AS (UPDATE orders SET status = 'cancelled', updated_at = now() WHERE id = (SELECT id FROM target) RETURNING id),
-         history AS (${event("$2", order.status, "cancelled", "$3")} FROM cancelled)
+         history AS (${event("$2", order.status, "cancelled", "$3")} FROM cancelled),
+         -- Like expiry: the coupon use goes back (docs/admin-orders-rules.md, 1). Only an order that
+         -- still holds it (a pending one) has a redemption row; the order keeps its frozen discount.
+         freed_uses AS (DELETE FROM promotion_redemptions WHERE order_id IN (SELECT id FROM cancelled) RETURNING promotion_id),
+         unused AS (
+           UPDATE promotions p SET uses_count = greatest(0, p.uses_count - f.n)
+           FROM (SELECT promotion_id, count(*)::int AS n FROM freed_uses GROUP BY promotion_id) f WHERE p.id = f.promotion_id
+         )
          SELECT id FROM cancelled`,
         [id, actor, note || "Pedido cancelado."],
         "Solo se cancelan pedidos sin pago confirmado (los pagados requieren una devolución).",
