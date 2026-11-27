@@ -20,11 +20,12 @@ Objective: an inventory control center (summary, variant list, movements, detail
 - T1 S8 inline — Actividad and Integraciones in Argentina time (display only). Commit 2bcaac5. Status: done.
 - T2 S1,S7 inline — audit `docs/admin-inventory-audit.md` (rules verified; 7 rule decisions listed, not implemented). Status: done.
 - T3 S4 inline — shared `src/server/inventory/movement-view.ts` + `movements.ts` (listInventoryMovements with order refs). RED (module missing) → GREEN 7/7. Status: done.
-- T4 S2,S3,S4 delegated (writer A, parallel with T5) — /admin/inventario summary + list, /admin/inventario/movimientos, nav. Status: pending.
-- T5 S5,S6 delegated (writer B, parallel with T4) — /admin/inventario/[productId] detail + adjustment dialog; product page movements via the shared view. Status: pending.
+- T4 S2,S3,S4 delegated (writer A, parallel with T5) — /admin/inventario summary + list, /admin/inventario/movimientos, nav. RED → GREEN 14/14. Commit 9ee1b73. Status: done (browser QA in T6).
+- T5 S5,S6 delegated (writer B, parallel with T4) — /admin/inventario/[productId] detail + adjustment dialog; product page movements via the shared view. RED → GREEN 16/16. Status: done (browser QA in T6).
 - T6 S9 inline — QA, screenshots, delivery doc. Status: pending.
 
 ## Log
 
 - L1 (2026-11-27) User pasted the stage-5 brief "Iniciamos la siguiente etapa del rediseño integral de Sublime Admin: INVENTARIO." (full brief above).
 - L2 Audit by a read-only explorer: no inventory route; stock per variant (on_hand, reserved, available = on_hand − reserved); 7 movement reasons; reservations lifecycle verified; negative stock impossible (DB CHECKs); two low-stock definitions; late-payment sale has no order ref; recordCount race. Decisions: list by variant using productStockState per row; summary counts products like Productos/Inicio; adjustments through the existing countStockAction; no rule change.
+- L3 (2026-11-27) Writers returned. A: summary (product counts via productFacets, units over tracked active variants), variant list with estado/categoria/reservado/activas filters and 5 sorts, movements page with order links; Inventario nav item. B: detail (all variants incl. inactive, totals over active, active reservations, movements 20/page), adjustment dialog over countStockAction (presentation-only: 'Sin cambios' message, extra revalidation), product page movement rows. Parent: filter label 'Con stock (incluye stock bajo)', removed unused CSS. 809/809, tsc, lint 0, build green.
