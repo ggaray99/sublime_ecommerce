@@ -25,10 +25,24 @@ export const CSV_COLUMNS = [
   "largo_cm",
   "ancho_cm",
   "alto_cm",
+  // Stock reason (docs/inventory-stabilization.md, 6): reposicion only adds; ajuste adds or lowers.
+  // Empty keeps the previous behavior (ajuste), so older sheets import the same way.
+  "motivo_stock",
 ] as const;
 
 type Column = (typeof CSV_COLUMNS)[number];
 export type CsvRow = Partial<Record<Column, string>>;
+
+/** motivo_stock values, accents and case ignored. */
+function stockReasonOf(value: string | undefined): "restock" | "adjustment" | null | undefined {
+  if (!value?.trim()) return undefined;
+  const plain = value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (plain === "reposicion" || plain === "restock") return "restock";
+  if (plain === "ajuste" || plain === "adjustment") return "adjustment";
+  return null;
+}
+
+const STOCK_REASON_LABEL = { restock: "reposición", adjustment: "ajuste" } as const;
 
 const STATUS_OUT: Record<string, string> = { draft: "borrador", active: "activo", archived: "archivado" };
 const STATUS_IN: Record<string, string> = { borrador: "draft", activo: "active", archivado: "archived", draft: "draft", active: "active", archived: "archived" };
@@ -159,7 +173,7 @@ function apiMessage(body: unknown): string {
   return field ? `${field.path.replace(/^items\[\d+\]\./, "")}: ${field.message}` : (error?.message ?? "Error");
 }
 
-type BulkItem = { index: number; result: string; changes?: string[]; error?: unknown };
+type BulkItem = { index: number; result: string; changes?: string[]; error?: unknown; before?: number; after?: number };
 const bulkItems = (response: { status: number; body: unknown }): BulkItem[] | null =>
   response.status === 200 ? ((response.body as { items: BulkItem[] }).items ?? []) : null;
 
@@ -254,10 +268,12 @@ export async function importCatalog(sql: QueryFn, actor: Admin, text: string, dr
   const known = records.filter((record) => existing.has((record.sku ?? "").toUpperCase()));
   for (const record of known) if (record.precio && parsePesos(record.precio) === null) note(record).failed.push("precio: un monto en pesos, por ejemplo 8.900");
   const priceItems = known.filter((record) => record.precio && parsePesos(record.precio) !== null);
-  const stockItems = known.filter((record) => record.stock && record.stock !== "a pedido");
+  for (const record of known) if (record.stock && stockReasonOf(record.motivo_stock) === null) note(record).failed.push("motivo_stock: reposicion o ajuste");
+  const stockItems = known.filter((record) => record.stock && record.stock !== "a pedido" && stockReasonOf(record.motivo_stock) !== null);
+  const stockReason = (record: CsvRow) => stockReasonOf(record.motivo_stock) ?? "adjustment";
   for (const [route, list, toItem] of [
     ["prices/bulk-update", priceItems, (record: CsvRow) => ({ sku: record.sku!.toUpperCase(), priceMinor: parsePesos(record.precio!) ?? -1 })],
-    ["stock/bulk-count", stockItems, (record: CsvRow) => ({ sku: record.sku!.toUpperCase(), onHand: record.stock, reason: "adjustment", note: "Importación de planilla" })],
+    ["stock/bulk-count", stockItems, (record: CsvRow) => ({ sku: record.sku!.toUpperCase(), onHand: record.stock, reason: stockReason(record), note: "Importación de planilla" })],
   ] as const) {
     if (!list.length) continue;
     const response = await runBulkAsAdmin(route, { dryRun, items: list.map((record) => toItem(record)) }, actor, sql);
@@ -267,7 +283,11 @@ export async function importCatalog(sql: QueryFn, actor: Admin, text: string, dr
       const outcome = items?.[index];
       if (!outcome) line.failed.push(apiMessage(response.body));
       else if (outcome.result === "failed") line.failed.push(route === "prices/bulk-update" ? `precio: ${apiMessage(outcome.error)}` : apiMessage(outcome.error));
-      else if (outcome.result === "updated") line.changed.push(route === "prices/bulk-update" ? "precio" : "stock");
+      else if (outcome.result === "updated" && route === "stock/bulk-count" && typeof outcome.before === "number" && typeof outcome.after === "number") {
+        // The preview shows the expected result: "stock 10 → 15 (+5, reposición)".
+        const delta = outcome.after - outcome.before;
+        line.changed.push(`stock ${outcome.before} → ${outcome.after} (${delta > 0 ? "+" : "−"}${Math.abs(delta)}, ${STOCK_REASON_LABEL[stockReason(record)]})`);
+      } else if (outcome.result === "updated") line.changed.push(route === "prices/bulk-update" ? "precio" : "stock");
     });
   }
 

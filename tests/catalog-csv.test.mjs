@@ -97,6 +97,53 @@ describe("export and import (PGlite)", () => {
     assert.deepEqual([created.status, created.name], ["draft", "Producto de planilla"]);
   });
 
+  it("tells restock from adjustment, shows the expected stock and records the reason", async () => {
+    await db.exec(`UPDATE inventory SET on_hand = 10, reserved = 0 FROM product_variants v WHERE v.id = inventory.variant_id AND v.sku IN ('SUB-P10', 'SUB-P11', 'SUB-P12')`);
+    const csv = [
+      "sku;stock;motivo_stock",
+      "SUB-P10;15;reposicion", // +5 restock
+      "SUB-P11;7;Reposición", // restock cannot lower: refused
+      "SUB-P12;7;ajuste", // −3 adjustment
+      "SUB-P13;9;regalo", // unknown reason: refused
+    ].join("\n");
+    const preview = await importCatalog(sql, actor, csv, true);
+    assert.deepEqual(
+      preview.lines.map((line) => [line.sku, line.result]),
+      [["SUB-P10", "updated"], ["SUB-P11", "failed"], ["SUB-P12", "updated"], ["SUB-P13", "failed"]],
+      JSON.stringify(preview.lines),
+    );
+    assert.match(preview.lines[0].detail, /stock 10 → 15 \(\+5, reposición\)/);
+    assert.match(preview.lines[1].detail, /solo suma/);
+    assert.match(preview.lines[2].detail, /stock 10 → 7 \(−3, ajuste\)/);
+    assert.match(preview.lines[3].detail, /motivo_stock: reposicion o ajuste/);
+    const onHand = async (sku) => (await db.query("SELECT i.on_hand FROM inventory i JOIN product_variants v ON v.id = i.variant_id WHERE v.sku = $1", [sku])).rows[0].on_hand;
+    assert.equal(await onHand("SUB-P10"), 10, "preview wrote nothing");
+
+    await importCatalog(sql, actor, csv, false);
+    assert.deepEqual([await onHand("SUB-P10"), await onHand("SUB-P11"), await onHand("SUB-P12"), await onHand("SUB-P13")], [15, 10, 7, (await onHand("SUB-P13"))]);
+    const reasons = (
+      await db.query(
+        "SELECT v.sku, m.reason, m.delta_on_hand FROM inventory_movements m JOIN product_variants v ON v.id = m.variant_id WHERE v.sku IN ('SUB-P10', 'SUB-P12') AND m.note = 'Importación de planilla' ORDER BY v.sku",
+      )
+    ).rows;
+    assert.deepEqual(reasons, [
+      { sku: "SUB-P10", reason: "restock", delta_on_hand: 5 },
+      { sku: "SUB-P12", reason: "adjustment", delta_on_hand: -3 },
+    ]);
+  });
+
+  it("keeps old sheets working: without motivo_stock the reason stays adjustment", async () => {
+    await db.exec(`UPDATE inventory SET on_hand = 10 FROM product_variants v WHERE v.id = inventory.variant_id AND v.sku = 'SUB-P14'`);
+    const result = await importCatalog(sql, actor, "sku;stock\nSUB-P14;12", false);
+    assert.equal(result.summary.updated, 1);
+    const [movement] = (
+      await db.query("SELECT m.reason FROM inventory_movements m JOIN product_variants v ON v.id = m.variant_id WHERE v.sku = 'SUB-P14' ORDER BY m.id DESC LIMIT 1")
+    ).rows;
+    assert.equal(movement.reason, "adjustment");
+    // The export offers the column (empty) so the sheet can be filled in.
+    assert.ok(Object.keys((await exportCatalog(sql))[0]).includes("motivo_stock") || toCsv((await exportCatalog(sql)).slice(0, 1)).split("\n")[0].includes("motivo_stock"));
+  });
+
   it("rejects files without sku or with unknown columns", async () => {
     assert.ok((await importCatalog(sql, actor, "precio\n10", true)).error);
     assert.ok((await importCatalog(sql, actor, "sku;color\nA;rojo", true)).error);
