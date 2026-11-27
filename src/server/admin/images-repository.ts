@@ -41,7 +41,7 @@ const toImage = (row: ImageRow): AdminImage => ({
 });
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const PRODUCT_ID = /^[a-z0-9]{1,20}$/;
+const PRODUCT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 
 function assertIds(productId: string, imageId?: string) {
   if (!PRODUCT_ID.test(productId)) throw new AdminDataError("not_found", "El producto no existe.");

@@ -5,6 +5,8 @@ import { after, before, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { parseProductSearch } from "../src/server/admin/product-search.ts";
 import { AdminDataError, createAdminRepository } from "../src/server/admin/repository.ts";
+import { createImageRepository } from "../src/server/admin/images-repository.ts";
+import { createVariantRepository } from "../src/server/admin/variants-repository.ts";
 import { listStorefrontProducts } from "../src/server/catalog/postgres-storefront.ts";
 import {
   parsePesos,
@@ -262,6 +264,29 @@ describe("admin repository on PostgreSQL (PGlite)", () => {
       return error.code === "untracked";
     });
     assert.equal((await repo.getProduct("c088")).onHand, 35, "the failed count left stock untouched");
+  });
+
+  it("opens and edits products whose id has hyphens (base products such as base-remera)", async () => {
+    await db.exec(`
+      INSERT INTO products (legacy_id, slug, name, category_id, status)
+        VALUES ('base-prueba', 'remera-base-prueba', 'Remera base de prueba', 'stickers', 'draft');
+      INSERT INTO product_variants (product_id, sku, price_minor, track_stock, is_default)
+        SELECT id, 'BASE-PRUEBA', 190000, false, true FROM products WHERE legacy_id = 'base-prueba';
+    `);
+    const product = await repo.getProduct("base-prueba");
+    assert.equal(product.name, "Remera base de prueba");
+    const updated = await repo.updateProduct(owner, "base-prueba", { ...updateOf(product), name: "Remera base editada" });
+    assert.equal(updated.name, "Remera base editada");
+    assert.equal((await createVariantRepository(query).listVariants("base-prueba")).length, 1);
+    assert.deepEqual(await createImageRepository(query).listImages("base-prueba"), []);
+    await db.exec(`DELETE FROM audit_log WHERE entity_id = 'base-prueba'`).catch(() => {});
+    await db.exec(`DELETE FROM product_variants WHERE sku = 'BASE-PRUEBA'; DELETE FROM products WHERE legacy_id = 'base-prueba';`);
+  });
+
+  it("still rejects ids with characters outside letters, digits and hyphens", async () => {
+    for (const id of ["Base-Remera", "-remera", "a b", "x".repeat(41), "remera/../x"]) {
+      await assert.rejects(repo.getProduct(id), (error) => error.code === "not_found", id);
+    }
   });
 
   it("rejects malformed and unknown product ids", async () => {

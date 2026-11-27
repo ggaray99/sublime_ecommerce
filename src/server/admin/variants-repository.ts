@@ -39,7 +39,7 @@ const toVariant = (row: VariantRow): AdminVariant => ({
   reserved: row.reserved ?? 0,
 });
 
-const PRODUCT_ID = /^[a-z0-9]{1,20}$/;
+const PRODUCT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SKU = /^[A-Z0-9][A-Z0-9-]{1,39}$/;
 

@@ -153,8 +153,8 @@ const SELECT_PRODUCTS = `
   JOIN product_variants v ON v.product_id = p.id AND v.is_default
   LEFT JOIN LATERAL (${ACTIVE_STOCK}) i ON true`;
 
-/** Public product ids look like p13, c088 or x1a2b3c4d; anything else never reaches SQL. */
-const PRODUCT_ID = /^[a-z0-9]{1,20}$/;
+/** Public product ids look like p13, c088, x1a2b3c4d or base-remera (same shape as the products.legacy_id values); anything else never reaches SQL. */
+const PRODUCT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 
 function assertProductId(productId: string) {
   if (!PRODUCT_ID.test(productId)) throw new AdminDataError("not_found", "El producto no existe.");
