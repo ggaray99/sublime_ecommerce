@@ -4696,3 +4696,83 @@ body:has(.admin-shell .admin-bar):not(:has(.admin-shell[style*="none"])) .previe
     font-size: 16px;
   }
 }
+
+/* Admin theme, second pass: pieces with their own heavy borders, found on QA. */
+body:has(.admin-shell) {
+  background: #f6f6f7;
+}
+
+.admin-shell .admin-tabs {
+  gap: 4px;
+}
+
+.admin-shell .admin-tabs a {
+  padding: 4px 10px;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 999px;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-shell .admin-tabs a:hover {
+  border-color: #a1a1aa;
+  color: var(--admin-text);
+}
+
+.admin-shell .admin-tabs a[aria-current="page"] {
+  border-color: var(--admin-text);
+  background: var(--admin-text);
+  color: var(--white);
+}
+
+.admin-shell .address-card,
+.admin-shell .image-admin,
+.admin-shell .api-token,
+.admin-shell .extras-margin,
+.admin-shell .hero-slots li,
+.admin-shell .request-quote,
+.admin-shell .details-box,
+.admin-shell .commercial-info__methods {
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+}
+
+.admin-shell .address-card:hover {
+  border-color: var(--admin-border-strong);
+}
+
+.admin-shell .image-admin__thumb,
+.admin-shell .design-upload__picked,
+.admin-shell .design-upload__preview,
+.admin-shell .hero-slots img,
+.admin-shell .template-editor__stage,
+.admin-shell .template-editor__view .mockup-stage {
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-shell .template-editor__stage,
+.admin-shell .template-editor__view .mockup-stage {
+  overflow: hidden;
+}
+
+.admin-shell .design-chip {
+  padding: 4px 10px;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 999px;
+  background: var(--admin-surface);
+  font-size: 13px;
+}
+
+.admin-shell .design-chip:has(input:checked) {
+  border-color: var(--admin-text);
+  background: #f4f4f5;
+}
+
+.admin-shell .design-chip input {
+  accent-color: var(--admin-text);
+}
