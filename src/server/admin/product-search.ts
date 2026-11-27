@@ -91,3 +91,99 @@ export function productSearchToQuery(search: ProductSearch, patch: Partial<Produ
 
 export const hasActiveFilters = (search: ProductSearch) =>
   Boolean(search.query || search.status || search.categoryId || search.theme || search.stock || search.images || search.featured);
+
+// ------------------------------------------------------------ list rows
+
+/** Stock situation of a list row: the badge uses the same rule as the "sin"/"bajo"/"pedido" filters. */
+export type StockState = "untracked" | "out" | "low" | "in";
+
+/**
+ * Mirrors searchProducts' stock filters: untracked = "pedido"; available
+ * (on hand - reserved) <= 0 = "sin"; 1..threshold = "bajo", where the
+ * threshold is the product's own one or LOW_STOCK.
+ */
+export function productStockState(product: { trackStock: boolean; onHand: number; reserved: number; lowStockThreshold?: number | null }): StockState {
+  if (!product.trackStock) return "untracked";
+  const available = product.onHand - product.reserved;
+  if (available <= 0) return "out";
+  return available <= (product.lowStockThreshold ?? LOW_STOCK) ? "low" : "in";
+}
+
+export type ListPrice = { kind: "fixed" | "from"; minor: number } | { kind: "quote" } | { kind: "missing" };
+
+/** Price column: quoted products, "desde" the lowest active variant when prices differ, else the default price. */
+export function listPrice(product: { requiresQuote: boolean; priceMinor: number | null; minPriceMinor: number | null; maxPriceMinor: number | null }): ListPrice {
+  if (product.requiresQuote) return { kind: "quote" };
+  if (product.minPriceMinor !== null && product.maxPriceMinor !== null && product.minPriceMinor !== product.maxPriceMinor) {
+    return { kind: "from", minor: product.minPriceMinor };
+  }
+  return product.priceMinor === null ? { kind: "missing" } : { kind: "fixed", minor: product.priceMinor };
+}
+
+// ------------------------------------------------------------ bulk actions
+
+/** Status and featured changes offered on a list selection. */
+export const BULK_PRODUCT_ACTIONS = ["publish", "draft", "archive", "feature", "unfeature"] as const;
+export type BulkProductAction = (typeof BULK_PRODUCT_ACTIONS)[number];
+
+/** Same shape as ProductChange (product-changes.ts). */
+export function bulkProductChange(action: BulkProductAction): { status: ProductStatus } | { featured: boolean } {
+  switch (action) {
+    case "publish":
+      return { status: "active" };
+    case "draft":
+      return { status: "draft" };
+    case "archive":
+      return { status: "archived" };
+    case "feature":
+      return { featured: true };
+    case "unfeature":
+      return { featured: false };
+  }
+}
+
+export type BulkProductInput = { ok: true; action: BulkProductAction; ids: string[] } | { ok: false; error: string };
+
+/** Validates what the browser sends: a known action and 1..max product ids (unique strings). */
+export function parseBulkProductInput(input: unknown, max: number): BulkProductInput {
+  const data = (input ?? {}) as { action?: unknown; ids?: unknown };
+  const action = pick(typeof data.action === "string" ? data.action : "", BULK_PRODUCT_ACTIONS);
+  if (!action) return { ok: false, error: "Acción desconocida." };
+  const ids = data.ids;
+  if (!Array.isArray(ids) || !ids.length || !ids.every((id) => typeof id === "string" && id.length > 0 && id.length <= 40)) {
+    return { ok: false, error: "Elegí al menos un producto." };
+  }
+  const unique = [...new Set(ids as string[])];
+  if (unique.length > max) return { ok: false, error: `Podés cambiar hasta ${max} productos por vez.` };
+  return { ok: true, action, ids: unique };
+}
+
+/** Past participle per action, singular and plural ("1 producto publicado"). */
+const DONE: Record<BulkProductAction, [string, string]> = {
+  publish: ["publicado", "publicados"],
+  draft: ["pasado a borrador", "pasados a borrador"],
+  archive: ["archivado", "archivados"],
+  feature: ["destacado", "destacados"],
+  unfeature: ["sin destacar", "sin destacar"],
+};
+
+type ResultItem = { id: string; name: string };
+
+/** The toast after a bulk change: what changed, what already was that way, and each skipped product with its reason. */
+export function bulkResultMessage(
+  action: BulkProductAction,
+  result: { changed: ResultItem[]; unchanged: ResultItem[]; skipped: (ResultItem & { reason: string })[] },
+): { message: string; tone: "success" | "info" | "warning" | "critical" } {
+  const changed = result.changed.length;
+  const parts = [
+    changed ? `${changed} ${changed === 1 ? "producto" : "productos"} ${DONE[action][changed === 1 ? 0 : 1]}.` : `Ningún producto ${DONE[action][0]}.`,
+  ];
+  if (result.unchanged.length) parts.push(`${result.unchanged.length} sin cambios.`);
+  const skipped = result.skipped.length;
+  if (skipped) {
+    const reasons = result.skipped.map((item) => `${item.name} (${item.reason.replace(/\.$/, "")})`).join("; ");
+    parts.push(`${skipped} ${skipped === 1 ? "no se pudo" : "no se pudieron"}: ${reasons}.`);
+  }
+  const tone = skipped ? (changed ? "warning" : "critical") : changed ? "success" : "info";
+  return { message: parts.join(" "), tone };
+}

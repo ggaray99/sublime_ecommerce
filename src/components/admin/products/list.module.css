@@ -1,0 +1,327 @@
+/*
+ * Admin products list (/admin/productos). Sizes follow the list's own box
+ * (container queries), not the viewport: the same table fits with the
+ * 240px menu open or folded. No min-width, so it never scrolls sideways.
+ */
+
+.page {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: var(--sa-space-6) clamp(16px, 3vw, 40px) var(--sa-space-10);
+  line-height: var(--sa-line-height-md);
+}
+
+.list {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------- filters */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sa-space-2) var(--sa-space-3);
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+.search {
+  display: flex;
+  flex: 1 1 280px;
+  align-items: flex-end;
+  gap: var(--sa-space-2);
+}
+
+.search > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filter {
+  flex: 0 1 160px;
+  min-width: 128px;
+}
+
+.clear {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border-radius: var(--sa-radius-sm);
+  color: var(--sa-color-text-link);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-semibold);
+  text-decoration: none;
+}
+
+.clear:hover {
+  text-decoration: underline;
+}
+
+.clear:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 2px;
+}
+
+/* Room for the selection bar only while it shows (it is otherwise a hidden status line). */
+.selection:has(> [role="group"]) {
+  padding: var(--sa-space-3) var(--sa-space-4) 0;
+}
+
+.summary {
+  margin: 0;
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border-top: var(--sa-border-width) solid var(--sa-color-border);
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+}
+
+.footer {
+  padding: var(--sa-space-2) var(--sa-space-4);
+  border-top: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+/* ---------------------------------------------------------------- table */
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--sa-color-text);
+  font-family: var(--sa-font-family);
+  font-size: var(--sa-font-size-md);
+  line-height: var(--sa-line-height-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.th,
+.td {
+  padding: var(--sa-space-2) var(--sa-space-2);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.th {
+  background: var(--sa-color-surface-subdued);
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-xs);
+  font-weight: var(--sa-font-weight-semibold);
+  line-height: var(--sa-line-height-xs);
+  white-space: nowrap;
+}
+
+.td {
+  font-weight: var(--sa-font-weight-regular);
+}
+
+.row:last-child > .td {
+  border-bottom: 0;
+}
+
+.row:hover > .td {
+  background: var(--sa-color-surface-subdued);
+}
+
+.th:first-child,
+.td:first-child {
+  padding-left: var(--sa-space-4);
+}
+
+.th:last-child,
+.td:last-child {
+  padding-right: var(--sa-space-4);
+}
+
+.select {
+  width: 24px;
+}
+
+.thumb {
+  width: 40px;
+}
+
+.thumb img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border: var(--sa-border-width) solid var(--sa-color-border);
+  border-radius: var(--sa-radius-sm);
+  object-fit: cover;
+  background: var(--sa-color-surface-subdued);
+}
+
+.product {
+  min-width: 0;
+}
+
+.nameLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sa-space-1) var(--sa-space-2);
+}
+
+.name {
+  border-radius: 2px;
+  color: var(--sa-color-text);
+  font-weight: var(--sa-font-weight-semibold);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.name:hover {
+  text-decoration: underline;
+}
+
+.name:focus-visible,
+.storeLink:focus-visible {
+  outline: 2px solid var(--sa-color-focus);
+  outline-offset: 2px;
+}
+
+.meta {
+  display: block;
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+  line-height: var(--sa-line-height-sm);
+  overflow-wrap: anywhere;
+}
+
+.category {
+  color: var(--sa-color-text-subdued);
+  font-size: var(--sa-font-size-sm);
+}
+
+.price,
+.status {
+  white-space: nowrap;
+}
+
+.stockCell {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.actions {
+  width: 1%;
+}
+
+.storeLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: var(--sa-radius-sm);
+  color: var(--sa-color-text-link);
+  font-size: var(--sa-font-size-sm);
+  font-weight: var(--sa-font-weight-semibold);
+  text-decoration: none;
+}
+
+.storeLink:hover {
+  text-decoration: underline;
+}
+
+/* Below ~880px of list width (1024px screen with the menu open): no category column. */
+@container (max-width: 880px) {
+  .category {
+    display: none;
+  }
+}
+
+/* Narrow lists (phones): each row becomes a card; labels come from data-label. */
+@container (max-width: 600px) {
+  .table,
+  .table tbody {
+    display: block;
+  }
+
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 24px 40px minmax(0, 1fr);
+    column-gap: var(--sa-space-3);
+    row-gap: var(--sa-space-1);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+  }
+
+  .row:last-child {
+    border-bottom: 0;
+  }
+
+  .row > .td {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .row:hover > .td {
+    background: none;
+  }
+
+  .row > .select {
+    grid-row: 1 / span 5;
+    grid-column: 1;
+    padding-top: 8px;
+  }
+
+  .row > .thumb {
+    grid-row: 1 / span 5;
+    grid-column: 2;
+  }
+
+  .row > .td:not(.select, .thumb) {
+    grid-column: 3;
+  }
+
+  .row > [data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--sa-color-text-subdued);
+    font-size: var(--sa-font-size-sm);
+  }
+
+  .stockCell {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sa-space-2);
+  }
+
+  .row > .actions {
+    width: auto;
+  }
+}
+
+/* ---------------------------------------------------------------- loading */
+
+.skeletonRow {
+  display: grid;
+  grid-template-columns: 24px 40px minmax(0, 1fr) 96px 96px 96px;
+  gap: var(--sa-space-3);
+  align-items: center;
+  padding: var(--sa-space-3) var(--sa-space-4);
+  border-bottom: var(--sa-border-width) solid var(--sa-color-border);
+}
+
+@container (max-width: 600px) {
+  .skeletonRow {
+    grid-template-columns: 24px 40px minmax(0, 1fr);
+  }
+
+  .skeletonRow > :nth-child(n + 4) {
+    display: none;
+  }
+}

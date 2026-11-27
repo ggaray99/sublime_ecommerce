@@ -47,7 +47,20 @@ export type AuditEntry = {
 export type AuditEntity = "product" | "order" | "inventory" | "admin" | "category" | "integration" | "shipping" | "point" | "home" | "settings" | "promotion" | "design";
 const AUDIT_ENTITY_ID = /^[a-z0-9-]{1,40}$/;
 
-export type ProductSearchResult = { items: AdminProduct[]; total: number; page: number; pageSize: number; pages: number };
+/**
+ * A row of the admin list: the product plus what the list shows and the
+ * product page does not need. API v1 maps fields one by one (toApiProduct),
+ * so these never reach its responses.
+ */
+export type AdminProductListItem = AdminProduct & {
+  /** The product's own "stock bajo" threshold; null = LOW_STOCK. */
+  lowStockThreshold: number | null;
+  /** Lowest and highest price over the active variants (null when none has one). */
+  minPriceMinor: number | null;
+  maxPriceMinor: number | null;
+};
+
+export type ProductSearchResult = { items: AdminProductListItem[]; total: number; page: number; pageSize: number; pages: number };
 
 /** Option counts for the filter sidebar, over the whole catalog. */
 export type ProductFacets = {
@@ -133,16 +146,30 @@ const toProduct = (row: ProductRow): AdminProduct => ({
   variantCount: row.variant_count,
 });
 
+type ProductListRow = ProductRow & {
+  low_stock_threshold: number | null;
+  min_price_minor: string | number | null;
+  max_price_minor: string | number | null;
+};
+
+const toListItem = (row: ProductListRow): AdminProductListItem => ({
+  ...toProduct(row),
+  lowStockThreshold: row.low_stock_threshold,
+  minPriceMinor: row.min_price_minor === null ? null : Number(row.min_price_minor),
+  maxPriceMinor: row.max_price_minor === null ? null : Number(row.max_price_minor),
+});
+
 /** Stock summed over the product's active variants (one row per product). */
 const ACTIVE_STOCK = `
   SELECT sum(inv.on_hand)::int AS on_hand, sum(inv.reserved)::int AS reserved, max(inv.updated_at) AS updated_at
   FROM product_variants pv JOIN inventory inv ON inv.variant_id = pv.id
   WHERE pv.product_id = p.id AND pv.active`;
 
-const SELECT_PRODUCTS = `
+/** `extra` adds read-only columns for one caller (the list); every other query selects the same columns as before. */
+const selectProducts = (extra = "") => `
   SELECT p.legacy_id, p.name, p.slug, p.description, p.category_id, p.theme, p.tags, p.details, p.featured,
          p.catalog_code, v.sku, p.status, p.requires_quote, v.price_minor, v.track_stock, i.on_hand, i.reserved,
-         p.option_names,
+         p.option_names,${extra}
          (SELECT count(*)::int FROM product_variants pv WHERE pv.product_id = p.id AND pv.active) AS variant_count,
          coalesce(
            (SELECT im.url FROM product_images im WHERE im.product_id = p.id ORDER BY im.sort_order LIMIT 1),
@@ -152,6 +179,13 @@ const SELECT_PRODUCTS = `
   FROM products p
   JOIN product_variants v ON v.product_id = p.id AND v.is_default
   LEFT JOIN LATERAL (${ACTIVE_STOCK}) i ON true`;
+
+const SELECT_PRODUCTS = selectProducts();
+
+const SELECT_LIST_PRODUCTS = selectProducts(`
+         p.low_stock_threshold,
+         (SELECT min(pv.price_minor) FROM product_variants pv WHERE pv.product_id = p.id AND pv.active) AS min_price_minor,
+         (SELECT max(pv.price_minor) FROM product_variants pv WHERE pv.product_id = p.id AND pv.active) AS max_price_minor,`);
 
 /** Public product ids look like p13, c088, x1a2b3c4d or base-remera (same shape as the products.legacy_id values); anything else never reaches SQL. */
 const PRODUCT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
@@ -347,10 +381,10 @@ export function createAdminRepository(sql: QueryFn) {
       const pages = Math.max(1, Math.ceil(total / pageSize));
       const page = Math.min(search.page, pages);
       const rows = (await sql.query(
-        `${SELECT_PRODUCTS} ${where} ORDER BY ${SORTS[search.sort]} LIMIT $11::int OFFSET $12::int`,
+        `${SELECT_LIST_PRODUCTS} ${where} ORDER BY ${SORTS[search.sort]} LIMIT $11::int OFFSET $12::int`,
         [...params, pageSize, (page - 1) * pageSize],
-      )) as ProductRow[];
-      return { items: rows.map(toProduct), total, page, pageSize, pages };
+      )) as ProductListRow[];
+      return { items: rows.map(toListItem), total, page, pageSize, pages };
     },
 
     async productFacets(): Promise<ProductFacets> {

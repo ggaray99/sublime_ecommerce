@@ -5,7 +5,7 @@ import { parseOptionDefinitions } from "../admin/variants.ts";
 import { updateInputOf } from "../admin/product-changes.ts";
 import { parseProductSearch, type ProductSearch } from "../admin/product-search.ts";
 import { AdminDataError, createAdminRepository, productChanges, type Admin, type AdminProduct } from "../admin/repository.ts";
-import { MAX_PRICE_MINOR, parseProductCreate, parseProductUpdate, parseStockCount, type ProductUpdateInput } from "../admin/validation.ts";
+import { MAX_PRICE_MINOR, parseProductCreate, parseProductUpdate, parseStockCount } from "../admin/validation.ts";
 import type { QueryFn } from "../customers/repository.ts";
 import { createApiKeyRepository, hashRequest, integrationActor, RATE_LIMIT, type ApiScope } from "./keys.ts";
 import { OPENAPI_SPEC } from "./openapi.ts";
